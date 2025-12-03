@@ -18,9 +18,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 COPY pyproject.toml ./
 COPY src/ ./src/
 COPY component_config/ ./component_config/
+COPY tests/ ./tests/
 
-# Install dependencies
-RUN uv pip install --system --no-cache .
+# Install dependencies (including dev dependencies for testing)
+RUN uv pip install --system --no-cache ".[dev]"
 
 # Set working directory to src
 WORKDIR /code/src
