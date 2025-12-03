@@ -1,0 +1,35 @@
+[project]
+name = "component-ex-sap-odata"
+version = "0.1.0"
+description = "SAP OData Extractor for Keboola - supports both OData V2 and V4 protocols"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "keboola-component>=1.6.10",
+    "keboola-csvwriter>=1.0.1",
+    "keboola-http-client>=0.2.0",
+    "pydantic>=2.0",
+    "lxml>=5.0.0",
+    "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.4.0",
+    "freezegun>=1.5.0",
+    "responses>=0.25.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

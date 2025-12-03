@@ -1,0 +1,88 @@
+{
+  "type": "object",
+  "title": "SAP OData Configuration",
+  "required": ["service_url", "auth_type"],
+  "properties": {
+    "service_url": {
+      "type": "string",
+      "title": "OData Service URL",
+      "description": "Base URL of the OData service (e.g., https://sap-server/sap/opu/odata/sap/API_BUSINESS_PARTNER)",
+      "propertyOrder": 1
+    },
+    "odata_version": {
+      "type": "string",
+      "title": "OData Version",
+      "enum": ["auto", "v2", "v4"],
+      "default": "auto",
+      "description": "OData protocol version. Use 'auto' for automatic detection.",
+      "propertyOrder": 2
+    },
+    "auth_type": {
+      "type": "string",
+      "title": "Authentication Type",
+      "enum": ["basic", "oauth"],
+      "enum_titles": ["Username & Password", "OAuth 2.0"],
+      "default": "basic",
+      "propertyOrder": 3
+    },
+    "username": {
+      "type": "string",
+      "title": "Username",
+      "propertyOrder": 4
+    },
+    "#password": {
+      "type": "string",
+      "title": "Password",
+      "format": "password",
+      "propertyOrder": 5
+    },
+    "timeout": {
+      "type": "integer",
+      "title": "Request Timeout (seconds)",
+      "default": 60,
+      "propertyOrder": 6
+    },
+    "max_retries": {
+      "type": "integer",
+      "title": "Max Retries",
+      "default": 3,
+      "propertyOrder": 7
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "title": "Verify SSL Certificates",
+      "default": true,
+      "propertyOrder": 8
+    },
+    "test_connection": {
+      "type": "button",
+      "format": "test-connection",
+      "propertyOrder": 100,
+      "options": {
+        "async": {
+          "label": "Test Connection",
+          "action": "testConnection"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "auth_type": {
+      "oneOf": [
+        {
+          "properties": {
+            "auth_type": {"enum": ["basic"]},
+            "username": {"type": "string"},
+            "#password": {"type": "string"}
+          },
+          "required": ["username", "#password"]
+        },
+        {
+          "properties": {
+            "auth_type": {"enum": ["oauth"]}
+          }
+        }
+      ]
+    }
+  }
+}

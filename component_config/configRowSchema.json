@@ -1,0 +1,145 @@
+{
+  "type": "object",
+  "title": "Entity Configuration",
+  "required": ["entity_set"],
+  "properties": {
+    "entity_set": {
+      "type": "string",
+      "title": "Entity Set",
+      "format": "select",
+      "propertyOrder": 1,
+      "options": {
+        "async": {
+          "label": "Load Entity Sets",
+          "action": "loadEntities",
+          "autoload": true,
+          "cache": true
+        }
+      }
+    },
+    "output_table_name": {
+      "type": "string",
+      "title": "Output Table Name",
+      "description": "Name of the output table in Keboola Storage. If empty, entity set name will be used.",
+      "propertyOrder": 2
+    },
+    "select_fields": {
+      "type": "array",
+      "title": "Select Fields",
+      "format": "select",
+      "propertyOrder": 3,
+      "items": {
+        "type": "string"
+      },
+      "options": {
+        "async": {
+          "label": "Load Fields",
+          "action": "loadFields"
+        }
+      }
+    },
+    "filter_expression": {
+      "type": "string",
+      "title": "Filter Expression",
+      "description": "OData $filter expression (e.g., Status eq 'Active' and CreatedAt gt 2024-01-01)",
+      "format": "textarea",
+      "propertyOrder": 4
+    },
+    "validate_filter": {
+      "type": "button",
+      "title": "Validate Filter",
+      "format": "sync-action",
+      "propertyOrder": 5,
+      "options": {
+        "async": {
+          "label": "Validate Filter",
+          "action": "validateFilter"
+        }
+      }
+    },
+    "expand_properties": {
+      "type": "array",
+      "title": "Expand Navigation Properties",
+      "format": "select",
+      "propertyOrder": 6,
+      "items": {
+        "type": "string"
+      },
+      "options": {
+        "async": {
+          "label": "Load Navigation Properties",
+          "action": "loadNavigationProperties"
+        }
+      }
+    },
+    "order_by": {
+      "type": "string",
+      "title": "Order By",
+      "description": "Field name for ordering (e.g., CreatedAt desc)",
+      "propertyOrder": 7
+    },
+    "sync_type": {
+      "type": "string",
+      "title": "Sync Type",
+      "enum": ["full", "incremental"],
+      "enum_titles": ["Full Sync", "Incremental Sync"],
+      "default": "full",
+      "propertyOrder": 8
+    },
+    "incremental_field": {
+      "type": "string",
+      "title": "Incremental Field",
+      "description": "Field used for incremental sync (e.g., LastChangedAt)",
+      "format": "select",
+      "propertyOrder": 9,
+      "options": {
+        "async": {
+          "label": "Load Incremental Fields",
+          "action": "loadIncrementalFields"
+        }
+      }
+    },
+    "primary_key": {
+      "type": "array",
+      "title": "Primary Key",
+      "description": "Fields that form the primary key",
+      "format": "select",
+      "propertyOrder": 10,
+      "items": {
+        "type": "string"
+      },
+      "options": {
+        "async": {
+          "label": "Load Primary Keys",
+          "action": "loadPossiblePrimaryKeys"
+        }
+      }
+    },
+    "page_size": {
+      "type": "integer",
+      "title": "Page Size",
+      "default": 1000,
+      "description": "Number of records per page",
+      "propertyOrder": 11
+    },
+    "max_records": {
+      "type": "integer",
+      "title": "Max Records",
+      "description": "Maximum number of records to fetch (0 = unlimited)",
+      "default": 0,
+      "propertyOrder": 12
+    },
+    "preview_data": {
+      "type": "button",
+      "title": "Preview Data",
+      "format": "sync-action",
+      "propertyOrder": 100,
+      "options": {
+        "async": {
+          "label": "Preview Data (10 records)",
+          "action": "previewData"
+        }
+      }
+    }
+  }
+}

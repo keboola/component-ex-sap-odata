@@ -1,0 +1,88 @@
+from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+
+class AuthType(str, Enum):
+    BASIC = "basic"
+    OAUTH = "oauth"
+
+
+class ODataVersionChoice(str, Enum):
+    AUTO = "auto"
+    V2 = "v2"
+    V4 = "v4"
+
+
+class SyncType(str, Enum):
+    FULL = "full"
+    INCREMENTAL = "incremental"
+
+
+class RowConfiguration(BaseModel):
+    entity_set: str = Field(description="Name of the OData EntitySet to extract")
+    output_table_name: str | None = Field(default=None, description="Name of the output table in Keboola Storage")
+    select_fields: list[str] = Field(default_factory=list, description="Fields to select ($select)")
+    filter_expression: str | None = Field(default=None, description="OData $filter expression")
+    expand_properties: list[str] = Field(default_factory=list, description="Navigation properties to expand ($expand)")
+    order_by: str | None = Field(default=None, description="Field for ordering ($orderby)")
+    sync_type: SyncType = Field(default=SyncType.FULL, description="Sync type: full or incremental")
+    incremental_field: str | None = Field(default=None, description="Field used for incremental sync")
+    primary_key: list[str] = Field(default_factory=list, description="Primary key fields")
+    page_size: int = Field(default=1000, description="Number of records per page")
+    max_records: int = Field(default=0, description="Maximum records to fetch (0 = unlimited)")
+
+    def get_output_table_name(self) -> str:
+        return self.output_table_name or self.entity_set
+
+
+class Configuration(BaseModel):
+    service_url: str = Field(description="Base URL of the OData service")
+    odata_version: ODataVersionChoice = Field(
+        default=ODataVersionChoice.AUTO, description="OData protocol version (auto, v2, v4)"
+    )
+    auth_type: AuthType = Field(default=AuthType.BASIC, description="Authentication type")
+    username: str | None = Field(default=None, description="Username for basic authentication")
+    password: str | None = Field(default=None, alias="#password", description="Password for basic authentication")
+    timeout: int = Field(default=60, description="Request timeout in seconds")
+    max_retries: int = Field(default=3, description="Maximum number of retries for failed requests")
+    verify_ssl: bool = Field(default=True, description="Verify SSL certificates")
+
+    rows: list[RowConfiguration] = Field(default_factory=list, description="Row configurations for entity extraction")
+
+    def model_post_init(self, __context: Any) -> None:
+        if self.auth_type == AuthType.BASIC:
+            if not self.username:
+                raise ValueError("Username is required for basic authentication")
+            if not self.password:
+                raise ValueError("Password is required for basic authentication")
+
+
+class StateEntry(BaseModel):
+    last_sync_timestamp: str | None = None
+    last_incremental_value: str | None = None
+    records_synced: int = 0
+
+
+class ComponentState(BaseModel):
+    entity_states: dict[str, StateEntry] = Field(default_factory=dict)
+
+    def get_entity_state(self, entity_set: str) -> StateEntry:
+        if entity_set not in self.entity_states:
+            self.entity_states[entity_set] = StateEntry()
+        return self.entity_states[entity_set]
+
+    def update_entity_state(
+        self,
+        entity_set: str,
+        last_sync_timestamp: str | None = None,
+        last_incremental_value: str | None = None,
+        records_synced: int = 0,
+    ) -> None:
+        state = self.get_entity_state(entity_set)
+        if last_sync_timestamp:
+            state.last_sync_timestamp = last_sync_timestamp
+        if last_incremental_value:
+            state.last_incremental_value = last_incremental_value
+        state.records_synced = records_synced

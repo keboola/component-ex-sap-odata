@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="1.0" xmlns:edmx="http://schemas.microsoft.com/ado/2007/06/edmx">
+  <edmx:DataServices m:DataServiceVersion="2.0" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata">
+    <Schema Namespace="SAP" xmlns="http://schemas.microsoft.com/ado/2008/09/edm">
+      <EntityType Name="BusinessPartner">
+        <Key>
+          <PropertyRef Name="BusinessPartner"/>
+        </Key>
+        <Property Name="BusinessPartner" Type="Edm.String" Nullable="false" MaxLength="10"/>
+        <Property Name="BusinessPartnerName" Type="Edm.String" MaxLength="80"/>
+        <Property Name="CreatedAt" Type="Edm.DateTime"/>
+        <Property Name="LastChangedAt" Type="Edm.DateTimeOffset"/>
+        <Property Name="IsActive" Type="Edm.Boolean"/>
+        <Property Name="Revenue" Type="Edm.Decimal" Precision="15" Scale="2"/>
+        <NavigationProperty Name="to_Address" Relationship="SAP.BusinessPartnerToAddress" FromRole="BusinessPartner" ToRole="Address"/>
+      </EntityType>
+      <EntityType Name="Address">
+        <Key>
+          <PropertyRef Name="AddressID"/>
+        </Key>
+        <Property Name="AddressID" Type="Edm.String" Nullable="false" MaxLength="10"/>
+        <Property Name="BusinessPartner" Type="Edm.String" MaxLength="10"/>
+        <Property Name="Street" Type="Edm.String" MaxLength="60"/>
+        <Property Name="City" Type="Edm.String" MaxLength="40"/>
+        <Property Name="Country" Type="Edm.String" MaxLength="3"/>
+      </EntityType>
+      <Association Name="BusinessPartnerToAddress">
+        <End Type="SAP.BusinessPartner" Multiplicity="1" Role="BusinessPartner"/>
+        <End Type="SAP.Address" Multiplicity="*" Role="Address"/>
+      </Association>
+      <EntityContainer Name="SAP_Container" m:IsDefaultEntityContainer="true">
+        <EntitySet Name="BusinessPartnerSet" EntityType="SAP.BusinessPartner"/>
+        <EntitySet Name="AddressSet" EntityType="SAP.Address"/>
+        <AssociationSet Name="BusinessPartnerToAddressSet" Association="SAP.BusinessPartnerToAddress">
+          <End EntitySet="BusinessPartnerSet" Role="BusinessPartner"/>
+          <End EntitySet="AddressSet" Role="Address"/>
+        </AssociationSet>
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>

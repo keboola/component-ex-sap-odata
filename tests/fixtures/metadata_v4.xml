@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+  <edmx:DataServices>
+    <Schema Namespace="SAP.API" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+      <EntityType Name="Product">
+        <Key>
+          <PropertyRef Name="ProductID"/>
+        </Key>
+        <Property Name="ProductID" Type="Edm.String" Nullable="false" MaxLength="40"/>
+        <Property Name="ProductName" Type="Edm.String" MaxLength="100"/>
+        <Property Name="Description" Type="Edm.String"/>
+        <Property Name="Price" Type="Edm.Decimal" Precision="15" Scale="2"/>
+        <Property Name="CreatedAt" Type="Edm.DateTimeOffset"/>
+        <Property Name="ModifiedAt" Type="Edm.DateTimeOffset"/>
+        <Property Name="IsAvailable" Type="Edm.Boolean"/>
+        <NavigationProperty Name="Category" Type="SAP.API.Category"/>
+        <NavigationProperty Name="Suppliers" Type="Collection(SAP.API.Supplier)"/>
+      </EntityType>
+      <EntityType Name="Category">
+        <Key>
+          <PropertyRef Name="CategoryID"/>
+        </Key>
+        <Property Name="CategoryID" Type="Edm.String" Nullable="false" MaxLength="20"/>
+        <Property Name="CategoryName" Type="Edm.String" MaxLength="50"/>
+      </EntityType>
+      <EntityType Name="Supplier">
+        <Key>
+          <PropertyRef Name="SupplierID"/>
+        </Key>
+        <Property Name="SupplierID" Type="Edm.String" Nullable="false" MaxLength="20"/>
+        <Property Name="SupplierName" Type="Edm.String" MaxLength="100"/>
+        <Property Name="Country" Type="Edm.String" MaxLength="3"/>
+      </EntityType>
+      <EntityContainer Name="Container">
+        <EntitySet Name="Products" EntityType="SAP.API.Product">
+          <NavigationPropertyBinding Path="Category" Target="Categories"/>
+          <NavigationPropertyBinding Path="Suppliers" Target="Suppliers"/>
+        </EntitySet>
+        <EntitySet Name="Categories" EntityType="SAP.API.Category"/>
+        <EntitySet Name="Suppliers" EntityType="SAP.API.Supplier"/>
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>
