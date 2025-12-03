@@ -29,10 +29,7 @@ class Component(ComponentBase):
 
     @property
     def config(self) -> Configuration:
-        params = dict(self.configuration.parameters)
-        if "#password" in params:
-            params["password"] = params.pop("#password")
-        return Configuration(**params)
+        return Configuration(**self.configuration.parameters)
 
     def _build_client(self) -> ODataClientBase:
         if self._client is not None:
