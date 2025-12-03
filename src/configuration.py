@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 class AuthType(str, Enum):
     BASIC = "basic"
     OAUTH = "oauth"
+    API_KEY = "apiKey"
 
 
 class ODataVersionChoice(str, Enum):
@@ -45,6 +46,8 @@ class Configuration(BaseModel):
     auth_type: AuthType = Field(default=AuthType.BASIC, description="Authentication type")
     username: str | None = Field(default=None, description="Username for basic authentication")
     password: str | None = Field(default=None, alias="#password", description="Password for basic authentication")
+    api_key: str | None = Field(default=None, alias="#api_key", description="API key for API key authentication")
+    api_key_header_name: str = Field(default="APIKey", description="HTTP header name for the API key")
     timeout: int = Field(default=60, description="Request timeout in seconds")
     max_retries: int = Field(default=3, description="Maximum number of retries for failed requests")
     verify_ssl: bool = Field(default=True, description="Verify SSL certificates")
@@ -57,6 +60,9 @@ class Configuration(BaseModel):
                 raise ValueError("Username is required for basic authentication")
             if not self.password:
                 raise ValueError("Password is required for basic authentication")
+        elif self.auth_type == AuthType.API_KEY:
+            if not self.api_key:
+                raise ValueError("API key is required for API key authentication")
 
 
 class StateEntry(BaseModel):

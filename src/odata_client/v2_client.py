@@ -49,7 +49,6 @@ class ODataV2Client(ODataClientBase):
         top: int | None = None,
         skip: int | None = None,
     ) -> Iterator[dict[str, Any]]:
-        url = f"{self.base_url}/{entity_set}"
         params = self._build_query_params(
             select=select,
             filter_expr=filter_expr,
@@ -59,8 +58,7 @@ class ODataV2Client(ODataClientBase):
             skip=skip,
         )
 
-        response = self._make_request("GET", url, params=params)
-        data = response.json()
+        data = self._get_json(endpoint_path=entity_set, params=params)
 
         results = data.get("d", {})
         if isinstance(results, dict):
@@ -79,7 +77,8 @@ class ODataV2Client(ODataClientBase):
         page_size: int = 1000,
         max_records: int | None = None,
     ) -> Iterator[dict[str, Any]]:
-        url = f"{self.base_url}/{entity_set}"
+        endpoint_path = entity_set
+        is_absolute = False
         params = self._build_query_params(
             select=select,
             filter_expr=filter_expr,
@@ -90,12 +89,15 @@ class ODataV2Client(ODataClientBase):
 
         total_fetched = 0
 
-        while url:
+        while endpoint_path:
             if max_records and total_fetched >= max_records:
                 break
 
-            response = self._make_request("GET", url, params=params if not url.startswith("http") else None)
-            data = response.json()
+            data = self._get_json(
+                endpoint_path=endpoint_path,
+                params=params if not is_absolute else None,
+                is_absolute_path=is_absolute,
+            )
 
             results = data.get("d", {})
             next_link = None
@@ -111,7 +113,8 @@ class ODataV2Client(ODataClientBase):
                 total_fetched += 1
 
             if next_link:
-                url = next_link
+                endpoint_path = next_link
+                is_absolute = True
                 params = None
                 logging.debug(f"Following __next link, fetched {total_fetched} records so far")
             else:
@@ -120,14 +123,14 @@ class ODataV2Client(ODataClientBase):
         logging.info(f"Finished fetching {total_fetched} records from {entity_set}")
 
     def get_record_count(self, entity_set: str, filter_expr: str | None = None) -> int | None:
-        url = f"{self.base_url}/{entity_set}/$count"
+        endpoint_path = f"{entity_set}/$count"
         params = {"$format": "json"}
         if filter_expr:
             params["$filter"] = filter_expr
 
         try:
-            response = self._make_request("GET", url, params=params)
-            return int(response.text.strip())
+            response_text = self._get_raw(endpoint_path=endpoint_path, params=params)
+            return int(response_text.strip())
         except Exception as e:
             logging.warning(f"Failed to get record count: {e}")
             return None

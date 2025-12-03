@@ -20,8 +20,8 @@
     "auth_type": {
       "type": "string",
       "title": "Authentication Type",
-      "enum": ["basic", "oauth"],
-      "enum_titles": ["Username & Password", "OAuth 2.0"],
+      "enum": ["basic", "oauth", "apiKey"],
+      "enum_titles": ["Username & Password", "OAuth 2.0", "API Key"],
       "default": "basic",
       "propertyOrder": 3
     },
@@ -36,23 +36,36 @@
       "format": "password",
       "propertyOrder": 5
     },
+    "#api_key": {
+      "type": "string",
+      "title": "API Key",
+      "format": "password",
+      "propertyOrder": 6
+    },
+    "api_key_header_name": {
+      "type": "string",
+      "title": "API Key Header Name",
+      "default": "APIKey",
+      "description": "HTTP header name for the API key (e.g., APIKey, X-API-Key, Authorization)",
+      "propertyOrder": 7
+    },
     "timeout": {
       "type": "integer",
       "title": "Request Timeout (seconds)",
       "default": 60,
-      "propertyOrder": 6
+      "propertyOrder": 8
     },
     "max_retries": {
       "type": "integer",
       "title": "Max Retries",
       "default": 3,
-      "propertyOrder": 7
+      "propertyOrder": 9
     },
     "verify_ssl": {
       "type": "boolean",
       "title": "Verify SSL Certificates",
       "default": true,
-      "propertyOrder": 8
+      "propertyOrder": 10
     },
     "test_connection": {
       "type": "button",
@@ -81,6 +94,14 @@
           "properties": {
             "auth_type": {"enum": ["oauth"]}
           }
+        },
+        {
+          "properties": {
+            "auth_type": {"enum": ["apiKey"]},
+            "#api_key": {"type": "string"},
+            "api_key_header_name": {"type": "string"}
+          },
+          "required": ["#api_key"]
         }
       ]
     }

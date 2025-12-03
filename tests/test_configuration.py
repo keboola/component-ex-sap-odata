@@ -38,6 +38,35 @@ class TestConfiguration:
         assert config.username is None
         assert config.password is None
 
+    def test_api_key_configuration(self) -> None:
+        config = Configuration(
+            service_url="https://example.com/odata",
+            auth_type=AuthType.API_KEY,
+            **{"#api_key": "my-secret-api-key"},
+        )
+
+        assert config.auth_type == AuthType.API_KEY
+        assert config.api_key == "my-secret-api-key"
+        assert config.api_key_header_name == "APIKey"
+
+    def test_api_key_with_custom_header_name(self) -> None:
+        config = Configuration(
+            service_url="https://example.com/odata",
+            auth_type=AuthType.API_KEY,
+            api_key_header_name="X-API-Key",
+            **{"#api_key": "my-secret-api-key"},
+        )
+
+        assert config.api_key == "my-secret-api-key"
+        assert config.api_key_header_name == "X-API-Key"
+
+    def test_api_key_auth_requires_api_key(self) -> None:
+        with pytest.raises(ValueError, match="API key is required"):
+            Configuration(
+                service_url="https://example.com/odata",
+                auth_type=AuthType.API_KEY,
+            )
+
     def test_basic_auth_requires_username(self) -> None:
         with pytest.raises(ValueError, match="Username is required"):
             Configuration(

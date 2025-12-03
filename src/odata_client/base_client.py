@@ -1,13 +1,13 @@
-import logging
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from typing import Any
 
-import requests
 from keboola.component.dao import OauthCredentials
 from keboola.component.exceptions import UserException
+from keboola.http_client import HttpClient
+from requests import HTTPError, RequestException, Timeout
 
-from odata_client.auth import AuthHandler, BasicAuthHandler, OAuthHandler
+from odata_client.auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler, OAuthHandler
 from odata_client.metadata import EntitySet, MetadataParser, ODataMetadata, ODataVersion
 
 
@@ -25,8 +25,15 @@ class ODataClientBase(ABC):
         self.timeout = timeout
         self.max_retries = max_retries
         self.verify_ssl = verify_ssl
-        self._session = requests.Session()
         self._metadata: ODataMetadata | None = None
+        self._client = HttpClient(
+            base_url=self.base_url + "/",
+            max_retries=max_retries,
+            backoff_factor=0.3,
+            status_forcelist=(500, 502, 503, 504),
+            default_http_header={"Accept": "application/json"},
+            auth_header=auth_handler.get_auth_headers(),
+        )
 
     @classmethod
     def from_oauth(
@@ -65,73 +72,100 @@ class ODataClientBase(ABC):
             verify_ssl=verify_ssl,
         )
 
-    def _make_request(
+    @classmethod
+    def from_api_key(
+        cls,
+        api_key: str,
+        header_name: str,
+        base_url: str,
+        timeout: int = 60,
+        max_retries: int = 3,
+        verify_ssl: bool = True,
+    ) -> "ODataClientBase":
+        auth_handler = ApiKeyAuthHandler(api_key, header_name)
+        return cls(
+            base_url=base_url,
+            auth_handler=auth_handler,
+            timeout=timeout,
+            max_retries=max_retries,
+            verify_ssl=verify_ssl,
+        )
+
+    def _get_json(
         self,
-        method: str,
-        url: str,
+        endpoint_path: str,
+        params: dict[str, Any] | None = None,
+        is_absolute_path: bool = False,
+    ) -> dict[str, Any]:
+        try:
+            return self._client.get(
+                endpoint_path=endpoint_path,
+                params=params,
+                is_absolute_path=is_absolute_path,
+                timeout=self.timeout,
+                verify=self.verify_ssl,
+            )
+        except HTTPError as e:
+            resp = getattr(e, "response", None)
+            code = resp.status_code if resp is not None else None
+            if code == 401:
+                raise UserException(f"Authentication failed: {e}") from e
+            if code == 403:
+                raise UserException(f"Access forbidden: {e}") from e
+            if code == 404:
+                raise UserException(f"Resource not found: {e}") from e
+            raise UserException(f"HTTP error: {e}") from e
+        except Timeout as e:
+            raise UserException(f"Request timeout after {self.timeout}s") from e
+        except RequestException as e:
+            raise UserException(f"Request failed: {e}") from e
+
+    def _get_raw(
+        self,
+        endpoint_path: str,
         params: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
-        json_data: dict[str, Any] | None = None,
-    ) -> requests.Response:
-        request_headers = self.auth_handler.get_auth_headers()
-        request_headers["Accept"] = "application/json"
-        if headers:
-            request_headers.update(headers)
-
-        for attempt in range(self.max_retries):
-            try:
-                response = self._session.request(
-                    method=method,
-                    url=url,
-                    params=params,
-                    headers=request_headers,
-                    json=json_data,
-                    timeout=self.timeout,
-                    verify=self.verify_ssl,
-                )
-                response.raise_for_status()
-                return response
-            except requests.exceptions.HTTPError as e:
-                if e.response is not None and e.response.status_code == 401:
-                    raise UserException(f"Authentication failed: {e}") from e
-                if e.response is not None and e.response.status_code == 403:
-                    raise UserException(f"Access forbidden: {e}") from e
-                if e.response is not None and e.response.status_code == 404:
-                    raise UserException(f"Resource not found: {e}") from e
-                if e.response is not None and e.response.status_code >= 500 and attempt < self.max_retries - 1:
-                    logging.warning(f"Server error (attempt {attempt + 1}/{self.max_retries}): {e}")
-                    continue
-                raise UserException(f"HTTP error: {e}") from e
-            except requests.exceptions.Timeout as e:
-                if attempt < self.max_retries - 1:
-                    logging.warning(f"Request timeout (attempt {attempt + 1}/{self.max_retries}): {e}")
-                    continue
-                raise UserException(f"Request timeout after {self.max_retries} attempts") from e
-            except requests.exceptions.RequestException as e:
-                raise UserException(f"Request failed: {e}") from e
-
-        raise UserException(f"Request failed after {self.max_retries} attempts")
+        is_absolute_path: bool = False,
+    ) -> str:
+        try:
+            response = self._client.get_raw(
+                endpoint_path=endpoint_path,
+                params=params,
+                headers=headers,
+                is_absolute_path=is_absolute_path,
+                timeout=self.timeout,
+                verify=self.verify_ssl,
+            )
+            response.raise_for_status()
+            return response.text
+        except HTTPError as e:
+            resp = getattr(e, "response", None)
+            code = resp.status_code if resp is not None else None
+            if code == 401:
+                raise UserException(f"Authentication failed: {e}") from e
+            if code == 403:
+                raise UserException(f"Access forbidden: {e}") from e
+            if code == 404:
+                raise UserException(f"Resource not found: {e}") from e
+            raise UserException(f"HTTP error: {e}") from e
+        except Timeout as e:
+            raise UserException(f"Request timeout after {self.timeout}s") from e
+        except RequestException as e:
+            raise UserException(f"Request failed: {e}") from e
 
     def get_metadata(self, force_refresh: bool = False) -> ODataMetadata:
         if self._metadata is not None and not force_refresh:
             return self._metadata
 
-        metadata_url = f"{self.base_url}/$metadata"
-        headers = self.auth_handler.get_auth_headers()
-        headers["Accept"] = "application/xml"
-
         try:
-            response = self._session.get(
-                metadata_url,
-                headers=headers,
-                timeout=self.timeout,
-                verify=self.verify_ssl,
+            metadata_text = self._get_raw(
+                endpoint_path="$metadata",
+                headers={"Accept": "application/xml"},
             )
-            response.raise_for_status()
-            self._metadata = MetadataParser.parse(response.text, self._get_odata_version())
+            self._metadata = MetadataParser.parse(metadata_text, self._get_odata_version())
             return self._metadata
-        except requests.exceptions.HTTPError as e:
-            raise UserException(f"Failed to fetch metadata: {e}") from e
+        except UserException:
+            raise
         except Exception as e:
             raise UserException(f"Failed to parse metadata: {e}") from e
 

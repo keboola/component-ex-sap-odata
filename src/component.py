@@ -49,6 +49,15 @@ class Component(ComponentBase):
                 max_retries=config.max_retries,
                 verify_ssl=config.verify_ssl,
             )
+        elif config.auth_type == AuthType.API_KEY:
+            self._client = client_class.from_api_key(
+                api_key=config.api_key or "",
+                header_name=config.api_key_header_name,
+                base_url=config.service_url,
+                timeout=config.timeout,
+                max_retries=config.max_retries,
+                verify_ssl=config.verify_ssl,
+            )
         else:
             self._client = client_class.from_basic_auth(
                 username=config.username or "",
@@ -75,24 +84,29 @@ class Component(ComponentBase):
         return self._detected_version
 
     def _detect_version_from_metadata(self, config: Configuration) -> ODataVersion:
-        import requests
+        from keboola.http_client import HttpClient
 
-        from odata_client.auth import BasicAuthHandler, OAuthHandler
+        from odata_client.auth import ApiKeyAuthHandler, BasicAuthHandler, OAuthHandler
 
         if config.auth_type == AuthType.OAUTH:
             oauth: OauthCredentials = self.configuration.oauth_credentials
             auth_handler = OAuthHandler(oauth)
+        elif config.auth_type == AuthType.API_KEY:
+            auth_handler = ApiKeyAuthHandler(config.api_key or "", config.api_key_header_name)
         else:
             auth_handler = BasicAuthHandler(config.username or "", config.password or "")
 
-        metadata_url = f"{config.service_url.rstrip('/')}/$metadata"
-        headers = auth_handler.get_auth_headers()
-        headers["Accept"] = "application/xml"
+        base_url = config.service_url.rstrip("/") + "/"
+        client = HttpClient(
+            base_url=base_url,
+            max_retries=config.max_retries,
+            auth_header=auth_handler.get_auth_headers(),
+        )
 
         try:
-            response = requests.get(
-                metadata_url,
-                headers=headers,
+            response = client.get_raw(
+                endpoint_path="$metadata",
+                headers={"Accept": "application/xml"},
                 timeout=config.timeout,
                 verify=config.verify_ssl,
             )
