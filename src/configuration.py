@@ -21,24 +21,14 @@ class SyncType(str, Enum):
     INCREMENTAL = "incremental"
 
 
-class RowConfiguration(BaseModel):
-    entity_set: str = Field(description="Name of the OData EntitySet to extract")
-    output_table_name: str | None = Field(default=None, description="Name of the output table in Keboola Storage")
-    select_fields: list[str] = Field(default_factory=list, description="Fields to select ($select)")
-    filter_expression: str | None = Field(default=None, description="OData $filter expression")
-    expand_properties: list[str] = Field(default_factory=list, description="Navigation properties to expand ($expand)")
-    order_by: str | None = Field(default=None, description="Field for ordering ($orderby)")
-    sync_type: SyncType = Field(default=SyncType.FULL, description="Sync type: full or incremental")
-    incremental_field: str | None = Field(default=None, description="Field used for incremental sync")
-    primary_key: list[str] = Field(default_factory=list, description="Primary key fields")
-    page_size: int = Field(default=1000, description="Number of records per page")
-    max_records: int = Field(default=0, description="Maximum records to fetch (0 = unlimited)")
-
-    def get_output_table_name(self) -> str:
-        return self.output_table_name or self.entity_set
-
-
 class Configuration(BaseModel):
+    """Configuration model that combines root config and row config fields.
+
+    In Keboola row mode, root config (service_url, auth, etc.) and row config
+    (entity_set, select_fields, etc.) are merged into a single parameters object.
+    """
+
+    # Root configuration fields (from configSchema.json)
     service_url: str = Field(description="Base URL of the OData service")
     odata_version: ODataVersionChoice = Field(
         default=ODataVersionChoice.AUTO, description="OData protocol version (auto, v2, v4)"
@@ -52,7 +42,18 @@ class Configuration(BaseModel):
     max_retries: int = Field(default=3, description="Maximum number of retries for failed requests")
     verify_ssl: bool = Field(default=True, description="Verify SSL certificates")
 
-    rows: list[RowConfiguration] = Field(default_factory=list, description="Row configurations for entity extraction")
+    # Row configuration fields (from configRowSchema.json)
+    entity_set: str | None = Field(default=None, description="Name of the OData EntitySet to extract")
+    output_table_name: str | None = Field(default=None, description="Name of the output table in Keboola Storage")
+    select_fields: list[str] = Field(default_factory=list, description="Fields to select ($select)")
+    filter_expression: str | None = Field(default=None, description="OData $filter expression")
+    expand_properties: list[str] = Field(default_factory=list, description="Navigation properties to expand ($expand)")
+    order_by: str | None = Field(default=None, description="Field for ordering ($orderby)")
+    sync_type: SyncType = Field(default=SyncType.FULL, description="Sync type: full or incremental")
+    incremental_field: str | None = Field(default=None, description="Field used for incremental sync")
+    primary_key: list[str] = Field(default_factory=list, description="Primary key fields")
+    page_size: int = Field(default=1000, description="Number of records per page")
+    max_records: int = Field(default=0, description="Maximum records to fetch (0 = unlimited)")
 
     def model_post_init(self, __context: Any) -> None:
         if self.auth_type == AuthType.BASIC:
@@ -63,6 +64,9 @@ class Configuration(BaseModel):
         elif self.auth_type == AuthType.API_KEY:
             if not self.api_key:
                 raise ValueError("API key is required for API key authentication")
+
+    def get_output_table_name(self) -> str:
+        return self.output_table_name or self.entity_set or "output"
 
 
 class StateEntry(BaseModel):

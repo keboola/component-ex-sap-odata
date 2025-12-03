@@ -12,7 +12,6 @@ from configuration import (
     ComponentState,
     Configuration,
     ODataVersionChoice,
-    RowConfiguration,
     SyncType,
 )
 from odata_client.base_client import ODataClientBase
@@ -24,18 +23,15 @@ from odata_client.v4_client import ODataV4Client
 class Component(ComponentBase):
     def __init__(self):
         super().__init__()
+        self._config = Configuration(**self.configuration.parameters)
         self._client: ODataClientBase | None = None
         self._detected_version: ODataVersion | None = None
-
-    @property
-    def config(self) -> Configuration:
-        return Configuration(**self.configuration.parameters)
 
     def _build_client(self) -> ODataClientBase:
         if self._client is not None:
             return self._client
 
-        config = self.config
+        config = self._config
         version = self._detect_or_get_version(config)
 
         client_class = ODataV4Client if version == ODataVersion.V4 else ODataV2Client
@@ -119,52 +115,41 @@ class Component(ComponentBase):
     def run(self) -> None:
         logging.info("Starting SAP OData extraction")
 
-        state = self._load_state()
-
-        row_configs = self._get_row_configurations()
-        if not row_configs:
-            logging.warning("No row configurations found, nothing to extract")
+        if not self._config.entity_set:
+            logging.warning("No entity_set configured, nothing to extract")
             return
 
-        for row_config in row_configs:
-            try:
-                self._extract_entity(row_config, state)
-            except Exception as e:
-                logging.error(f"Failed to extract entity {row_config.entity_set}: {e}")
-                raise UserException(f"Failed to extract entity {row_config.entity_set}: {e}") from e
+        state = self._load_state()
+
+        try:
+            self._extract_entity(state)
+        except Exception as e:
+            logging.error(f"Failed to extract entity {self._config.entity_set}: {e}")
+            raise UserException(f"Failed to extract entity {self._config.entity_set}: {e}") from e
 
         self._save_state(state)
         logging.info("SAP OData extraction completed")
 
-    def _get_row_configurations(self) -> list[RowConfiguration]:
-        rows = self.configuration.parameters.get("rows", [])
-        if not rows:
-            if "entity_set" in self.configuration.parameters:
-                return [RowConfiguration(**self.configuration.parameters)]
-            return []
-
-        return [RowConfiguration(**row) for row in rows]
-
-    def _extract_entity(self, row_config: RowConfiguration, state: ComponentState) -> None:
-        logging.info(f"Extracting entity: {row_config.entity_set}")
+    def _extract_entity(self, state: ComponentState) -> None:
+        logging.info(f"Extracting entity: {self._config.entity_set}")
 
         client = self._build_client()
-        entity_state = state.get_entity_state(row_config.entity_set)
+        entity_state = state.get_entity_state(self._config.entity_set or "")
 
-        filter_expr = row_config.filter_expression
+        filter_expr = self._config.filter_expression
         if (
-            row_config.sync_type == SyncType.INCREMENTAL
-            and row_config.incremental_field
+            self._config.sync_type == SyncType.INCREMENTAL
+            and self._config.incremental_field
             and entity_state.last_incremental_value
         ):
-            incremental_filter = f"{row_config.incremental_field} gt '{entity_state.last_incremental_value}'"
+            incremental_filter = f"{self._config.incremental_field} gt '{entity_state.last_incremental_value}'"
             filter_expr = f"({filter_expr}) and ({incremental_filter})" if filter_expr else incremental_filter
 
-        output_table_name = row_config.get_output_table_name()
+        output_table_name = self._config.get_output_table_name()
         table_def = self.create_out_table_definition(
             f"{output_table_name}.csv",
-            primary_key=row_config.primary_key if row_config.primary_key else None,
-            incremental=row_config.sync_type == SyncType.INCREMENTAL,
+            primary_key=self._config.primary_key if self._config.primary_key else None,
+            incremental=self._config.sync_type == SyncType.INCREMENTAL,
         )
 
         records_count = 0
@@ -172,15 +157,15 @@ class Component(ComponentBase):
         writer: ElasticDictWriter | None = None
 
         try:
-            max_records = row_config.max_records if row_config.max_records > 0 else None
+            max_records = self._config.max_records if self._config.max_records > 0 else None
 
             for record in client.fetch_with_pagination(
-                entity_set=row_config.entity_set,
-                select=row_config.select_fields if row_config.select_fields else None,
+                entity_set=self._config.entity_set or "",
+                select=self._config.select_fields if self._config.select_fields else None,
                 filter_expr=filter_expr,
-                expand=row_config.expand_properties if row_config.expand_properties else None,
-                order_by=row_config.order_by,
-                page_size=row_config.page_size,
+                expand=self._config.expand_properties if self._config.expand_properties else None,
+                order_by=self._config.order_by,
+                page_size=self._config.page_size,
                 max_records=max_records,
             ):
                 if writer is None:
@@ -191,13 +176,13 @@ class Component(ComponentBase):
                 writer.writerow(flat_record)
                 records_count += 1
 
-                if row_config.incremental_field and row_config.incremental_field in flat_record:
-                    value = flat_record[row_config.incremental_field]
+                if self._config.incremental_field and self._config.incremental_field in flat_record:
+                    value = flat_record[self._config.incremental_field]
                     if value and (last_incremental_value is None or str(value) > str(last_incremental_value)):
                         last_incremental_value = str(value)
 
                 if records_count % 10000 == 0:
-                    logging.info(f"Extracted {records_count} records from {row_config.entity_set}")
+                    logging.info(f"Extracted {records_count} records from {self._config.entity_set}")
 
         finally:
             if writer is not None:
@@ -208,13 +193,13 @@ class Component(ComponentBase):
             self.write_manifest(table_def)
 
         state.update_entity_state(
-            entity_set=row_config.entity_set,
+            entity_set=self._config.entity_set or "",
             last_sync_timestamp=datetime.now(UTC).isoformat(),
             last_incremental_value=last_incremental_value,
             records_synced=records_count,
         )
 
-        logging.info(f"Extracted {records_count} records from {row_config.entity_set}")
+        logging.info(f"Extracted {records_count} records from {self._config.entity_set}")
 
     def _flatten_record(self, record: dict[str, Any], prefix: str = "") -> dict[str, Any]:
         flat = {}
@@ -267,12 +252,11 @@ class Component(ComponentBase):
     @sync_action("loadFields")
     def load_fields(self) -> list[dict[str, str]]:
         try:
-            entity_set = self.configuration.parameters.get("entity_set")
-            if not entity_set:
+            if not self._config.entity_set:
                 return []
 
             client = self._build_client()
-            fields = client.list_fields(entity_set)
+            fields = client.list_fields(self._config.entity_set)
             return [{"value": f.name, "label": f"{f.name} ({f.edm_type})"} for f in fields]
         except Exception as e:
             logging.error(f"Failed to load fields: {e}")
@@ -281,13 +265,12 @@ class Component(ComponentBase):
     @sync_action("loadPossiblePrimaryKeys")
     def load_possible_primary_keys(self) -> list[dict[str, str]]:
         try:
-            entity_set = self.configuration.parameters.get("entity_set")
-            if not entity_set:
+            if not self._config.entity_set:
                 return []
 
             client = self._build_client()
             metadata = client.get_metadata()
-            entity = metadata.get_entity_set(entity_set)
+            entity = metadata.get_entity_set(self._config.entity_set)
             if entity is None:
                 return []
 
@@ -299,12 +282,11 @@ class Component(ComponentBase):
     @sync_action("loadIncrementalFields")
     def load_incremental_fields(self) -> list[dict[str, str]]:
         try:
-            entity_set = self.configuration.parameters.get("entity_set")
-            if not entity_set:
+            if not self._config.entity_set:
                 return []
 
             client = self._build_client()
-            fields = client.list_fields(entity_set)
+            fields = client.list_fields(self._config.entity_set)
 
             datetime_types = {"Edm.DateTime", "Edm.DateTimeOffset"}
             incremental_patterns = [
@@ -350,13 +332,12 @@ class Component(ComponentBase):
     @sync_action("loadNavigationProperties")
     def load_navigation_properties(self) -> list[dict[str, str]]:
         try:
-            entity_set = self.configuration.parameters.get("entity_set")
-            if not entity_set:
+            if not self._config.entity_set:
                 return []
 
             client = self._build_client()
             metadata = client.get_metadata()
-            entity = metadata.get_entity_set(entity_set)
+            entity = metadata.get_entity_set(self._config.entity_set)
             if entity is None:
                 return []
 
@@ -370,21 +351,17 @@ class Component(ComponentBase):
     @sync_action("previewData")
     def preview_data(self) -> dict[str, Any]:
         try:
-            entity_set = self.configuration.parameters.get("entity_set")
-            if not entity_set:
+            if not self._config.entity_set:
                 return {"status": "error", "message": "No entity set selected"}
 
             client = self._build_client()
-            select_fields = self.configuration.parameters.get("select_fields")
-            filter_expr = self.configuration.parameters.get("filter_expression")
-            expand_props = self.configuration.parameters.get("expand_properties")
 
             data = list(
                 client.fetch_entity_set(
-                    entity_set=entity_set,
-                    select=select_fields if select_fields else None,
-                    filter_expr=filter_expr,
-                    expand=expand_props if expand_props else None,
+                    entity_set=self._config.entity_set,
+                    select=self._config.select_fields if self._config.select_fields else None,
+                    filter_expr=self._config.filter_expression,
+                    expand=self._config.expand_properties if self._config.expand_properties else None,
                     top=10,
                 )
             )
@@ -400,19 +377,16 @@ class Component(ComponentBase):
     @sync_action("validateFilter")
     def validate_filter(self) -> dict[str, Any]:
         try:
-            entity_set = self.configuration.parameters.get("entity_set")
-            filter_expr = self.configuration.parameters.get("filter_expression")
-
-            if not entity_set:
+            if not self._config.entity_set:
                 return {"status": "error", "message": "No entity set selected"}
-            if not filter_expr:
+            if not self._config.filter_expression:
                 return {"status": "success", "message": "No filter to validate"}
 
             client = self._build_client()
             list(
                 client.fetch_entity_set(
-                    entity_set=entity_set,
-                    filter_expr=filter_expr,
+                    entity_set=self._config.entity_set,
+                    filter_expr=self._config.filter_expression,
                     top=1,
                 )
             )

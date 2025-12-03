@@ -5,7 +5,6 @@ from configuration import (
     ComponentState,
     Configuration,
     ODataVersionChoice,
-    RowConfiguration,
     StateEntry,
     SyncType,
 )
@@ -108,20 +107,31 @@ class TestConfiguration:
             assert config.odata_version == version
 
 
-class TestRowConfiguration:
-    def test_basic_row_configuration(self) -> None:
-        row = RowConfiguration(entity_set="Products")
+class TestConfigurationWithRowFields:
+    """Tests for row configuration fields merged into Configuration."""
 
-        assert row.entity_set == "Products"
-        assert row.output_table_name is None
-        assert row.select_fields == []
-        assert row.filter_expression is None
-        assert row.sync_type == SyncType.FULL
-        assert row.page_size == 1000
-        assert row.max_records == 0
+    def test_configuration_with_entity_set(self) -> None:
+        config = Configuration(
+            service_url="https://example.com/odata",
+            auth_type=AuthType.BASIC,
+            username="user",
+            entity_set="Products",
+            **{"#password": "pass"},
+        )
 
-    def test_full_row_configuration(self) -> None:
-        row = RowConfiguration(
+        assert config.entity_set == "Products"
+        assert config.output_table_name is None
+        assert config.select_fields == []
+        assert config.filter_expression is None
+        assert config.sync_type == SyncType.FULL
+        assert config.page_size == 1000
+        assert config.max_records == 0
+
+    def test_full_configuration_with_row_fields(self) -> None:
+        config = Configuration(
+            service_url="https://example.com/odata",
+            auth_type=AuthType.BASIC,
+            username="user",
             entity_set="Products",
             output_table_name="my_products",
             select_fields=["ProductID", "ProductName"],
@@ -133,30 +143,48 @@ class TestRowConfiguration:
             primary_key=["ProductID"],
             page_size=500,
             max_records=10000,
+            **{"#password": "pass"},
         )
 
-        assert row.entity_set == "Products"
-        assert row.output_table_name == "my_products"
-        assert row.select_fields == ["ProductID", "ProductName"]
-        assert row.filter_expression == "IsActive eq true"
-        assert row.expand_properties == ["Category"]
-        assert row.order_by == "ProductName asc"
-        assert row.sync_type == SyncType.INCREMENTAL
-        assert row.incremental_field == "ModifiedAt"
-        assert row.primary_key == ["ProductID"]
-        assert row.page_size == 500
-        assert row.max_records == 10000
+        assert config.entity_set == "Products"
+        assert config.output_table_name == "my_products"
+        assert config.select_fields == ["ProductID", "ProductName"]
+        assert config.filter_expression == "IsActive eq true"
+        assert config.expand_properties == ["Category"]
+        assert config.order_by == "ProductName asc"
+        assert config.sync_type == SyncType.INCREMENTAL
+        assert config.incremental_field == "ModifiedAt"
+        assert config.primary_key == ["ProductID"]
+        assert config.page_size == 500
+        assert config.max_records == 10000
 
     def test_get_output_table_name_with_custom_name(self) -> None:
-        row = RowConfiguration(
+        config = Configuration(
+            service_url="https://example.com/odata",
+            auth_type=AuthType.BASIC,
+            username="user",
             entity_set="Products",
             output_table_name="custom_table",
+            **{"#password": "pass"},
         )
-        assert row.get_output_table_name() == "custom_table"
+        assert config.get_output_table_name() == "custom_table"
 
     def test_get_output_table_name_default(self) -> None:
-        row = RowConfiguration(entity_set="Products")
-        assert row.get_output_table_name() == "Products"
+        config = Configuration(
+            service_url="https://example.com/odata",
+            auth_type=AuthType.BASIC,
+            username="user",
+            entity_set="Products",
+            **{"#password": "pass"},
+        )
+        assert config.get_output_table_name() == "Products"
+
+    def test_get_output_table_name_fallback(self) -> None:
+        config = Configuration(
+            service_url="https://example.com/odata",
+            auth_type=AuthType.OAUTH,
+        )
+        assert config.get_output_table_name() == "output"
 
 
 class TestStateEntry:
