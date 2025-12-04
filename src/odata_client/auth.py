@@ -39,7 +39,7 @@ class BasicAuthHandler(AuthHandler):
         return {}
 
     def get_basic_auth_tuple(self) -> tuple[str, str] | None:
-        return (self.username, self.password)
+        return self.username, self.password
 
 
 class OAuthHandler(AuthHandler):

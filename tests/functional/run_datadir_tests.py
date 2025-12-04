@@ -11,7 +11,6 @@ Environment variables can be referenced in config using: %env(string:VAR_NAME)%
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import shutil
@@ -105,7 +104,7 @@ def get_expected_exit_code(test_case: Path) -> int:
     return 0  # Default to success
 
 
-def verify_output_exists(datadir: Path, test_case: Path) -> None:
+def verify_output_exists(datadir: Path, _test_case: Path) -> None:
     """Verify that output files were created."""
     out_tables = datadir / "out" / "tables"
 

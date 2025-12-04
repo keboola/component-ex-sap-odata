@@ -179,6 +179,7 @@ class Component(ComponentBase):
                 if writer is None:
                     columns = list(record.keys())
                     writer = ElasticDictWriter(table_def.full_path, columns)
+                    writer.writeheader()
 
                 flat_record = self._flatten_record(record)
                 writer.writerow(flat_record)
@@ -194,7 +195,6 @@ class Component(ComponentBase):
 
         finally:
             if writer is not None:
-                writer.writeheader()
                 writer.close()
 
         if records_count > 0:

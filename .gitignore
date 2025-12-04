@@ -68,4 +68,7 @@ venv.bak/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local development and testing
 /data/
+/inspection_results/
