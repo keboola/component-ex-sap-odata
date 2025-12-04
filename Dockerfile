@@ -14,16 +14,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install uv for faster package installation
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Copy project files
+# Copy project files (production only)
 COPY pyproject.toml ./
 COPY src/ ./src/
 COPY component_config/ ./component_config/
-COPY tests/ ./tests/
 
-# Install dependencies (including dev dependencies for testing)
-RUN uv pip install --system --no-cache ".[dev]"
+# Install production dependencies only
+RUN uv pip install --system --no-cache .
 
-# Set working directory to src
-WORKDIR /code/src
-
-CMD ["python", "-u", "component.py"]
+CMD ["python", "-u", "/code/src/component.py"]

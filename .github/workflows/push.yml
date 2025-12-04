@@ -120,10 +120,11 @@ jobs:
           docker image ls -a
           echo "Running unit tests..."
           docker run \
+            -v ${{ github.workspace }}/tests:/code/tests:ro \
             -e PYTHONPATH=/code/src \
             -w /code \
             ${{ env.KBC_DEVELOPERPORTAL_APP }}:latest \
-            python -m pytest tests -v --ignore=tests/functional
+            sh -c "uv pip install --system pytest pytest-cov responses freezegun && python -m pytest tests -v --ignore=tests/functional"
 
       - name: Run Functional Tests (if SAP_API_KEY available)
         if: ${{ secrets.SAP_API_KEY != '' }}
@@ -132,11 +133,12 @@ jobs:
         run: |
           echo "Running functional tests with SAP API..."
           docker run \
+            -v ${{ github.workspace }}/tests:/code/tests:ro \
             -e SAP_API_KEY=${{ secrets.SAP_API_KEY }} \
             -e PYTHONPATH=/code/src \
             -w /code \
             ${{ env.KBC_DEVELOPERPORTAL_APP }}:latest \
-            python -m pytest tests/functional/run_datadir_tests.py -v
+            sh -c "uv pip install --system pytest pytest-cov && python -m pytest tests/functional/run_datadir_tests.py -v"
 
   tests-kbc:
     name: Run KBC Tests
