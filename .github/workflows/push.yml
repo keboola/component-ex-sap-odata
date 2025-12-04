@@ -127,18 +127,21 @@ jobs:
             sh -c "uv pip install --system pytest pytest-cov responses freezegun && python -m pytest tests -v --ignore=tests/functional"
 
       - name: Run Functional Tests (if SAP_API_KEY available)
-        if: ${{ secrets.SAP_API_KEY != '' }}
         env:
           SAP_API_KEY: ${{ secrets.SAP_API_KEY }}
         run: |
-          echo "Running functional tests with SAP API..."
-          docker run \
-            -v ${{ github.workspace }}/tests:/code/tests:ro \
-            -e SAP_API_KEY=${{ secrets.SAP_API_KEY }} \
-            -e PYTHONPATH=/code/src \
-            -w /code \
-            ${{ env.KBC_DEVELOPERPORTAL_APP }}:latest \
-            sh -c "uv pip install --system pytest pytest-cov && python -m pytest tests/functional/run_datadir_tests.py -v"
+          if [ -n "$SAP_API_KEY" ]; then
+            echo "Running functional tests with SAP API..."
+            docker run \
+              -v ${{ github.workspace }}/tests:/code/tests:ro \
+              -e SAP_API_KEY="$SAP_API_KEY" \
+              -e PYTHONPATH=/code/src \
+              -w /code \
+              ${{ env.KBC_DEVELOPERPORTAL_APP }}:latest \
+              sh -c "uv pip install --system pytest pytest-cov && python -m pytest tests/functional/run_datadir_tests.py -v"
+          else
+            echo "SAP_API_KEY not available, skipping functional tests"
+          fi
 
   tests-kbc:
     name: Run KBC Tests
