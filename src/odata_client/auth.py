@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 from abc import ABC, abstractmethod
 
-from keboola.component.dao import OauthCredentials  # type: ignore[import-untyped]
+from keboola.component.dao import OauthCredentials
 
 
 class AuthHandler(ABC):

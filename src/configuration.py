@@ -135,16 +135,10 @@ class Configuration(BaseModel):
                 # Try to infer from service_path structure
                 # V4 paths typically have multiple components (e.g., "api_name/srvd_a2x/sap/service/0001")
                 # V2 paths are usually simple service names (e.g., "API_BUSINESS_PARTNER")
-                if self.service_path.count("/") >= 2:
-                    version = ODataVersionChoice.V4
-                else:
-                    version = ODataVersionChoice.V2
+                version = ODataVersionChoice.V4 if self.service_path.count("/") >= 2 else ODataVersionChoice.V2
 
         # Add appropriate gateway path
-        if version == ODataVersionChoice.V2:
-            gateway_path = "/sap/opu/odata/sap"
-        else:  # V4
-            gateway_path = "/sap/opu/odata4/sap"
+        gateway_path = "/sap/opu/odata/sap" if version == ODataVersionChoice.V2 else "/sap/opu/odata4/sap"
 
         service_path = self.service_path.lstrip("/")  # Remove leading slash if present
         return f"{base}{gateway_path}/{service_path}"

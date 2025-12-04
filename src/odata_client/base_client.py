@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from keboola.component.dao import OauthCredentials  # type: ignore[import-untyped]
-from keboola.component.exceptions import UserException  # type: ignore[import-untyped]
-from keboola.http_client import HttpClient  # type: ignore[import-untyped]
+from keboola.component.dao import OauthCredentials
+from keboola.component.exceptions import UserException
+from keboola.http_client import HttpClient
 from requests import HTTPError, RequestException, Timeout
 
 from odata_client.auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler, OAuthHandler
@@ -47,7 +47,7 @@ class ODataClientBase(ABC):
         timeout: int = 60,
         max_retries: int = 3,
         verify_ssl: bool = True,
-    ) -> "ODataClientBase":
+    ) -> ODataClientBase:
         auth_handler = OAuthHandler(oauth)
         return cls(
             base_url=base_url,
@@ -66,7 +66,7 @@ class ODataClientBase(ABC):
         timeout: int = 60,
         max_retries: int = 3,
         verify_ssl: bool = True,
-    ) -> "ODataClientBase":
+    ) -> ODataClientBase:
         auth_handler = BasicAuthHandler(username, password)
         return cls(
             base_url=base_url,
@@ -85,7 +85,7 @@ class ODataClientBase(ABC):
         timeout: int = 60,
         max_retries: int = 3,
         verify_ssl: bool = True,
-    ) -> "ODataClientBase":
+    ) -> ODataClientBase:
         auth_handler = ApiKeyAuthHandler(api_key, header_name)
         return cls(
             base_url=base_url,

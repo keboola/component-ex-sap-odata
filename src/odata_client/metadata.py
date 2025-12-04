@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
-from lxml import etree  # type: ignore[import-untyped]
+from lxml import etree
 
 
 class ODataVersion(str, Enum):
