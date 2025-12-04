@@ -2,6 +2,24 @@
 
 This directory contains functional tests using the Keboola datadir test pattern.
 
+## Available Test Cases
+
+### ✅ Working Tests (with expected data)
+- **test-v2-company-code** - OData V2 with API key auth (SAP sandbox)
+- **test-v4-fixed-asset** - OData V4 with API key auth (SAP sandbox)
+
+### 📝 Template Tests (require setup)
+- **test-v4-split-url** - OData V4 with split URL configuration (SAP sandbox)
+- **test-v2-basic-auth** - OData V2 with basic authentication (requires SAP server)
+- **test-v2-split-url** - OData V2 with split URL configuration (requires SAP server)
+- **test-v4-basic-auth** - OData V4 with basic authentication (requires SAP server)
+- **test-incremental-sync** - Demonstrates incremental loading pattern (requires SAP server)
+- **test-with-expand** - Demonstrates expand/navigation properties (requires SAP server)
+
+Template tests have `expected-code` set to `1` (failure) because they need:
+1. Valid SAP server credentials in environment variables
+2. Expected output data generated with `generate_expected_data.sh`
+
 ## Test Structure
 
 Each test case is a directory with the following structure:
