@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, cast
 
 from keboola.component.dao import OauthCredentials
 from keboola.component.exceptions import UserException
@@ -102,13 +102,16 @@ class ODataClientBase(ABC):
         is_absolute_path: bool = False,
     ) -> JsonDict:
         try:
-            return self._client.get(
-                endpoint_path=endpoint_path,
-                params=params,
-                headers={"Accept": "application/json"},
-                is_absolute_path=is_absolute_path,
-                timeout=self.timeout,
-                verify=self.verify_ssl,
+            return cast(
+                JsonDict,
+                self._client.get(
+                    endpoint_path=endpoint_path,
+                    params=params,
+                    headers={"Accept": "application/json"},
+                    is_absolute_path=is_absolute_path,
+                    timeout=self.timeout,
+                    verify=self.verify_ssl,
+                ),
             )
         except HTTPError as e:
             resp = getattr(e, "response", None)

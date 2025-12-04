@@ -1,4 +1,4 @@
-from utils.pagination import ClientDrivenPagination, PaginationStrategy, ServerDrivenPagination
+from .pagination import ClientDrivenPagination, PaginationStrategy, ServerDrivenPagination
 
 __all__ = [
     "PaginationStrategy",
