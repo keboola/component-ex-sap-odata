@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterator
 
-from odata_client.base_client import JsonDict, ODataClientBase
-from odata_client.metadata import ODataVersion
+from .base_client import JsonDict, ODataClientBase
+from .metadata import ODataVersion
 
 
 class ODataV2Client(ODataClientBase):

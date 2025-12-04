@@ -9,8 +9,8 @@ from keboola.component.exceptions import UserException
 from keboola.http_client import HttpClient
 from requests import HTTPError, RequestException, Timeout
 
-from odata_client.auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler, OAuthHandler
-from odata_client.metadata import EntitySet, MetadataParser, ODataMetadata, ODataVersion
+from .auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler, OAuthHandler
+from .metadata import EntitySet, MetadataParser, ODataMetadata, ODataVersion
 
 # Type alias for JSON-serializable data
 JsonDict = dict[str, Any]
