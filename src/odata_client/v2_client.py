@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterator
+from typing import Any
 
 from odata_client.base_client import JsonDict, ODataClientBase
 from odata_client.metadata import ODataVersion
@@ -80,7 +81,7 @@ class ODataV2Client(ODataClientBase):
     ) -> Iterator[JsonDict]:
         endpoint_path = entity_set
         is_absolute = False
-        params = self._build_query_params(
+        params: dict[str, str] | None = self._build_query_params(
             select=select,
             filter_expr=filter_expr,
             expand=expand,

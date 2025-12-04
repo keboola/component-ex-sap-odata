@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
-from keboola.component.base import ComponentBase, sync_action
-from keboola.component.dao import OauthCredentials
-from keboola.component.exceptions import UserException
-from keboola.csvwriter import ElasticDictWriter
+from keboola.component.base import ComponentBase, sync_action  # type: ignore[import-untyped]
+from keboola.component.dao import OauthCredentials  # type: ignore[import-untyped]
+from keboola.component.exceptions import UserException  # type: ignore[import-untyped]
+from keboola.csvwriter import ElasticDictWriter  # type: ignore[import-untyped]
 
 from configuration import (
     AuthType,
@@ -86,10 +86,11 @@ class Component(ComponentBase):
         return self._detected_version
 
     def _detect_version_from_metadata(self, config: Configuration) -> ODataVersion:
-        from keboola.http_client import HttpClient
+        from keboola.http_client import HttpClient  # type: ignore[import-untyped]
 
-        from odata_client.auth import ApiKeyAuthHandler, BasicAuthHandler, OAuthHandler
+        from odata_client.auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler, OAuthHandler
 
+        auth_handler: AuthHandler
         if config.auth_type == AuthType.OAUTH:
             oauth: OauthCredentials = self.configuration.oauth_credentials
             auth_handler = OAuthHandler(oauth)
@@ -201,7 +202,7 @@ class Component(ComponentBase):
 
         state.update_entity_state(
             entity_set=self._config.entity_set or "",
-            last_sync_timestamp=datetime.now(UTC).isoformat(),
+            last_sync_timestamp=datetime.now(timezone.utc).isoformat(),
             last_incremental_value=last_incremental_value,
             records_synced=records_count,
         )

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
-from lxml import etree
+from lxml import etree  # type: ignore[import-untyped]
 
 
 class ODataVersion(str, Enum):
@@ -233,7 +233,7 @@ class MetadataParser:
     def _parse_entity_sets_v2(
         cls, schema: etree._Element, ns: dict[str, str], entity_types: dict[str, dict], schema_namespace: str
     ) -> dict[str, EntitySet]:
-        entity_sets = {}
+        entity_sets: dict[str, EntitySet] = {}
         edm_ns = ns.get("edm", "")
 
         entity_container = (
@@ -343,7 +343,7 @@ class MetadataParser:
     def _parse_entity_sets_v4(
         cls, schema: etree._Element, entity_types: dict[str, dict], schema_namespace: str
     ) -> dict[str, EntitySet]:
-        entity_sets = {}
+        entity_sets: dict[str, EntitySet] = {}
         edm_ns = "http://docs.oasis-open.org/odata/ns/edm"
 
         entity_container = schema.find(f".//{{{edm_ns}}}EntityContainer")

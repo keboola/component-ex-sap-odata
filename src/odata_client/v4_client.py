@@ -78,7 +78,7 @@ class ODataV4Client(ODataClientBase):
     ) -> Iterator[JsonDict]:
         endpoint_path = entity_set
         is_absolute = False
-        params = self._build_query_params(
+        params: dict[str, str] | None = self._build_query_params(
             select=select,
             filter_expr=filter_expr,
             expand=expand,
@@ -131,7 +131,7 @@ class ODataV4Client(ODataClientBase):
             return None
 
     def _clean_record(self, record: JsonDict) -> JsonDict:
-        cleaned = {}
+        cleaned: JsonDict = {}
         for key, value in record.items():
             if key.startswith("@odata."):
                 continue

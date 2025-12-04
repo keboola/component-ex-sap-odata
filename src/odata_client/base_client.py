@@ -2,18 +2,18 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
+from typing import TYPE_CHECKING, Any
 
-from keboola.component.dao import OauthCredentials
-from keboola.component.exceptions import UserException
-from keboola.http_client import HttpClient
+from keboola.component.dao import OauthCredentials  # type: ignore[import-untyped]
+from keboola.component.exceptions import UserException  # type: ignore[import-untyped]
+from keboola.http_client import HttpClient  # type: ignore[import-untyped]
 from requests import HTTPError, RequestException, Timeout
 
 from odata_client.auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler, OAuthHandler
 from odata_client.metadata import EntitySet, MetadataParser, ODataMetadata, ODataVersion
 
 # Type alias for JSON-serializable data
-JsonDict = dict[str, "JsonValue"]
-JsonValue = str | int | float | bool | None | list["JsonValue"] | JsonDict
+JsonDict = dict[str, Any]
 
 
 class ODataClientBase(ABC):

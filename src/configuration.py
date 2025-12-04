@@ -121,6 +121,9 @@ class Configuration(BaseModel):
             return self.service_url
 
         # Construct URL from base_url + service_path
+        if not self.base_url or not self.service_path:
+            raise ValueError("Either service_url or both base_url and service_path must be provided")
+
         base = self.base_url.rstrip("/")  # Remove trailing slash if present
 
         # Determine which OData version to use for gateway path
@@ -132,7 +135,7 @@ class Configuration(BaseModel):
                 # Try to infer from service_path structure
                 # V4 paths typically have multiple components (e.g., "api_name/srvd_a2x/sap/service/0001")
                 # V2 paths are usually simple service names (e.g., "API_BUSINESS_PARTNER")
-                if self.service_path and self.service_path.count("/") >= 2:
+                if self.service_path.count("/") >= 2:
                     version = ODataVersionChoice.V4
                 else:
                     version = ODataVersionChoice.V2
