@@ -264,3 +264,130 @@ class TestComponentState:
         entry = state.get_entity_state("Products")
         assert entry.last_sync_timestamp == "2024-01-15T10:30:00Z"
         assert entry.records_synced == 200
+
+
+class TestURLConfiguration:
+    """Tests for the new URL configuration options (service_url vs base_url+service_path)"""
+
+    def test_legacy_service_url(self) -> None:
+        """Test that legacy service_url still works"""
+        config = Configuration(
+            service_url="https://sap-server.com/sap/opu/odata/sap/API_BUSINESS_PARTNER",
+            auth_type=AuthType.BASIC,
+            username="user",
+            **{"#password": "pass"},
+        )
+
+        url = config.get_service_url()
+        assert url == "https://sap-server.com/sap/opu/odata/sap/API_BUSINESS_PARTNER"
+
+    def test_split_url_v2(self) -> None:
+        """Test split URL configuration for OData V2"""
+        config = Configuration(
+            base_url="https://sap-server.com",
+            service_path="API_BUSINESS_PARTNER",
+            odata_version=ODataVersionChoice.V2,
+            auth_type=AuthType.BASIC,
+            username="user",
+            **{"#password": "pass"},
+        )
+
+        url = config.get_service_url()
+        assert url == "https://sap-server.com/sap/opu/odata/sap/API_BUSINESS_PARTNER"
+
+    def test_split_url_v4(self) -> None:
+        """Test split URL configuration for OData V4"""
+        config = Configuration(
+            base_url="https://sap-server.com",
+            service_path="api_fixedasset/srvd_a2x/sap/fixedasset/0001",
+            odata_version=ODataVersionChoice.V4,
+            auth_type=AuthType.BASIC,
+            username="user",
+            **{"#password": "pass"},
+        )
+
+        url = config.get_service_url()
+        assert url == "https://sap-server.com/sap/opu/odata4/sap/api_fixedasset/srvd_a2x/sap/fixedasset/0001"
+
+    def test_split_url_auto_v2_inference(self) -> None:
+        """Test that AUTO version infers V2 from simple service path"""
+        config = Configuration(
+            base_url="https://sap-server.com",
+            service_path="API_BUSINESS_PARTNER",  # Simple path -> V2
+            odata_version=ODataVersionChoice.AUTO,
+            auth_type=AuthType.BASIC,
+            username="user",
+            **{"#password": "pass"},
+        )
+
+        url = config.get_service_url()
+        assert url == "https://sap-server.com/sap/opu/odata/sap/API_BUSINESS_PARTNER"
+
+    def test_split_url_auto_v4_inference(self) -> None:
+        """Test that AUTO version infers V4 from complex service path"""
+        config = Configuration(
+            base_url="https://sap-server.com",
+            service_path="api_fixedasset/srvd_a2x/sap/fixedasset/0001",  # Complex path -> V4
+            odata_version=ODataVersionChoice.AUTO,
+            auth_type=AuthType.BASIC,
+            username="user",
+            **{"#password": "pass"},
+        )
+
+        url = config.get_service_url()
+        assert url == "https://sap-server.com/sap/opu/odata4/sap/api_fixedasset/srvd_a2x/sap/fixedasset/0001"
+
+    def test_split_url_with_trailing_slash(self) -> None:
+        """Test that trailing/leading slashes are handled correctly"""
+        config = Configuration(
+            base_url="https://sap-server.com/",  # Trailing slash
+            service_path="/API_BUSINESS_PARTNER",  # Leading slash
+            odata_version=ODataVersionChoice.V2,
+            auth_type=AuthType.BASIC,
+            username="user",
+            **{"#password": "pass"},
+        )
+
+        url = config.get_service_url()
+        assert url == "https://sap-server.com/sap/opu/odata/sap/API_BUSINESS_PARTNER"
+
+    def test_neither_url_config_raises_error(self) -> None:
+        """Test that providing neither URL configuration raises an error"""
+        with pytest.raises(ValueError, match="Either 'service_url' or both 'base_url' and 'service_path'"):
+            Configuration(
+                auth_type=AuthType.BASIC,
+                username="user",
+                **{"#password": "pass"},
+            )
+
+    def test_both_url_configs_raises_error(self) -> None:
+        """Test that providing both URL configurations raises an error"""
+        with pytest.raises(ValueError, match="Cannot use both 'service_url' and 'base_url'"):
+            Configuration(
+                service_url="https://sap-server.com/sap/opu/odata/sap/API_BUSINESS_PARTNER",
+                base_url="https://sap-server.com",
+                service_path="API_BUSINESS_PARTNER",
+                auth_type=AuthType.BASIC,
+                username="user",
+                **{"#password": "pass"},
+            )
+
+    def test_base_url_without_service_path_raises_error(self) -> None:
+        """Test that base_url without service_path raises an error"""
+        with pytest.raises(Exception, match="Either 'service_url' or both 'base_url' and 'service_path'"):
+            Configuration(
+                base_url="https://sap-server.com",
+                auth_type=AuthType.BASIC,
+                username="user",
+                **{"#password": "pass"},
+            )
+
+    def test_service_path_without_base_url_raises_error(self) -> None:
+        """Test that service_path without base_url raises an error"""
+        with pytest.raises(Exception, match="Either 'service_url' or both 'base_url' and 'service_path'"):
+            Configuration(
+                service_path="API_BUSINESS_PARTNER",
+                auth_type=AuthType.BASIC,
+                username="user",
+                **{"#password": "pass"},
+            )

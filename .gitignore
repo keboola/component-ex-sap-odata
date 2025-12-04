@@ -65,8 +65,11 @@ venv.bak/
 *.swp
 *.swo
 
-# Keboola data directory
+# Keboola data directory - ignore everything except sample configs
 data/
+!data/
+!data/*.md
+!data/config.sample*.json
 
 # OS
 .DS_Store

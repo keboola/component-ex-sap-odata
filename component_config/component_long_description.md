@@ -3,20 +3,22 @@ Generic extractor for SAP OData services supporting both OData V2 and V4 protoco
 ## Features
 
 - **Universal SAP OData connector** - supports any SAP OData service (S/4HANA, BW, CRM, SuccessFactors, etc.)
-- **OData V2 and V4 support** - automatic version detection or explicit selection
-- **Multiple authentication methods** - Basic authentication and OAuth 2.0
+- **OData V2 and V4 support** - automatic version detection with smart SAP metadata parsing
+- **Multiple authentication methods** - Basic authentication, OAuth 2.0, and API Key
 - **Full data extraction** - filtering, column selection, navigation property expansion
 - **Incremental sync** - delta synchronization using state file
 - **Dynamic UI** - entity sets and fields loaded from $metadata
+- **SAP-optimized** - handles SAP's mixed V2/V4 metadata correctly
 
 ## Configuration
 
 ### Authentication
 
-The extractor supports two authentication methods:
+The extractor supports three authentication methods:
 
 1. **Basic Authentication** - Username and password
 2. **OAuth 2.0** - Via Keboola OAuth Broker
+3. **API Key** - For SAP API Business Hub and similar services
 
 ### Entity Configuration
 

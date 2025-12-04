@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
 
 from lxml import etree
 
@@ -20,7 +21,7 @@ class EntityProperty:
     precision: int | None = None
     scale: int | None = None
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, str | int | bool | list | dict | None]:
         return {
             "name": self.name,
             "edm_type": self.edm_type,
@@ -37,7 +38,7 @@ class NavigationProperty:
     target_entity: str
     is_collection: bool = False
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, str | int | bool | list | dict | None]:
         return {
             "name": self.name,
             "target_entity": self.target_entity,
@@ -53,7 +54,7 @@ class EntitySet:
     key_properties: list[str] = field(default_factory=list)
     navigation_properties: list[NavigationProperty] = field(default_factory=list)
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, str | int | bool | list | dict | None]:
         return {
             "name": self.name,
             "entity_type": self.entity_type,
@@ -96,8 +97,36 @@ class MetadataParser:
 
     @classmethod
     def detect_version(cls, metadata_xml: str) -> ODataVersion:
-        if "docs.oasis-open.org/odata/ns/edmx" in metadata_xml:
-            return ODataVersion.V4
+        # Parse XML to check actual version attributes
+        try:
+            root = etree.fromstring(metadata_xml.encode("utf-8"))
+
+            # Check Edmx Version attribute (V2 uses "1.0", V4 uses "4.0")
+            # Get the root element (Edmx) regardless of namespace
+            edmx_version = root.get("Version")
+            if edmx_version:
+                if edmx_version.startswith("1."):
+                    return ODataVersion.V2
+                if edmx_version.startswith("4."):
+                    return ODataVersion.V4
+
+            # Check DataServiceVersion attribute (V2 uses "2.0")
+            for elem in root.iter():
+                ds_version = elem.get("{http://schemas.microsoft.com/ado/2007/08/dataservices/metadata}DataServiceVersion")
+                if ds_version and ds_version.startswith("2."):
+                    return ODataVersion.V2
+
+            # Fallback: check namespace in root element (but only as last resort)
+            if root.nsmap.get("edmx") == "http://docs.oasis-open.org/odata/ns/edmx":
+                # Still need to verify it's actually V4 by checking if V2 namespaces are present
+                if "schemas.microsoft.com/ado" in metadata_xml:
+                    return ODataVersion.V2
+                return ODataVersion.V4
+
+        except Exception:
+            pass
+
+        # Final fallback: check for namespace strings
         if "schemas.microsoft.com/ado" in metadata_xml:
             return ODataVersion.V2
         return ODataVersion.V2

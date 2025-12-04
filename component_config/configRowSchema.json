@@ -86,19 +86,6 @@
       "default": "full",
       "propertyOrder": 8
     },
-    "incremental_field": {
-      "type": "string",
-      "title": "Incremental Field",
-      "description": "Field used for incremental sync (e.g., LastChangedAt)",
-      "format": "select",
-      "propertyOrder": 9,
-      "options": {
-        "async": {
-          "label": "Load Incremental Fields",
-          "action": "loadIncrementalFields"
-        }
-      }
-    },
     "primary_key": {
       "type": "array",
       "title": "Primary Key",
@@ -140,6 +127,40 @@
           "action": "previewData"
         }
       }
+    }
+  },
+  "dependencies": {
+    "sync_type": {
+      "oneOf": [
+        {
+          "properties": {
+            "sync_type": {
+              "enum": ["full"]
+            }
+          }
+        },
+        {
+          "properties": {
+            "sync_type": {
+              "enum": ["incremental"]
+            },
+            "incremental_field": {
+              "type": "string",
+              "title": "Incremental Field",
+              "description": "Field used for incremental sync (e.g., LastChangedAt)",
+              "format": "select",
+              "propertyOrder": 9,
+              "options": {
+                "async": {
+                  "label": "Load Incremental Fields",
+                  "action": "loadIncrementalFields"
+                }
+              }
+            }
+          },
+          "required": ["incremental_field"]
+        }
+      ]
     }
   }
 }

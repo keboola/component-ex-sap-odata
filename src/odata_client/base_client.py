@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
-from typing import Any
 
 from keboola.component.dao import OauthCredentials
 from keboola.component.exceptions import UserException
@@ -9,6 +10,10 @@ from requests import HTTPError, RequestException, Timeout
 
 from odata_client.auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler, OAuthHandler
 from odata_client.metadata import EntitySet, MetadataParser, ODataMetadata, ODataVersion
+
+# Type alias for JSON-serializable data
+JsonDict = dict[str, "JsonValue"]
+JsonValue = str | int | float | bool | None | list["JsonValue"] | JsonDict
 
 
 class ODataClientBase(ABC):
@@ -31,7 +36,6 @@ class ODataClientBase(ABC):
             max_retries=max_retries,
             backoff_factor=0.3,
             status_forcelist=(500, 502, 503, 504),
-            default_http_header={"Accept": "application/json"},
             auth_header=auth_handler.get_auth_headers(),
         )
 
@@ -94,13 +98,14 @@ class ODataClientBase(ABC):
     def _get_json(
         self,
         endpoint_path: str,
-        params: dict[str, Any] | None = None,
+        params: dict[str, str] | None = None,
         is_absolute_path: bool = False,
-    ) -> dict[str, Any]:
+    ) -> JsonDict:
         try:
             return self._client.get(
                 endpoint_path=endpoint_path,
                 params=params,
+                headers={"Accept": "application/json"},
                 is_absolute_path=is_absolute_path,
                 timeout=self.timeout,
                 verify=self.verify_ssl,
@@ -123,7 +128,7 @@ class ODataClientBase(ABC):
     def _get_raw(
         self,
         endpoint_path: str,
-        params: dict[str, Any] | None = None,
+        params: dict[str, str] | None = None,
         headers: dict[str, str] | None = None,
         is_absolute_path: bool = False,
     ) -> str:
@@ -205,7 +210,8 @@ class ODataClientBase(ABC):
         order_by: str | None = None,
         top: int | None = None,
         skip: int | None = None,
-    ) -> Iterator[dict[str, Any]]:
+    ) -> Iterator[JsonDict]:
+        """Fetch entity set without pagination."""
         pass
 
     @abstractmethod
@@ -218,7 +224,8 @@ class ODataClientBase(ABC):
         order_by: str | None = None,
         page_size: int = 1000,
         max_records: int | None = None,
-    ) -> Iterator[dict[str, Any]]:
+    ) -> Iterator[JsonDict]:
+        """Fetch entity set with automatic pagination."""
         pass
 
     @abstractmethod

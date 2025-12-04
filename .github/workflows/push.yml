@@ -114,12 +114,23 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Load Image & Run Tests
+      - name: Load Image & Run Unit Tests
         run: |
           docker load --input /tmp/${{ env.KBC_DEVELOPERPORTAL_APP }}.tar
           docker image ls -a
-          echo "Running unit-tests..."
-          docker run ${{ env.KBC_DEVELOPERPORTAL_APP }}:latest python -m pytest /code/tests -v
+          echo "Running unit tests..."
+          docker run ${{ env.KBC_DEVELOPERPORTAL_APP }}:latest python -m pytest /code/tests -v --ignore=/code/tests/functional
+
+      - name: Run Functional Tests (if SAP_API_KEY available)
+        if: ${{ secrets.SAP_API_KEY != '' }}
+        env:
+          SAP_API_KEY: ${{ secrets.SAP_API_KEY }}
+        run: |
+          echo "Running functional tests with SAP API..."
+          docker run \
+            -e SAP_API_KEY=${{ secrets.SAP_API_KEY }} \
+            ${{ env.KBC_DEVELOPERPORTAL_APP }}:latest \
+            python -m pytest /code/tests/functional -v
 
   tests-kbc:
     name: Run KBC Tests

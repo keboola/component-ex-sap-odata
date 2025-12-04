@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import logging
 from datetime import UTC, datetime
-from typing import Any
 
 from keboola.component.base import ComponentBase, sync_action
 from keboola.component.dao import OauthCredentials
@@ -36,11 +37,16 @@ class Component(ComponentBase):
 
         client_class = ODataV4Client if version == ODataVersion.V4 else ODataV2Client
 
+        # Get the full service URL (handles both service_url and base_url+service_path)
+        # Map ODataVersion to ODataVersionChoice for get_service_url()
+        detected_version_choice = ODataVersionChoice.V4 if version == ODataVersion.V4 else ODataVersionChoice.V2
+        service_url = config.get_service_url(detected_version_choice)
+
         if config.auth_type == AuthType.OAUTH:
             oauth: OauthCredentials = self.configuration.oauth_credentials
             self._client = client_class.from_oauth(
                 oauth=oauth,
-                base_url=config.service_url,
+                base_url=service_url,
                 timeout=config.timeout,
                 max_retries=config.max_retries,
                 verify_ssl=config.verify_ssl,
@@ -49,7 +55,7 @@ class Component(ComponentBase):
             self._client = client_class.from_api_key(
                 api_key=config.api_key or "",
                 header_name=config.api_key_header_name,
-                base_url=config.service_url,
+                base_url=service_url,
                 timeout=config.timeout,
                 max_retries=config.max_retries,
                 verify_ssl=config.verify_ssl,
@@ -58,7 +64,7 @@ class Component(ComponentBase):
             self._client = client_class.from_basic_auth(
                 username=config.username or "",
                 password=config.password or "",
-                base_url=config.service_url,
+                base_url=service_url,
                 timeout=config.timeout,
                 max_retries=config.max_retries,
                 verify_ssl=config.verify_ssl,
@@ -92,7 +98,8 @@ class Component(ComponentBase):
         else:
             auth_handler = BasicAuthHandler(config.username or "", config.password or "")
 
-        base_url = config.service_url.rstrip("/") + "/"
+        # Get service URL - for AUTO detection with base_url+service_path, this will infer from path structure
+        base_url = config.get_service_url().rstrip("/") + "/"
         client = HttpClient(
             base_url=base_url,
             max_retries=config.max_retries,
@@ -201,8 +208,11 @@ class Component(ComponentBase):
 
         logging.info(f"Extracted {records_count} records from {self._config.entity_set}")
 
-    def _flatten_record(self, record: dict[str, Any], prefix: str = "") -> dict[str, Any]:
-        flat = {}
+    def _flatten_record(
+        self, record: dict[str, str | int | float | bool | list | dict | None], prefix: str = ""
+    ) -> dict[str, str | int | float | bool | None]:
+        """Flatten nested record structure."""
+        flat: dict[str, str | int | float | bool | None] = {}
         for key, value in record.items():
             full_key = f"{prefix}_{key}" if prefix else key
             if isinstance(value, dict):
@@ -210,7 +220,7 @@ class Component(ComponentBase):
             elif isinstance(value, list):
                 flat[full_key] = str(value)
             else:
-                flat[full_key] = value
+                flat[full_key] = value  # type: ignore[assignment]
         return flat
 
     def _load_state(self) -> ComponentState:
@@ -229,7 +239,8 @@ class Component(ComponentBase):
             logging.warning(f"Failed to save state file: {e}")
 
     @sync_action("testConnection")
-    def test_connection(self) -> dict[str, Any]:
+    def test_connection(self) -> dict[str, str]:
+        """Test connection to SAP OData service."""
         try:
             client = self._build_client()
             ok, message = client.test_connection()
@@ -349,7 +360,8 @@ class Component(ComponentBase):
             return []
 
     @sync_action("previewData")
-    def preview_data(self) -> dict[str, Any]:
+    def preview_data(self) -> dict[str, str | list[dict[str, str | int | float | bool | None]]]:
+        """Preview first 10 records from entity set."""
         try:
             if not self._config.entity_set:
                 return {"status": "error", "message": "No entity set selected"}
@@ -375,7 +387,8 @@ class Component(ComponentBase):
             return {"status": "error", "message": f"Preview failed: {e}"}
 
     @sync_action("validateFilter")
-    def validate_filter(self) -> dict[str, Any]:
+    def validate_filter(self) -> dict[str, str]:
+        """Validate OData filter expression."""
         try:
             if not self._config.entity_set:
                 return {"status": "error", "message": "No entity set selected"}
@@ -396,7 +409,10 @@ class Component(ComponentBase):
             return {"status": "error", "message": f"Invalid filter: {e}"}
 
     @sync_action("loadMetadataSummary")
-    def load_metadata_summary(self) -> dict[str, Any]:
+    def load_metadata_summary(
+        self,
+    ) -> dict[str, str | dict[str, str | int | list[dict[str, str | int]]]]:
+        """Load metadata summary for the OData service."""
         try:
             client = self._build_client()
             metadata = client.get_metadata()

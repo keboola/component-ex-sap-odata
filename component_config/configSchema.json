@@ -1,13 +1,26 @@
 {
   "type": "object",
   "title": "SAP OData Configuration",
-  "required": ["service_url", "auth_type"],
+  "required": ["auth_type"],
   "properties": {
     "service_url": {
       "type": "string",
-      "title": "OData Service URL",
-      "description": "Base URL of the OData service (e.g., https://sap-server/sap/opu/odata/sap/API_BUSINESS_PARTNER)",
+      "title": "OData Service URL (Legacy)",
+      "description": "Full OData service URL without entity set. Example: https://my-sap.com/sap/opu/odata/sap/API_BUSINESS_PARTNER. Alternative: use Base URL + Service Path below.",
       "propertyOrder": 1
+    },
+    "base_url": {
+      "type": "string",
+      "title": "Base URL (Recommended)",
+      "description": "Base URL of your SAP system. Examples: https://my-sap-server.com or https://sandbox.api.sap.com/s4hanacloud",
+      "propertyOrder": 2,
+      "format": "url"
+    },
+    "service_path": {
+      "type": "string",
+      "title": "Service Path",
+      "description": "OData service path. V2 example: API_BUSINESS_PARTNER. V4 example: api_fixedassetacquisition/srvd_a2x/sap/fixedassetacquisition/0001",
+      "propertyOrder": 3
     },
     "odata_version": {
       "type": "string",
@@ -15,7 +28,7 @@
       "enum": ["auto", "v2", "v4"],
       "default": "auto",
       "description": "OData protocol version. Use 'auto' for automatic detection.",
-      "propertyOrder": 2
+      "propertyOrder": 4
     },
     "auth_type": {
       "type": "string",
@@ -23,49 +36,49 @@
       "enum": ["basic", "oauth", "apiKey"],
       "enum_titles": ["Username & Password", "OAuth 2.0", "API Key"],
       "default": "basic",
-      "propertyOrder": 3
+      "propertyOrder": 5
     },
     "username": {
       "type": "string",
       "title": "Username",
-      "propertyOrder": 4
+      "propertyOrder": 6
     },
     "#password": {
       "type": "string",
       "title": "Password",
       "format": "password",
-      "propertyOrder": 5
+      "propertyOrder": 7
     },
     "#api_key": {
       "type": "string",
       "title": "API Key",
       "format": "password",
-      "propertyOrder": 6
+      "propertyOrder": 8
     },
     "api_key_header_name": {
       "type": "string",
       "title": "API Key Header Name",
       "default": "APIKey",
       "description": "HTTP header name for the API key (e.g., APIKey, X-API-Key, Authorization)",
-      "propertyOrder": 7
+      "propertyOrder": 9
     },
     "timeout": {
       "type": "integer",
       "title": "Request Timeout (seconds)",
       "default": 60,
-      "propertyOrder": 8
+      "propertyOrder": 10
     },
     "max_retries": {
       "type": "integer",
       "title": "Max Retries",
       "default": 3,
-      "propertyOrder": 9
+      "propertyOrder": 11
     },
     "verify_ssl": {
       "type": "boolean",
       "title": "Verify SSL Certificates",
       "default": true,
-      "propertyOrder": 10
+      "propertyOrder": 12
     },
     "test_connection": {
       "type": "button",

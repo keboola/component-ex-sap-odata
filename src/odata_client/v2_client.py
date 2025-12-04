@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import Iterator
-from typing import Any
 
-from odata_client.base_client import ODataClientBase
+from odata_client.base_client import JsonDict, ODataClientBase
 from odata_client.metadata import ODataVersion
 
 
@@ -48,7 +49,7 @@ class ODataV2Client(ODataClientBase):
         order_by: str | None = None,
         top: int | None = None,
         skip: int | None = None,
-    ) -> Iterator[dict[str, Any]]:
+    ) -> Iterator[JsonDict]:
         params = self._build_query_params(
             select=select,
             filter_expr=filter_expr,
@@ -76,7 +77,7 @@ class ODataV2Client(ODataClientBase):
         order_by: str | None = None,
         page_size: int = 1000,
         max_records: int | None = None,
-    ) -> Iterator[dict[str, Any]]:
+    ) -> Iterator[JsonDict]:
         endpoint_path = entity_set
         is_absolute = False
         params = self._build_query_params(
@@ -135,7 +136,7 @@ class ODataV2Client(ODataClientBase):
             logging.warning(f"Failed to get record count: {e}")
             return None
 
-    def _clean_record(self, record: dict[str, Any]) -> dict[str, Any]:
+    def _clean_record(self, record: JsonDict) -> JsonDict:
         cleaned = {}
         for key, value in record.items():
             if key.startswith("__"):
