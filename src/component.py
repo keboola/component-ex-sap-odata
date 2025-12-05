@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from typing import Any
 
 from keboola.component.base import ComponentBase, sync_action
 from keboola.component.dao import OauthCredentials
@@ -13,12 +14,16 @@ from configuration import (
     ComponentState,
     Configuration,
     ODataVersionChoice,
+    StateEntry,
     SyncType,
 )
 from odata_client.base_client import ODataClientBase
 from odata_client.metadata import MetadataParser, ODataVersion
 from odata_client.v2_client import ODataV2Client
 from odata_client.v4_client import ODataV4Client
+
+# Type alias for JSON-like dictionaries
+JsonDict = dict[str, Any]
 
 
 class Component(ComponentBase):
@@ -139,12 +144,27 @@ class Component(ComponentBase):
         logging.info("SAP OData extraction completed")
 
     def _extract_entity(self, state: ComponentState) -> None:
+        """Extract entity data and write to output table."""
         logging.info(f"Extracting entity: {self._config.entity_set}")
 
         client = self._build_client()
         entity_state = state.get_entity_state(self._config.entity_set or "")
 
+        filter_expr = self._build_filter_expression(entity_state)
+        table_def = self._create_output_table()
+
+        records_count, last_incremental_value = self._process_records(client, table_def, filter_expr)
+
+        if records_count > 0:
+            self.write_manifest(table_def)
+
+        self._update_extraction_state(state, records_count, last_incremental_value)
+        logging.info(f"Extracted {records_count} records from {self._config.entity_set}")
+
+    def _build_filter_expression(self, entity_state: StateEntry) -> str | None:
+        """Build OData filter expression including incremental filtering."""
         filter_expr = self._config.filter_expression
+
         if (
             self._config.sync_type == SyncType.INCREMENTAL
             and self._config.incremental_field
@@ -153,15 +173,27 @@ class Component(ComponentBase):
             incremental_filter = f"{self._config.incremental_field} gt '{entity_state.last_incremental_value}'"
             filter_expr = f"({filter_expr}) and ({incremental_filter})" if filter_expr else incremental_filter
 
+        return filter_expr
+
+    def _create_output_table(self):
+        """Create output table definition."""
         output_table_name = self._config.get_output_table_name()
-        table_def = self.create_out_table_definition(
+        return self.create_out_table_definition(
             f"{output_table_name}.csv",
             primary_key=self._config.primary_key if self._config.primary_key else None,
             incremental=self._config.sync_type == SyncType.INCREMENTAL,
         )
 
+    def _process_records(
+        self, client: ODataClientBase, table_def, filter_expr: str | None
+    ) -> tuple[int, str | None]:
+        """Process and write records from OData service.
+
+        Returns:
+            Tuple of (records_count, last_incremental_value)
+        """
         records_count = 0
-        last_incremental_value = entity_state.last_incremental_value
+        last_incremental_value: str | None = None
         writer: ElasticDictWriter | None = None
 
         try:
@@ -185,10 +217,7 @@ class Component(ComponentBase):
                 writer.writerow(flat_record)
                 records_count += 1
 
-                if self._config.incremental_field and self._config.incremental_field in flat_record:
-                    value = flat_record[self._config.incremental_field]
-                    if value and (last_incremental_value is None or str(value) > str(last_incremental_value)):
-                        last_incremental_value = str(value)
+                last_incremental_value = self._track_incremental_value(flat_record, last_incremental_value)
 
                 if records_count % 10000 == 0:
                     logging.info(f"Extracted {records_count} records from {self._config.entity_set}")
@@ -197,9 +226,23 @@ class Component(ComponentBase):
             if writer is not None:
                 writer.close()
 
-        if records_count > 0:
-            self.write_manifest(table_def)
+        return records_count, last_incremental_value
 
+    def _track_incremental_value(self, record: JsonDict, current_max: str | None) -> str | None:
+        """Track the maximum incremental value from records."""
+        if not self._config.incremental_field or self._config.incremental_field not in record:
+            return current_max
+
+        value = record[self._config.incremental_field]
+        if value and (current_max is None or str(value) > current_max):
+            return str(value)
+
+        return current_max
+
+    def _update_extraction_state(
+        self, state: ComponentState, records_count: int, last_incremental_value: str | None
+    ) -> None:
+        """Update component state with extraction results."""
         state.update_entity_state(
             entity_set=self._config.entity_set or "",
             last_sync_timestamp=datetime.now(UTC).isoformat(),
@@ -207,13 +250,11 @@ class Component(ComponentBase):
             records_synced=records_count,
         )
 
-        logging.info(f"Extracted {records_count} records from {self._config.entity_set}")
-
     def _flatten_record(
-        self, record: dict[str, str | int | float | bool | list | dict | None], prefix: str = ""
-    ) -> dict[str, str | int | float | bool | None]:
+        self, record: JsonDict, prefix: str = ""
+    ) -> JsonDict:
         """Flatten nested record structure."""
-        flat: dict[str, str | int | float | bool | None] = {}
+        flat: JsonDict = {}
         for key, value in record.items():
             full_key = f"{prefix}_{key}" if prefix else key
             if isinstance(value, dict):
@@ -361,7 +402,7 @@ class Component(ComponentBase):
             return []
 
     @sync_action("previewData")
-    def preview_data(self) -> dict[str, str | list[dict[str, str | int | float | bool | None]]]:
+    def preview_data(self) -> JsonDict:
         """Preview first 10 records from entity set."""
         try:
             if not self._config.entity_set:
@@ -412,7 +453,7 @@ class Component(ComponentBase):
     @sync_action("loadMetadataSummary")
     def load_metadata_summary(
         self,
-    ) -> dict[str, str | dict[str, str | int | list[dict[str, str | int]]]]:
+    ) -> JsonDict:
         """Load metadata summary for the OData service."""
         try:
             client = self._build_client()

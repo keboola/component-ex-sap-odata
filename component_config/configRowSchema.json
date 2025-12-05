@@ -1,11 +1,12 @@
 {
   "type": "object",
-  "title": "Entity Configuration",
+  "title": "Entity Extraction",
   "required": ["entity_set"],
   "properties": {
     "entity_set": {
       "type": "string",
       "title": "Entity Set",
+      "description": "Select the entity set to extract",
       "format": "select",
       "propertyOrder": 1,
       "options": {
@@ -26,8 +27,9 @@
     "select_fields": {
       "type": "array",
       "title": "Select Fields",
+      "description": "Select specific fields to extract (leave empty for all fields)",
       "format": "select",
-      "propertyOrder": 3,
+      "propertyOrder": 10,
       "items": {
         "type": "string"
       },
@@ -43,13 +45,13 @@
       "title": "Filter Expression",
       "description": "OData $filter expression (e.g., Status eq 'Active' and CreatedAt gt 2024-01-01)",
       "format": "textarea",
-      "propertyOrder": 4
+      "propertyOrder": 11
     },
     "validate_filter": {
       "type": "button",
       "title": "Validate Filter",
       "format": "sync-action",
-      "propertyOrder": 5,
+      "propertyOrder": 12,
       "options": {
         "async": {
           "label": "Validate Filter",
@@ -60,8 +62,9 @@
     "expand_properties": {
       "type": "array",
       "title": "Expand Navigation Properties",
+      "description": "Include related entities in the response",
       "format": "select",
-      "propertyOrder": 6,
+      "propertyOrder": 13,
       "items": {
         "type": "string"
       },
@@ -76,45 +79,28 @@
       "type": "string",
       "title": "Order By",
       "description": "Field name for ordering (e.g., CreatedAt desc)",
-      "propertyOrder": 7
+      "propertyOrder": 14
     },
     "sync_type": {
       "type": "string",
       "title": "Sync Type",
       "enum": ["full", "incremental"],
-      "enum_titles": ["Full Sync", "Incremental Sync"],
+      "enumTitles": ["Full Sync", "Incremental Sync"],
       "default": "full",
-      "propertyOrder": 8
-    },
-    "primary_key": {
-      "type": "array",
-      "title": "Primary Key",
-      "description": "Fields that form the primary key",
-      "format": "select",
-      "propertyOrder": 10,
-      "items": {
-        "type": "string"
-      },
-      "options": {
-        "async": {
-          "label": "Load Primary Keys",
-          "action": "loadPossiblePrimaryKeys"
-        }
-      }
+      "description": "Full sync loads all data, incremental sync loads only new/changed records",
+      "propertyOrder": 20
     },
     "page_size": {
       "type": "integer",
       "title": "Page Size",
-      "default": 1000,
-      "description": "Number of records per page",
-      "propertyOrder": 11
+      "description": "Override default page size for this entity (leave empty to use default)",
+      "propertyOrder": 30
     },
     "max_records": {
       "type": "integer",
       "title": "Max Records",
-      "description": "Maximum number of records to fetch (0 = unlimited)",
-      "default": 0,
-      "propertyOrder": 12
+      "description": "Override default max records for this entity (0 = unlimited, leave empty to use default)",
+      "propertyOrder": 31
     },
     "preview_data": {
       "type": "button",
@@ -147,18 +133,32 @@
             "incremental_field": {
               "type": "string",
               "title": "Incremental Field",
-              "description": "Field used for incremental sync (e.g., LastChangedAt)",
+              "description": "Field used for incremental sync (e.g., LastChangedAt, ModifiedOn)",
               "format": "select",
-              "propertyOrder": 9,
               "options": {
                 "async": {
                   "label": "Load Incremental Fields",
                   "action": "loadIncrementalFields"
                 }
               }
+            },
+            "primary_key": {
+              "type": "array",
+              "title": "Primary Key",
+              "description": "Fields that form the primary key (required for incremental sync)",
+              "format": "select",
+              "items": {
+                "type": "string"
+              },
+              "options": {
+                "async": {
+                  "label": "Load Primary Keys",
+                  "action": "loadPossiblePrimaryKeys"
+                }
+              }
             }
           },
-          "required": ["incremental_field"]
+          "required": ["incremental_field", "primary_key"]
         }
       ]
     }

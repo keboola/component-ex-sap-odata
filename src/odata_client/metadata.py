@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 from lxml import etree
+
+# Type alias for JSON-like dictionaries
+JsonDict = dict[str, Any]
 
 
 class ODataVersion(str, Enum):
@@ -21,7 +25,7 @@ class EntityProperty:
     precision: int | None = None
     scale: int | None = None
 
-    def to_dict(self) -> dict[str, str | int | bool | list | dict | None]:
+    def to_dict(self) -> JsonDict:
         return {
             "name": self.name,
             "edm_type": self.edm_type,
@@ -38,7 +42,7 @@ class NavigationProperty:
     target_entity: str
     is_collection: bool = False
 
-    def to_dict(self) -> dict[str, str | int | bool | list | dict | None]:
+    def to_dict(self) -> JsonDict:
         return {
             "name": self.name,
             "target_entity": self.target_entity,
@@ -54,7 +58,7 @@ class EntitySet:
     key_properties: list[str] = field(default_factory=list)
     navigation_properties: list[NavigationProperty] = field(default_factory=list)
 
-    def to_dict(self) -> dict[str, str | int | bool | list | dict | None]:
+    def to_dict(self) -> JsonDict:
         return {
             "name": self.name,
             "entity_type": self.entity_type,

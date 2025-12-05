@@ -1,26 +1,20 @@
 {
   "type": "object",
-  "title": "SAP OData Configuration",
-  "required": ["auth_type"],
+  "title": "SAP OData Connection",
+  "required": ["base_url", "service_path", "auth_type"],
   "properties": {
-    "service_url": {
-      "type": "string",
-      "title": "OData Service URL (Legacy)",
-      "description": "Full OData service URL without entity set. Example: https://my-sap.com/sap/opu/odata/sap/API_BUSINESS_PARTNER. Alternative: use Base URL + Service Path below.",
-      "propertyOrder": 1
-    },
     "base_url": {
       "type": "string",
-      "title": "Base URL (Recommended)",
+      "title": "Base URL",
       "description": "Base URL of your SAP system. Examples: https://my-sap-server.com or https://sandbox.api.sap.com/s4hanacloud",
-      "propertyOrder": 2,
+      "propertyOrder": 1,
       "format": "url"
     },
     "service_path": {
       "type": "string",
       "title": "Service Path",
       "description": "OData service path. V2 example: API_BUSINESS_PARTNER. V4 example: api_fixedassetacquisition/srvd_a2x/sap/fixedassetacquisition/0001",
-      "propertyOrder": 3
+      "propertyOrder": 2
     },
     "odata_version": {
       "type": "string",
@@ -28,57 +22,71 @@
       "enum": ["auto", "v2", "v4"],
       "default": "auto",
       "description": "OData protocol version. Use 'auto' for automatic detection.",
-      "propertyOrder": 4
+      "propertyOrder": 3
     },
     "auth_type": {
       "type": "string",
       "title": "Authentication Type",
       "enum": ["basic", "oauth", "apiKey"],
-      "enum_titles": ["Username & Password", "OAuth 2.0", "API Key"],
+      "enumTitles": ["Username & Password", "OAuth 2.0", "API Key"],
       "default": "basic",
-      "propertyOrder": 5
+      "propertyOrder": 10
     },
     "username": {
       "type": "string",
       "title": "Username",
-      "propertyOrder": 6
+      "propertyOrder": 11
     },
     "#password": {
       "type": "string",
       "title": "Password",
       "format": "password",
-      "propertyOrder": 7
+      "propertyOrder": 12
     },
     "#api_key": {
       "type": "string",
       "title": "API Key",
       "format": "password",
-      "propertyOrder": 8
+      "propertyOrder": 13
     },
     "api_key_header_name": {
       "type": "string",
       "title": "API Key Header Name",
       "default": "APIKey",
       "description": "HTTP header name for the API key (e.g., APIKey, X-API-Key, Authorization)",
-      "propertyOrder": 9
+      "propertyOrder": 14
     },
     "timeout": {
       "type": "integer",
       "title": "Request Timeout (seconds)",
       "default": 60,
-      "propertyOrder": 10
+      "propertyOrder": 20
     },
     "max_retries": {
       "type": "integer",
       "title": "Max Retries",
       "default": 3,
-      "propertyOrder": 11
+      "propertyOrder": 21
     },
     "verify_ssl": {
       "type": "boolean",
       "title": "Verify SSL Certificates",
       "default": true,
-      "propertyOrder": 12
+      "propertyOrder": 22
+    },
+    "page_size": {
+      "type": "integer",
+      "title": "Default Page Size",
+      "default": 1000,
+      "description": "Number of records per page (can be overridden per entity)",
+      "propertyOrder": 23
+    },
+    "max_records": {
+      "type": "integer",
+      "title": "Default Max Records",
+      "description": "Maximum number of records to fetch (0 = unlimited, can be overridden per entity)",
+      "default": 0,
+      "propertyOrder": 24
     },
     "test_connection": {
       "type": "button",
@@ -97,22 +105,43 @@
       "oneOf": [
         {
           "properties": {
-            "auth_type": {"enum": ["basic"]},
-            "username": {"type": "string"},
-            "#password": {"type": "string"}
+            "auth_type": {
+              "enum": ["basic"]
+            },
+            "username": {
+              "type": "string",
+              "title": "Username"
+            },
+            "#password": {
+              "type": "string",
+              "title": "Password",
+              "format": "password"
+            }
           },
           "required": ["username", "#password"]
         },
         {
           "properties": {
-            "auth_type": {"enum": ["oauth"]}
+            "auth_type": {
+              "enum": ["oauth"]
+            }
           }
         },
         {
           "properties": {
-            "auth_type": {"enum": ["apiKey"]},
-            "#api_key": {"type": "string"},
-            "api_key_header_name": {"type": "string"}
+            "auth_type": {
+              "enum": ["apiKey"]
+            },
+            "#api_key": {
+              "type": "string",
+              "title": "API Key",
+              "format": "password"
+            },
+            "api_key_header_name": {
+              "type": "string",
+              "title": "API Key Header Name",
+              "default": "APIKey"
+            }
           },
           "required": ["#api_key"]
         }
