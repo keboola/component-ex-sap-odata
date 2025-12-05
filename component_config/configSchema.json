@@ -66,40 +66,66 @@
         }
       }
     },
-    "timeout": {
-      "type": "integer",
-      "title": "Request Timeout (seconds)",
-      "description": "Maximum time to wait for SAP server response.\n\nRecommended:\n• 60s for most scenarios\n• 120s+ for large data extractions\n• 30s for API Business Hub",
-      "default": 60,
-      "propertyOrder": 20
+    "connection_options": {
+      "type": "array",
+      "title": "⚙️ Advanced Connection Options (Optional)",
+      "description": "Configure timeout, retries, and SSL verification. Leave empty to use defaults.",
+      "maxItems": 1,
+      "propertyOrder": 20,
+      "items": {
+        "type": "object",
+        "title": "Connection Settings",
+        "properties": {
+          "timeout": {
+            "type": "integer",
+            "title": "Request Timeout (seconds)",
+            "description": "Maximum time to wait for SAP server response.\n\nRecommended:\n• 60s for most scenarios\n• 120s+ for large data extractions\n• 30s for API Business Hub",
+            "default": 60,
+            "propertyOrder": 1
+          },
+          "max_retries": {
+            "type": "integer",
+            "title": "Max Retries",
+            "description": "Number of automatic retry attempts on transient failures (network issues, timeouts).\n\nRecommended: 3 retries",
+            "default": 3,
+            "propertyOrder": 2
+          },
+          "verify_ssl": {
+            "type": "boolean",
+            "title": "Verify SSL Certificates",
+            "description": "Verify SSL/TLS certificates for HTTPS connections.\n\n⚠️ Only disable for development/testing with self-signed certificates.\nProduction systems should always use verified certificates.",
+            "default": true,
+            "propertyOrder": 3
+          }
+        }
+      }
     },
-    "max_retries": {
-      "type": "integer",
-      "title": "Max Retries",
-      "description": "Number of automatic retry attempts on transient failures (network issues, timeouts).\n\nRecommended: 3 retries",
-      "default": 3,
-      "propertyOrder": 21
-    },
-    "verify_ssl": {
-      "type": "boolean",
-      "title": "Verify SSL Certificates",
-      "description": "Verify SSL/TLS certificates for HTTPS connections.\n\n⚠️ Only disable for development/testing with self-signed certificates.\nProduction systems should always use verified certificates.",
-      "default": true,
-      "propertyOrder": 22
-    },
-    "page_size": {
-      "type": "integer",
-      "title": "Default Page Size",
-      "default": 1000,
-      "description": "Number of records per page for all entities (can be overridden per entity).\n\nOData uses server-side paging with $top and $skip parameters.\n\nRecommended:\n• 1000 for standard entities\n• 500 for entities with many fields\n• 100 for testing\n\nLearn more: https://www.odata.org/getting-started/basic-tutorial/#queryData",
-      "propertyOrder": 23
-    },
-    "max_records": {
-      "type": "integer",
-      "title": "Default Max Records",
-      "description": "Maximum total records to fetch for all entities (can be overridden per entity).\n\nSet to 0 for unlimited extraction.\nUseful for:\n• Testing (e.g., 100 records)\n• Cost control on metered APIs\n• Development environments",
-      "default": 0,
-      "propertyOrder": 24
+    "pagination_defaults": {
+      "type": "array",
+      "title": "📄 Default Pagination Settings (Optional)",
+      "description": "Override default page size and max records. Leave empty to use standard defaults (page_size: 1000, max_records: unlimited).",
+      "maxItems": 1,
+      "propertyOrder": 30,
+      "items": {
+        "type": "object",
+        "title": "Pagination Settings",
+        "properties": {
+          "page_size": {
+            "type": "integer",
+            "title": "Default Page Size",
+            "default": 1000,
+            "description": "Number of records per page for all entities (can be overridden per entity).\n\nOData uses server-side paging with $top and $skip parameters.\n\nRecommended:\n• 1000 for standard entities\n• 500 for entities with many fields\n• 100 for testing\n\nLearn more: https://www.odata.org/getting-started/basic-tutorial/#queryData",
+            "propertyOrder": 1
+          },
+          "max_records": {
+            "type": "integer",
+            "title": "Default Max Records",
+            "description": "Maximum total records to fetch for all entities (can be overridden per entity).\n\nSet to 0 for unlimited extraction.\nUseful for:\n• Testing (e.g., 100 records)\n• Cost control on metered APIs\n• Development environments",
+            "default": 0,
+            "propertyOrder": 2
+          }
+        }
+      }
     },
     "test_connection": {
       "type": "button",

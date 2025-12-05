@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from keboola.component.base import ComponentBase, sync_action
@@ -13,9 +13,10 @@ from configuration import (
     AuthType,
     ComponentState,
     Configuration,
+    FetchType,
+    LoadType,
     ODataVersionChoice,
     StateEntry,
-    SyncType,
 )
 from odata_client.base_client import ODataClientBase
 from odata_client.metadata import MetadataParser, ODataVersion
@@ -166,7 +167,7 @@ class Component(ComponentBase):
         filter_expr = self._config.filter_expression
 
         if (
-            self._config.sync_type == SyncType.INCREMENTAL
+            self._config.fetch_type == FetchType.INCREMENTAL
             and self._config.incremental_field
             and entity_state.last_incremental_value
         ):
@@ -181,7 +182,7 @@ class Component(ComponentBase):
         return self.create_out_table_definition(
             f"{output_table_name}.csv",
             primary_key=self._config.primary_key if self._config.primary_key else None,
-            incremental=self._config.sync_type == SyncType.INCREMENTAL,
+            incremental=self._config.load_type == LoadType.INCREMENTAL,
         )
 
     def _process_records(
@@ -245,7 +246,7 @@ class Component(ComponentBase):
         """Update component state with extraction results."""
         state.update_entity_state(
             entity_set=self._config.entity_set or "",
-            last_sync_timestamp=datetime.now(UTC).isoformat(),
+            last_sync_timestamp=datetime.now(timezone.utc).isoformat(),
             last_incremental_value=last_incremental_value,
             records_synced=records_count,
         )

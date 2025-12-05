@@ -4,9 +4,10 @@ from configuration import (
     AuthType,
     ComponentState,
     Configuration,
+    FetchType,
+    LoadType,
     ODataVersionChoice,
     StateEntry,
-    SyncType,
 )
 
 
@@ -87,8 +88,7 @@ class TestConfiguration:
             service_url="https://example.com/odata",
             auth_type=AuthType.BASIC,
             username="user",
-            timeout=120,
-            max_retries=5,
+            connection_options=[{"timeout": 120, "max_retries": 5, "verify_ssl": True}],
             **{"#password": "pass"},
         )
 
@@ -123,7 +123,8 @@ class TestConfigurationWithRowFields:
         assert config.output_table_name is None
         assert config.select_fields == []
         assert config.filter_expression is None
-        assert config.sync_type == SyncType.FULL
+        assert config.load_type == LoadType.FULL
+        assert config.fetch_type == FetchType.FULL
         assert config.page_size == 1000
         assert config.max_records == 0
 
@@ -134,15 +135,17 @@ class TestConfigurationWithRowFields:
             username="user",
             entity_set="Products",
             output_table_name="my_products",
-            select_fields=["ProductID", "ProductName"],
-            filter_expression="IsActive eq true",
-            expand_properties=["Category"],
-            order_by="ProductName asc",
-            sync_type=SyncType.INCREMENTAL,
+            query_options={
+                "select_fields": ["ProductID", "ProductName"],
+                "filter_expression": "IsActive eq true",
+                "expand_properties": ["Category"],
+                "order_by": "ProductName asc",
+            },
+            load_type=LoadType.INCREMENTAL,
+            fetch_type=FetchType.INCREMENTAL,
             incremental_field="ModifiedAt",
             primary_key=["ProductID"],
-            page_size=500,
-            max_records=10000,
+            advanced_options=[{"page_size": 500, "max_records": 10000}],
             **{"#password": "pass"},
         )
 
@@ -152,7 +155,8 @@ class TestConfigurationWithRowFields:
         assert config.filter_expression == "IsActive eq true"
         assert config.expand_properties == ["Category"]
         assert config.order_by == "ProductName asc"
-        assert config.sync_type == SyncType.INCREMENTAL
+        assert config.load_type == LoadType.INCREMENTAL
+        assert config.fetch_type == FetchType.INCREMENTAL
         assert config.incremental_field == "ModifiedAt"
         assert config.primary_key == ["ProductID"]
         assert config.page_size == 500
