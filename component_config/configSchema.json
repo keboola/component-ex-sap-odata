@@ -28,33 +28,53 @@
       "type": "string",
       "title": "Authentication Type",
       "enum": ["basic", "oauth", "apiKey"],
-      "enumTitles": ["Username & Password", "OAuth 2.0", "API Key"],
+      "enum_titles": ["Username & Password", "OAuth 2.0", "API Key"],
       "default": "basic",
       "propertyOrder": 10
     },
     "username": {
       "type": "string",
       "title": "Username",
-      "propertyOrder": 11
+      "propertyOrder": 11,
+      "options": {
+        "dependencies": {
+          "auth_type": "basic"
+        }
+      }
     },
     "#password": {
       "type": "string",
       "title": "Password",
       "format": "password",
-      "propertyOrder": 12
+      "propertyOrder": 12,
+      "options": {
+        "dependencies": {
+          "auth_type": "basic"
+        }
+      }
     },
     "#api_key": {
       "type": "string",
       "title": "API Key",
       "format": "password",
-      "propertyOrder": 13
+      "propertyOrder": 13,
+      "options": {
+        "dependencies": {
+          "auth_type": "apiKey"
+        }
+      }
     },
     "api_key_header_name": {
       "type": "string",
       "title": "API Key Header Name",
       "default": "APIKey",
       "description": "HTTP header name for the API key (e.g., APIKey, X-API-Key, Authorization)",
-      "propertyOrder": 14
+      "propertyOrder": 14,
+      "options": {
+        "dependencies": {
+          "auth_type": "apiKey"
+        }
+      }
     },
     "timeout": {
       "type": "integer",
@@ -98,54 +118,6 @@
           "action": "testConnection"
         }
       }
-    }
-  },
-  "dependencies": {
-    "auth_type": {
-      "oneOf": [
-        {
-          "properties": {
-            "auth_type": {
-              "enum": ["basic"]
-            },
-            "username": {
-              "type": "string",
-              "title": "Username"
-            },
-            "#password": {
-              "type": "string",
-              "title": "Password",
-              "format": "password"
-            }
-          },
-          "required": ["username", "#password"]
-        },
-        {
-          "properties": {
-            "auth_type": {
-              "enum": ["oauth"]
-            }
-          }
-        },
-        {
-          "properties": {
-            "auth_type": {
-              "enum": ["apiKey"]
-            },
-            "#api_key": {
-              "type": "string",
-              "title": "API Key",
-              "format": "password"
-            },
-            "api_key_header_name": {
-              "type": "string",
-              "title": "API Key Header Name",
-              "default": "APIKey"
-            }
-          },
-          "required": ["#api_key"]
-        }
-      ]
     }
   }
 }
