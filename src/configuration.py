@@ -18,9 +18,43 @@ class ODataVersionChoice(str, Enum):
     V4 = "v4"
 
 
-class SyncType(str, Enum):
+class LoadType(str, Enum):
+    """How data is written to Keboola Storage."""
     FULL = "full"
     INCREMENTAL = "incremental"
+
+
+class FetchType(str, Enum):
+    """How data is fetched from SAP OData API."""
+    FULL = "full"
+    INCREMENTAL = "incremental"
+
+
+class ConnectionOptions(BaseModel):
+    """Advanced connection options."""
+    timeout: int = Field(default=60, description="Request timeout in seconds")
+    max_retries: int = Field(default=3, description="Maximum number of retries for failed requests")
+    verify_ssl: bool = Field(default=True, description="Verify SSL certificates")
+
+
+class PaginationDefaults(BaseModel):
+    """Default pagination settings."""
+    page_size: int = Field(default=1000, description="Number of records per page")
+    max_records: int = Field(default=0, description="Maximum records to fetch (0 = unlimited)")
+
+
+class QueryOptions(BaseModel):
+    """OData query options."""
+    select_fields: list[str] = Field(default_factory=list, description="Fields to select ($select)")
+    filter_expression: str | None = Field(default=None, description="OData $filter expression")
+    expand_properties: list[str] = Field(default_factory=list, description="Navigation properties to expand ($expand)")
+    order_by: str | None = Field(default=None, description="Field for ordering ($orderby)")
+
+
+class AdvancedEntityOptions(BaseModel):
+    """Advanced entity-specific options."""
+    page_size: int | None = Field(default=None, description="Override page size for this entity")
+    max_records: int | None = Field(default=None, description="Override max records for this entity")
 
 
 class Configuration(BaseModel):
@@ -54,22 +88,105 @@ class Configuration(BaseModel):
     password: str | None = Field(default=None, alias="#password", description="Password for basic authentication")
     api_key: str | None = Field(default=None, alias="#api_key", description="API key for API key authentication")
     api_key_header_name: str = Field(default="APIKey", description="HTTP header name for the API key")
-    timeout: int = Field(default=60, description="Request timeout in seconds")
-    max_retries: int = Field(default=3, description="Maximum number of retries for failed requests")
-    verify_ssl: bool = Field(default=True, description="Verify SSL certificates")
+
+    # Optional nested blocks (arrays with maxItems: 1)
+    connection_options: list[ConnectionOptions] | None = Field(
+        default=None, description="Advanced connection options"
+    )
+    pagination_defaults: list[PaginationDefaults] | None = Field(
+        default=None, description="Default pagination settings"
+    )
 
     # Row configuration fields (from configRowSchema.json)
     entity_set: str | None = Field(default=None, description="Name of the OData EntitySet to extract")
     output_table_name: str | None = Field(default=None, description="Name of the output table in Keboola Storage")
-    select_fields: list[str] = Field(default_factory=list, description="Fields to select ($select)")
-    filter_expression: str | None = Field(default=None, description="OData $filter expression")
-    expand_properties: list[str] = Field(default_factory=list, description="Navigation properties to expand ($expand)")
-    order_by: str | None = Field(default=None, description="Field for ordering ($orderby)")
-    sync_type: SyncType = Field(default=SyncType.FULL, description="Sync type: full or incremental")
-    incremental_field: str | None = Field(default=None, description="Field used for incremental sync")
-    primary_key: list[str] = Field(default_factory=list, description="Primary key fields")
-    page_size: int = Field(default=1000, description="Number of records per page")
-    max_records: int = Field(default=0, description="Maximum records to fetch (0 = unlimited)")
+
+    # Query options as nested object
+    query_options: QueryOptions | None = Field(default=None, description="OData query options")
+
+    # Load and fetch types (replaced sync_type)
+    load_type: LoadType = Field(default=LoadType.FULL, description="How data is written to Keboola Storage")
+    fetch_type: FetchType = Field(default=FetchType.FULL, description="How data is fetched from SAP OData API")
+
+    incremental_field: str | None = Field(default=None, description="Field used for incremental fetch")
+    primary_key: list[str] = Field(default_factory=list, description="Primary key fields for incremental load")
+
+    # Advanced entity options as optional nested block
+    advanced_options: list[AdvancedEntityOptions] | None = Field(
+        default=None, description="Advanced entity-specific options"
+    )
+
+    # Property accessors for backward-compatible field access
+    @property
+    def timeout(self) -> int:
+        """Get timeout value from connection_options or default."""
+        if self.connection_options:
+            return self.connection_options[0].timeout
+        return 60
+
+    @property
+    def max_retries(self) -> int:
+        """Get max_retries value from connection_options or default."""
+        if self.connection_options:
+            return self.connection_options[0].max_retries
+        return 3
+
+    @property
+    def verify_ssl(self) -> bool:
+        """Get verify_ssl value from connection_options or default."""
+        if self.connection_options:
+            return self.connection_options[0].verify_ssl
+        return True
+
+    @property
+    def page_size(self) -> int:
+        """Get page_size value from advanced_options, pagination_defaults, or default."""
+        # Entity-specific override takes precedence
+        if self.advanced_options and self.advanced_options[0].page_size is not None:
+            return self.advanced_options[0].page_size
+        # Then global default
+        if self.pagination_defaults:
+            return self.pagination_defaults[0].page_size
+        return 1000
+
+    @property
+    def max_records(self) -> int:
+        """Get max_records value from advanced_options, pagination_defaults, or default."""
+        # Entity-specific override takes precedence
+        if self.advanced_options and self.advanced_options[0].max_records is not None:
+            return self.advanced_options[0].max_records
+        # Then global default
+        if self.pagination_defaults:
+            return self.pagination_defaults[0].max_records
+        return 0
+
+    @property
+    def select_fields(self) -> list[str]:
+        """Get select_fields from query_options or empty list."""
+        if self.query_options:
+            return self.query_options.select_fields
+        return []
+
+    @property
+    def filter_expression(self) -> str | None:
+        """Get filter_expression from query_options or None."""
+        if self.query_options:
+            return self.query_options.filter_expression
+        return None
+
+    @property
+    def expand_properties(self) -> list[str]:
+        """Get expand_properties from query_options or empty list."""
+        if self.query_options:
+            return self.query_options.expand_properties
+        return []
+
+    @property
+    def order_by(self) -> str | None:
+        """Get order_by from query_options or None."""
+        if self.query_options:
+            return self.query_options.order_by
+        return None
 
     def model_post_init(self, __context: Any) -> None:
         # Validate URL configuration - exactly one method must be used
@@ -103,6 +220,13 @@ class Configuration(BaseModel):
         elif self.auth_type == AuthType.API_KEY:
             if not self.api_key:
                 raise ValueError("API key is required for API key authentication")
+
+        # Validate incremental configurations
+        if self.fetch_type == FetchType.INCREMENTAL and not self.incremental_field:
+            raise ValueError("'incremental_field' is required when fetch_type is 'incremental'")
+
+        if self.load_type == LoadType.INCREMENTAL and not self.primary_key:
+            raise ValueError("'primary_key' is required when load_type is 'incremental'")
 
     def get_service_url(self, detected_version: ODataVersionChoice | None = None) -> str:
         """Get the full OData service URL.
