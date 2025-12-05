@@ -99,24 +99,33 @@
       "description": "Sort records using OData $orderby query option.\n\nExamples:\n• CreatedAt desc (newest first)\n• Name asc (alphabetical)\n• Price desc, Name asc (multi-field)\n\nLearn more: https://www.odata.org/getting-started/basic-tutorial/#orderby",
       "propertyOrder": 14
     },
-    "sync_type": {
+    "load_type": {
       "type": "string",
-      "title": "Sync Type",
+      "title": "Load Type (Storage)",
       "enum": ["full", "incremental"],
-      "enum_titles": ["Full Sync", "Incremental Sync"],
+      "enum_titles": ["Full Load (Replace)", "Incremental Load (Append)"],
       "default": "full",
-      "description": "Choose the synchronization strategy:\n\n• Full Sync: Extract all records on each run\n  - Simple and reliable\n  - Use for small datasets or when you need complete data\n\n• Incremental Sync: Extract only new/modified records\n  - Faster and more efficient\n  - Requires incremental field (timestamp) and primary key\n  - Uses Keboola state file to track last extraction\n\nLearn more: https://help.keboola.com/components/extractors/#incremental-loading",
+      "description": "How to write data to Keboola Storage:\n\n• Full Load: Replace entire table on each run\n  - Simple, always up-to-date\n  - Good for small tables\n  - No risk of duplicates\n\n• Incremental Load: Append new data to existing table\n  - Keeps historical records\n  - Requires primary key for deduplication\n  - Efficient for large tables\n\n⚠️ This is independent from how data is fetched from OData.\n\nLearn more: https://help.keboola.com/storage/tables/#incremental-loading",
       "propertyOrder": 20
+    },
+    "fetch_type": {
+      "type": "string",
+      "title": "Fetch Type (OData)",
+      "enum": ["full", "incremental"],
+      "enum_titles": ["Full Fetch (All Records)", "Incremental Fetch (Changes Only)"],
+      "default": "full",
+      "description": "How to fetch data from SAP OData API:\n\n• Full Fetch: Extract all records every time\n  - Reliable, always complete\n  - Slower for large datasets\n  - Higher API costs\n\n• Incremental Fetch: Extract only new/changed records\n  - Uses timestamp field filter ($filter)\n  - Faster and cheaper\n  - Requires incremental field and state tracking\n\n💡 Recommended combinations:\n  • Full Fetch + Full Load: Simple, for small tables\n  • Incremental Fetch + Incremental Load: Efficient, for large tables\n  • Incremental Fetch + Full Load: For CDC scenarios (replace with latest changes)\n\nLearn more: https://www.odata.org/getting-started/basic-tutorial/#filter",
+      "propertyOrder": 21
     },
     "incremental_field": {
       "type": "string",
       "title": "Incremental Field",
-      "description": "Timestamp field used to identify new/modified records.\n\nCommon SAP field names:\n• LastChangedAt / LastChangeDateTime\n• ModifiedOn / ChangedOn\n• CreatedAt / CreationDateTime\n• SystemModstamp\n\nThe field must:\n• Contain timestamps\n• Be indexed for performance\n• Update reliably on record changes",
+      "description": "Timestamp field for incremental fetch (required for Incremental Fetch).\n\nUsed to filter records: $filter={field} gt {last_run_timestamp}\n\nCommon SAP field names:\n• LastChangedAt / LastChangeDateTime\n• ModifiedOn / ChangedOn\n• CreatedAt / CreationDateTime\n• SystemModstamp\n\nThe field must:\n• Contain timestamps\n• Be indexed for performance\n• Update reliably on record changes",
       "format": "select",
-      "propertyOrder": 21,
+      "propertyOrder": 22,
       "options": {
         "dependencies": {
-          "sync_type": "incremental"
+          "fetch_type": "incremental"
         },
         "async": {
           "label": "Load Incremental Fields",
@@ -127,17 +136,17 @@
     "primary_key": {
       "type": "array",
       "title": "Primary Key",
-      "description": "Field(s) that uniquely identify each record.\n\nRequired for incremental sync to:\n• Detect duplicate records\n• Update existing records\n• Maintain data consistency\n\nCommon SAP primary keys:\n• BusinessPartner, BusinessPartnerID\n• SalesOrder, SalesOrderID\n• MaterialNumber, Plant\n\nUse multiple fields for composite keys.",
+      "description": "Field(s) that uniquely identify each record (required for Incremental Load).\n\nUsed by Keboola Storage to:\n• Deduplicate records (upsert operation)\n• Update existing records\n• Maintain data consistency\n\nCommon SAP primary keys:\n• Single field: BusinessPartnerID, SalesOrderID, ProductID\n• Composite key: MaterialNumber + Plant, AccountID + FiscalYear\n\n💡 Even with Full Fetch, primary key is needed for Incremental Load.\n\nLearn more: https://help.keboola.com/storage/tables/#primary-keys",
       "format": "select",
       "uniqueItems": true,
-      "propertyOrder": 22,
+      "propertyOrder": 23,
       "items": {
         "type": "string"
       },
       "options": {
         "tags": true,
         "dependencies": {
-          "sync_type": "incremental"
+          "load_type": "incremental"
         },
         "async": {
           "label": "Load Primary Keys",
