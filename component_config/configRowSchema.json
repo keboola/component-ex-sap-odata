@@ -38,66 +38,77 @@
       "description": "Custom name for the output table in Keboola Storage.\n\nIf empty, the entity set name will be used.\nExample: business_partners, sales_orders, products",
       "propertyOrder": 2
     },
-    "select_fields": {
-      "type": "array",
-      "title": "Select Fields",
-      "description": "Choose specific fields/properties to extract (OData $select query option).\n\nLeave empty to extract all fields.\n\nBenefits of field selection:\n• Faster extraction (less data transferred)\n• Lower API costs on metered services\n• Focus on relevant data only\n\nLearn more: https://www.odata.org/getting-started/basic-tutorial/#select",
-      "format": "select",
-      "uniqueItems": true,
+    "query_options": {
+      "type": "object",
+      "title": "🔍 OData Query Options (Optional)",
+      "description": "Configure field selection, filters, expansion, and ordering",
       "propertyOrder": 10,
-      "items": {
-        "type": "string"
+      "options": {
+        "collapsed": true
       },
-      "options": {
-        "tags": true,
-        "async": {
-          "label": "Load Fields",
-          "action": "loadFields"
+      "properties": {
+        "select_fields": {
+          "type": "array",
+          "title": "Select Fields",
+          "description": "Choose specific fields/properties to extract (OData $select query option).\n\nLeave empty to extract all fields.\n\nBenefits of field selection:\n• Faster extraction (less data transferred)\n• Lower API costs on metered services\n• Focus on relevant data only\n\nLearn more: https://www.odata.org/getting-started/basic-tutorial/#select",
+          "format": "select",
+          "uniqueItems": true,
+          "propertyOrder": 1,
+          "items": {
+            "type": "string"
+          },
+          "options": {
+            "tags": true,
+            "async": {
+              "label": "Load Fields",
+              "action": "loadFields"
+            }
+          }
+        },
+        "filter_expression": {
+          "type": "string",
+          "title": "Filter Expression",
+          "description": "Filter records using OData $filter query option.\n\nExamples:\n• Status eq 'Active'\n• CreatedAt gt 2024-01-01T00:00:00Z\n• Price le 100 and Category eq 'Electronics'\n• startswith(Name, 'SAP')\n\nOperators: eq, ne, gt, ge, lt, le, and, or, not\nFunctions: startswith, endswith, contains, length, tolower, toupper\n\nLearn more: https://www.odata.org/getting-started/basic-tutorial/#filter",
+          "format": "textarea",
+          "propertyOrder": 2
+        },
+        "validate_filter": {
+          "type": "button",
+          "title": "Validate Filter",
+          "format": "sync-action",
+          "propertyOrder": 3,
+          "options": {
+            "async": {
+              "label": "Validate Filter",
+              "action": "validateFilter"
+            }
+          }
+        },
+        "expand_properties": {
+          "type": "array",
+          "title": "Expand Navigation Properties",
+          "description": "Include related entities in the response (OData $expand query option).\n\nNavigation properties represent relationships between entities.\n\nExamples:\n• BusinessPartner → Addresses\n• SalesOrder → Items\n• Product → Category\n\nExpanded data will be flattened into columns or separate tables.\n\nLearn more: https://www.odata.org/getting-started/basic-tutorial/#expand",
+          "format": "select",
+          "uniqueItems": true,
+          "propertyOrder": 4,
+          "items": {
+            "type": "string"
+          },
+          "options": {
+            "tags": true,
+            "async": {
+              "label": "Load Navigation Properties",
+              "action": "loadNavigationProperties"
+            }
+          }
+        },
+        "order_by": {
+          "type": "string",
+          "title": "Order By",
+          "description": "Sort records using OData $orderby query option.\n\nExamples:\n• CreatedAt desc (newest first)\n• Name asc (alphabetical)\n• Price desc, Name asc (multi-field)\n\nLearn more: https://www.odata.org/getting-started/basic-tutorial/#orderby",
+          "propertyOrder": 5
         }
       }
-    },
-    "filter_expression": {
-      "type": "string",
-      "title": "Filter Expression",
-      "description": "Filter records using OData $filter query option.\n\nExamples:\n• Status eq 'Active'\n• CreatedAt gt 2024-01-01T00:00:00Z\n• Price le 100 and Category eq 'Electronics'\n• startswith(Name, 'SAP')\n\nOperators: eq, ne, gt, ge, lt, le, and, or, not\nFunctions: startswith, endswith, contains, length, tolower, toupper\n\nLearn more: https://www.odata.org/getting-started/basic-tutorial/#filter",
-      "format": "textarea",
-      "propertyOrder": 11
-    },
-    "validate_filter": {
-      "type": "button",
-      "title": "Validate Filter",
-      "format": "sync-action",
-      "propertyOrder": 12,
-      "options": {
-        "async": {
-          "label": "Validate Filter",
-          "action": "validateFilter"
-        }
-      }
-    },
-    "expand_properties": {
-      "type": "array",
-      "title": "Expand Navigation Properties",
-      "description": "Include related entities in the response (OData $expand query option).\n\nNavigation properties represent relationships between entities.\n\nExamples:\n• BusinessPartner → Addresses\n• SalesOrder → Items\n• Product → Category\n\nExpanded data will be flattened into columns or separate tables.\n\nLearn more: https://www.odata.org/getting-started/basic-tutorial/#expand",
-      "format": "select",
-      "uniqueItems": true,
-      "propertyOrder": 13,
-      "items": {
-        "type": "string"
-      },
-      "options": {
-        "tags": true,
-        "async": {
-          "label": "Load Navigation Properties",
-          "action": "loadNavigationProperties"
-        }
-      }
-    },
-    "order_by": {
-      "type": "string",
-      "title": "Order By",
-      "description": "Sort records using OData $orderby query option.\n\nExamples:\n• CreatedAt desc (newest first)\n• Name asc (alphabetical)\n• Price desc, Name asc (multi-field)\n\nLearn more: https://www.odata.org/getting-started/basic-tutorial/#orderby",
-      "propertyOrder": 14
     },
     "load_type": {
       "type": "string",
@@ -154,17 +165,30 @@
         }
       }
     },
-    "page_size": {
-      "type": "integer",
-      "title": "Page Size",
-      "description": "Override the default page size for this specific entity.\n\nLeave empty to use the global default.\n\nAdjust based on:\n• Number of fields (fewer fields = larger page size)\n• Data complexity (simple data = larger page size)\n• SAP server performance limits",
-      "propertyOrder": 30
-    },
-    "max_records": {
-      "type": "integer",
-      "title": "Max Records",
-      "description": "Override the default maximum records for this specific entity.\n\nLeave empty to use the global default.\nSet to 0 for unlimited.\n\nUseful for:\n• Testing specific entities\n• Controlling large extractions\n• Sampling data",
-      "propertyOrder": 31
+    "advanced_options": {
+      "type": "array",
+      "title": "⚙️ Advanced Entity Options (Optional)",
+      "description": "Override pagination settings for this entity. Leave empty to use global defaults.",
+      "maxItems": 1,
+      "propertyOrder": 30,
+      "items": {
+        "type": "object",
+        "title": "Entity-Specific Settings",
+        "properties": {
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size",
+            "description": "Override the default page size for this specific entity.\n\nLeave empty to use the global default.\n\nAdjust based on:\n• Number of fields (fewer fields = larger page size)\n• Data complexity (simple data = larger page size)\n• SAP server performance limits",
+            "propertyOrder": 1
+          },
+          "max_records": {
+            "type": "integer",
+            "title": "Max Records",
+            "description": "Override the default maximum records for this specific entity.\n\nLeave empty to use the global default.\nSet to 0 for unlimited.\n\nUseful for:\n• Testing specific entities\n• Controlling large extractions\n• Sampling data",
+            "propertyOrder": 2
+          }
+        }
+      }
     },
     "preview_data": {
       "type": "button",
