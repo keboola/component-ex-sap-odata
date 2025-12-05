@@ -44,22 +44,26 @@ Keboola component for extracting data from SAP OData services. Supports both ODa
 | `timeout` | No | Request timeout in seconds (default: 60) |
 | `max_retries` | No | Maximum retries for failed requests (default: 3) |
 | `verify_ssl` | No | Verify SSL certificates (default: `true`) |
+| `page_size` | No | Default page size for all entities (default: 1000) |
+| `max_records` | No | Default max records for all entities (0 = unlimited) |
 
 ### Row Configuration
+
+Each row extracts one entity set. Multiple rows can be configured for different entities.
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
 | `entity_set` | Yes | Name of the OData EntitySet to extract |
 | `output_table_name` | No | Output table name (default: entity set name) |
-| `select_fields` | No | Fields to select ($select) |
+| `select_fields` | No | Fields to select ($select) - multiselect array |
 | `filter_expression` | No | OData $filter expression |
-| `expand_properties` | No | Navigation properties to expand ($expand) |
+| `expand_properties` | No | Navigation properties to expand ($expand) - multiselect array |
 | `order_by` | No | Field for ordering ($orderby) |
 | `sync_type` | No | Sync type: `full` or `incremental` (default: `full`) |
-| `incremental_field` | No | Field for incremental sync |
-| `primary_key` | No | Primary key fields |
-| `page_size` | No | Records per page (default: 1000) |
-| `max_records` | No | Maximum records to fetch (0 = unlimited) |
+| `incremental_field` | For incremental | Field for incremental sync (shows when sync_type=incremental) |
+| `primary_key` | For incremental | Primary key fields - multiselect array (shows when sync_type=incremental) |
+| `page_size` | No | Override default page size for this entity |
+| `max_records` | No | Override default max records for this entity |
 
 ## Development
 
@@ -89,12 +93,37 @@ Create a `data/config.json` file with your configuration:
 ```json
 {
   "parameters": {
-    "service_url": "https://your-sap-server/sap/opu/odata/sap/API_BUSINESS_PARTNER",
-    "auth_type": "basic",
-    "username": "your-username",
-    "#password": "your-password",
+    "base_url": "https://sandbox.api.sap.com/s4hanacloud",
+    "service_path": "API_BUSINESS_PARTNER",
+    "odata_version": "auto",
+    "auth_type": "apiKey",
+    "#api_key": "your-api-key",
+    "page_size": 1000,
+    "max_records": 0
+  },
+  "storage": {
+    "output": {
+      "tables": [
+        {
+          "source": "A_BusinessPartner.csv",
+          "destination": "out.c-sap.business-partners"
+        }
+      ]
+    }
+  }
+}
+```
+
+Create `data/config_row.json` for entity configuration:
+
+```json
+{
+  "parameters": {
     "entity_set": "A_BusinessPartner",
-    "select_fields": ["BusinessPartner", "BusinessPartnerName"],
+    "output_table_name": "A_BusinessPartner",
+    "select_fields": ["BusinessPartner", "BusinessPartnerName", "CreatedByUser"],
+    "filter_expression": "BusinessPartnerCategory eq '1'",
+    "sync_type": "full",
     "page_size": 100
   }
 }
@@ -121,6 +150,30 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for detailed development instruct
 - How to get SAP API Key for testing
 - Local testing with sample configs
 - Debugging and troubleshooting
+
+### UI Schema Development
+
+Use the schema-tester tool to develop and test configuration schemas:
+
+```bash
+# Open schema tester (from project root)
+open schema-tester/index.html
+
+# Or use the plugin version directly
+open ~/.claude/plugins/marketplaces/keboola-claude-kit/plugins/component-ui-developer/tools/schema-tester/index.html
+```
+
+The schema-tester provides:
+- **Live preview** of configSchema.json and configRowSchema.json
+- **Conditional fields testing** - verify options.dependencies work correctly
+- **Button visualization** - see sync action buttons (Test Connection, Validate Filter, Preview Data)
+- **Multiselect testing** - test array fields with format: select
+- **Real-time validation** - see JSON output and errors instantly
+
+For UI development help, use the Claude plugin:
+```bash
+/plugin component-ui-developer ui-developer
+```
 
 ## Documentation
 

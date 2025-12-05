@@ -85,10 +85,45 @@
       "type": "string",
       "title": "Sync Type",
       "enum": ["full", "incremental"],
-      "enumTitles": ["Full Sync", "Incremental Sync"],
+      "enum_titles": ["Full Sync", "Incremental Sync"],
       "default": "full",
       "description": "Full sync loads all data, incremental sync loads only new/changed records",
       "propertyOrder": 20
+    },
+    "incremental_field": {
+      "type": "string",
+      "title": "Incremental Field",
+      "description": "Field used for incremental sync (e.g., LastChangedAt, ModifiedOn)",
+      "format": "select",
+      "propertyOrder": 21,
+      "options": {
+        "dependencies": {
+          "sync_type": "incremental"
+        },
+        "async": {
+          "label": "Load Incremental Fields",
+          "action": "loadIncrementalFields"
+        }
+      }
+    },
+    "primary_key": {
+      "type": "array",
+      "title": "Primary Key",
+      "description": "Fields that form the primary key (required for incremental sync)",
+      "format": "select",
+      "propertyOrder": 22,
+      "items": {
+        "type": "string"
+      },
+      "options": {
+        "dependencies": {
+          "sync_type": "incremental"
+        },
+        "async": {
+          "label": "Load Primary Keys",
+          "action": "loadPossiblePrimaryKeys"
+        }
+      }
     },
     "page_size": {
       "type": "integer",
@@ -113,54 +148,6 @@
           "action": "previewData"
         }
       }
-    }
-  },
-  "dependencies": {
-    "sync_type": {
-      "oneOf": [
-        {
-          "properties": {
-            "sync_type": {
-              "enum": ["full"]
-            }
-          }
-        },
-        {
-          "properties": {
-            "sync_type": {
-              "enum": ["incremental"]
-            },
-            "incremental_field": {
-              "type": "string",
-              "title": "Incremental Field",
-              "description": "Field used for incremental sync (e.g., LastChangedAt, ModifiedOn)",
-              "format": "select",
-              "options": {
-                "async": {
-                  "label": "Load Incremental Fields",
-                  "action": "loadIncrementalFields"
-                }
-              }
-            },
-            "primary_key": {
-              "type": "array",
-              "title": "Primary Key",
-              "description": "Fields that form the primary key (required for incremental sync)",
-              "format": "select",
-              "items": {
-                "type": "string"
-              },
-              "options": {
-                "async": {
-                  "label": "Load Primary Keys",
-                  "action": "loadPossiblePrimaryKeys"
-                }
-              }
-            }
-          },
-          "required": ["incremental_field", "primary_key"]
-        }
-      ]
     }
   }
 }
