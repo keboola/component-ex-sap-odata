@@ -134,17 +134,21 @@ class TestConfigurationWithRowFields:
             auth_type=AuthType.BASIC,
             username="user",
             entity_set="Products",
-            output_table_name="my_products",
             query_options={
                 "select_fields": ["ProductID", "ProductName"],
                 "filter_expression": "IsActive eq true",
                 "expand_properties": ["Category"],
                 "order_by": "ProductName asc",
             },
-            load_type=LoadType.INCREMENTAL,
-            fetch_type=FetchType.INCREMENTAL,
-            incremental_field="ModifiedAt",
-            primary_key=["ProductID"],
+            fetching_options={
+                "fetch_type": "incremental",
+                "incremental_field": "ModifiedAt",
+            },
+            destination={
+                "output_table_name": "my_products",
+                "load_type": "incremental",
+                "primary_key": ["ProductID"],
+            },
             advanced_options=[{"page_size": 500, "max_records": 10000}],
             **{"#password": "pass"},
         )
@@ -168,7 +172,7 @@ class TestConfigurationWithRowFields:
             auth_type=AuthType.BASIC,
             username="user",
             entity_set="Products",
-            output_table_name="custom_table",
+            destination={"output_table_name": "custom_table"},
             **{"#password": "pass"},
         )
         assert config.get_output_table_name() == "custom_table"

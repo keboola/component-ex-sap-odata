@@ -51,6 +51,19 @@ class QueryOptions(BaseModel):
     order_by: str | None = Field(default=None, description="Field for ordering ($orderby)")
 
 
+class FetchingOptions(BaseModel):
+    """Fetching options for OData API."""
+    fetch_type: FetchType = Field(default=FetchType.FULL, description="How data is fetched from SAP OData API")
+    incremental_field: str | None = Field(default=None, description="Field used for incremental fetch")
+
+
+class Destination(BaseModel):
+    """Destination configuration for Keboola Storage."""
+    output_table_name: str | None = Field(default=None, description="Name of the output table in Keboola Storage")
+    load_type: LoadType = Field(default=LoadType.FULL, description="How data is written to Keboola Storage")
+    primary_key: list[str] = Field(default_factory=list, description="Primary key fields for incremental load")
+
+
 class AdvancedEntityOptions(BaseModel):
     """Advanced entity-specific options."""
     page_size: int | None = Field(default=None, description="Override page size for this entity")
@@ -99,17 +112,11 @@ class Configuration(BaseModel):
 
     # Row configuration fields (from configRowSchema.json)
     entity_set: str | None = Field(default=None, description="Name of the OData EntitySet to extract")
-    output_table_name: str | None = Field(default=None, description="Name of the output table in Keboola Storage")
 
-    # Query options as nested object
+    # Nested object blocks
     query_options: QueryOptions | None = Field(default=None, description="OData query options")
-
-    # Load and fetch types (replaced sync_type)
-    load_type: LoadType = Field(default=LoadType.FULL, description="How data is written to Keboola Storage")
-    fetch_type: FetchType = Field(default=FetchType.FULL, description="How data is fetched from SAP OData API")
-
-    incremental_field: str | None = Field(default=None, description="Field used for incremental fetch")
-    primary_key: list[str] = Field(default_factory=list, description="Primary key fields for incremental load")
+    fetching_options: FetchingOptions | None = Field(default=None, description="Fetching options for OData API")
+    destination: Destination | None = Field(default=None, description="Destination configuration for Keboola Storage")
 
     # Advanced entity options as optional nested block
     advanced_options: list[AdvancedEntityOptions] | None = Field(
@@ -187,6 +194,41 @@ class Configuration(BaseModel):
         if self.query_options:
             return self.query_options.order_by
         return None
+
+    @property
+    def fetch_type(self) -> FetchType:
+        """Get fetch_type from fetching_options or default."""
+        if self.fetching_options:
+            return self.fetching_options.fetch_type
+        return FetchType.FULL
+
+    @property
+    def incremental_field(self) -> str | None:
+        """Get incremental_field from fetching_options or None."""
+        if self.fetching_options:
+            return self.fetching_options.incremental_field
+        return None
+
+    @property
+    def output_table_name(self) -> str | None:
+        """Get output_table_name from destination or None."""
+        if self.destination:
+            return self.destination.output_table_name
+        return None
+
+    @property
+    def load_type(self) -> LoadType:
+        """Get load_type from destination or default."""
+        if self.destination:
+            return self.destination.load_type
+        return LoadType.FULL
+
+    @property
+    def primary_key(self) -> list[str]:
+        """Get primary_key from destination or empty list."""
+        if self.destination:
+            return self.destination.primary_key
+        return []
 
     def model_post_init(self, __context: Any) -> None:
         # Validate URL configuration - exactly one method must be used
