@@ -37,9 +37,6 @@
       "title": "🔍 OData Query Options (Optional)",
       "description": "Configure field selection, filters, expansion, and ordering",
       "propertyOrder": 10,
-      "options": {
-        "collapsed": true
-      },
       "properties": {
         "select_fields": {
           "type": "array",
@@ -109,9 +106,6 @@
       "title": "🔄 Fetching Options",
       "description": "Configure how data is fetched from SAP OData API",
       "propertyOrder": 15,
-      "options": {
-        "collapsed": true
-      },
       "properties": {
         "fetch_type": {
           "type": "string",
@@ -145,9 +139,6 @@
       "title": "📥 Destination",
       "description": "Configure output table and how data is loaded to Keboola Storage",
       "propertyOrder": 20,
-      "options": {
-        "collapsed": true
-      },
       "properties": {
         "output_table_name": {
           "type": "string",
