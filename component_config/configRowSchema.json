@@ -17,6 +17,17 @@
       "description": "OData protocol version for this service.\n\n• auto: Automatically detect from $metadata (recommended)\n• v2: Force OData V2 (legacy SAP services)\n• v4: Force OData V4 (modern SAP services)\n\nLearn more: https://www.odata.org/documentation/",
       "propertyOrder": 0.5
     },
+    "test_connection": {
+      "type": "button",
+      "format": "test-connection",
+      "propertyOrder": 0.7,
+      "options": {
+        "async": {
+          "label": "Test Connection",
+          "action": "testConnection"
+        }
+      }
+    },
     "entity_set": {
       "type": "string",
       "title": "Entity Set",
