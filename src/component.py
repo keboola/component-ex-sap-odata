@@ -421,9 +421,38 @@ class Component(ComponentBase):
                 )
             )
 
+            message = f"Loaded {len(data)} records"
+
+            if data:
+                # Format data as markdown table
+                columns = list(data[0].keys())
+
+                # Create table header
+                header = "| " + " | ".join(columns) + " |"
+                separator = "|" + "|".join([" --- " for _ in columns]) + "|"
+
+                # Create table rows
+                rows = []
+                for record in data:
+                    row_values = []
+                    for col in columns:
+                        value = record.get(col)
+                        # Convert value to string and escape pipe characters
+                        str_value = str(value) if value is not None else ""
+                        str_value = str_value.replace("|", "\\|")
+                        # Truncate long values
+                        if len(str_value) > 50:
+                            str_value = str_value[:47] + "..."
+                        row_values.append(str_value)
+                    rows.append("| " + " | ".join(row_values) + " |")
+
+                # Build the table with message
+                table = "\n".join([header, separator] + rows)
+                message = f"Preview of {self._config.entity_set} ({len(data)} records):\n\n{table}"
+
             return {
                 "status": "success",
-                "message": f"Loaded {len(data)} records",
+                "message": message,
                 "data": data,
             }
         except Exception as e:

@@ -292,6 +292,14 @@ class Configuration(BaseModel):
 
         base = self.base_url.rstrip("/")  # Remove trailing slash if present
 
+        service_path = self.service_path.lstrip("/")  # Remove leading slash if present
+
+        # Check if service_path already contains the gateway path
+        # This prevents duplicate paths if user accidentally includes it
+        if "/sap/opu/odata4/sap/" in service_path or "/sap/opu/odata/sap/" in service_path:
+            # Path already includes gateway, return as-is
+            return f"{base}/{service_path}"
+
         # Determine which OData version to use for gateway path
         version = self.odata_version
         if version == ODataVersionChoice.AUTO:
@@ -306,7 +314,6 @@ class Configuration(BaseModel):
         # Add appropriate gateway path
         gateway_path = "/sap/opu/odata/sap" if version == ODataVersionChoice.V2 else "/sap/opu/odata4/sap"
 
-        service_path = self.service_path.lstrip("/")  # Remove leading slash if present
         return f"{base}{gateway_path}/{service_path}"
 
     def get_output_table_name(self) -> str:
