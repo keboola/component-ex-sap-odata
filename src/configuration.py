@@ -30,6 +30,11 @@ class FetchType(str, Enum):
     INCREMENTAL = "incremental"
 
 
+# OData gateway path constants
+ODATA_V2_GATEWAY_PATH = "/sap/opu/odata/sap"
+ODATA_V4_GATEWAY_PATH = "/sap/opu/odata4/sap"
+
+
 class ConnectionOptions(BaseModel):
     """Advanced connection options."""
     timeout: int = Field(default=60, description="Request timeout in seconds")
@@ -296,7 +301,7 @@ class Configuration(BaseModel):
 
         # Check if service_path already contains the gateway path
         # This prevents duplicate paths if user accidentally includes it
-        if "/sap/opu/odata4/sap/" in service_path or "/sap/opu/odata/sap/" in service_path:
+        if f"{ODATA_V4_GATEWAY_PATH}/" in service_path or f"{ODATA_V2_GATEWAY_PATH}/" in service_path:
             # Path already includes gateway, return as-is
             return f"{base}/{service_path}"
 
@@ -312,7 +317,7 @@ class Configuration(BaseModel):
                 version = ODataVersionChoice.V4 if self.service_path.count("/") >= 2 else ODataVersionChoice.V2
 
         # Add appropriate gateway path
-        gateway_path = "/sap/opu/odata/sap" if version == ODataVersionChoice.V2 else "/sap/opu/odata4/sap"
+        gateway_path = ODATA_V2_GATEWAY_PATH if version == ODataVersionChoice.V2 else ODATA_V4_GATEWAY_PATH
 
         return f"{base}{gateway_path}/{service_path}"
 
