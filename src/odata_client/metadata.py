@@ -10,6 +10,20 @@ from lxml import etree
 JsonDict = dict[str, Any]
 
 
+def _safe_int(value: str | None) -> int | None:
+    """Safely convert string to int, returning None if conversion fails.
+
+    OData metadata can contain non-numeric values like 'variable' or 'max'
+    for MaxLength, Precision, and Scale attributes.
+    """
+    if not value:
+        return None
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return None
+
+
 class ODataVersion(str, Enum):
     V2 = "v2"
     V4 = "v4"
@@ -193,9 +207,9 @@ class MetadataParser:
                         name=prop.get("Name", ""),
                         edm_type=prop.get("Type", "Edm.String"),
                         nullable=prop.get("Nullable", "true").lower() == "true",
-                        max_length=int(prop.get("MaxLength")) if prop.get("MaxLength") else None,
-                        precision=int(prop.get("Precision")) if prop.get("Precision") else None,
-                        scale=int(prop.get("Scale")) if prop.get("Scale") else None,
+                        max_length=_safe_int(prop.get("MaxLength")),
+                        precision=_safe_int(prop.get("Precision")),
+                        scale=_safe_int(prop.get("Scale")),
                     )
                 )
 
@@ -308,9 +322,9 @@ class MetadataParser:
                         name=prop.get("Name", ""),
                         edm_type=prop.get("Type", "Edm.String"),
                         nullable=prop.get("Nullable", "true").lower() == "true",
-                        max_length=int(prop.get("MaxLength")) if prop.get("MaxLength") else None,
-                        precision=int(prop.get("Precision")) if prop.get("Precision") else None,
-                        scale=int(prop.get("Scale")) if prop.get("Scale") else None,
+                        max_length=_safe_int(prop.get("MaxLength")),
+                        precision=_safe_int(prop.get("Precision")),
+                        scale=_safe_int(prop.get("Scale")),
                     )
                 )
 
