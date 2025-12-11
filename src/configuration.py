@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class AuthType(str, Enum):
@@ -132,6 +132,12 @@ class Configuration(BaseModel):
     advanced_options: list[AdvancedEntityOptions] | None = Field(
         default=None, description="Advanced entity-specific options"
     )
+
+    @field_validator("entity_set")
+    @classmethod
+    def strip_entity_set(cls, v: str | None) -> str | None:
+        """Strip whitespace from entity_set to handle user input errors."""
+        return v.strip() if v else v
 
     # Property accessors for backward-compatible field access
     @property
