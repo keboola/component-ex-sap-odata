@@ -154,6 +154,18 @@ class AsyncODataClientBase(ABC):
             error_msg = str(e)
 
             # Check for HTTP status codes
+            if "400" in error_msg or "Bad Request" in error_msg:
+                # 400 often indicates a problem with the query (filter, select, expand, etc.)
+                hint = ""
+                if "$filter" in error_msg or "filter" in error_msg.lower():
+                    hint = (
+                        "\n\nFilter syntax error detected. Common issues:\n"
+                        "• Date fields (Edm.Date): Use YYYY-MM-DD without quotes (e.g., DocumentDate gt 2024-01-01)\n"
+                        "• DateTime fields (Edm.DateTimeOffset): Use ISO format without quotes (e.g., CreatedAt gt 2024-01-01T00:00:00Z)\n"
+                        "• String fields: Use single quotes (e.g., Status eq 'Active')\n"
+                        "• OData V2: Use datetime'YYYY-MM-DDTHH:MM:SS' format for dates"
+                    )
+                raise UserException(f"Invalid request - check your filter/query syntax: {e}{hint}") from e
             if "401" in error_msg or "Unauthorized" in error_msg:
                 raise UserException(f"Authentication failed: {e}") from e
             if "403" in error_msg or "Forbidden" in error_msg:
