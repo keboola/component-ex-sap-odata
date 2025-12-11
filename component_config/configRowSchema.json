@@ -103,12 +103,6 @@
               "action": "loadNavigationProperties"
             }
           }
-        },
-        "order_by": {
-          "type": "string",
-          "title": "Order By",
-          "description": "Sort records using OData $orderby query option.\n\nExamples:\n• CreatedAt desc (newest first)\n• Name asc (alphabetical)\n• Price desc, Name asc (multi-field)\n\nLearn more: https://www.odata.org/getting-started/basic-tutorial/#orderby",
-          "propertyOrder": 5
         }
       }
     },

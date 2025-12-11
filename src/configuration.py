@@ -58,7 +58,6 @@ class QueryOptions(BaseModel):
     select_fields: list[str] = Field(default_factory=list, description="Fields to select ($select)")
     filter_expression: str | None = Field(default=None, description="OData $filter expression")
     expand_properties: list[str] = Field(default_factory=list, description="Navigation properties to expand ($expand)")
-    order_by: str | None = Field(default=None, description="Field for ordering ($orderby)")
 
 
 class FetchingOptions(BaseModel):
@@ -224,13 +223,6 @@ class Configuration(BaseModel):
         if self.query_options:
             return self.query_options.expand_properties
         return []
-
-    @property
-    def order_by(self) -> str | None:
-        """Get order_by from query_options or None."""
-        if self.query_options:
-            return self.query_options.order_by
-        return None
 
     @property
     def fetch_type(self) -> FetchType:

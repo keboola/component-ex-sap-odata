@@ -221,7 +221,6 @@ class Component(ComponentBase):
                 select=self._config.select_fields if self._config.select_fields else None,
                 filter_expr=filter_expr,
                 expand=self._config.expand_properties if self._config.expand_properties else None,
-                order_by=self._config.order_by,
                 page_size=self._config.page_size,
                 max_records=max_records,
             ):
