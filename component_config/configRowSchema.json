@@ -39,7 +39,8 @@
           "label": "Load Entity Sets",
           "action": "loadEntities",
           "autoload": true,
-          "cache": true
+          "cache": true,
+          "watch": "service_path"
         }
       }
     },
