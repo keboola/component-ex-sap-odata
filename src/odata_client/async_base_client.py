@@ -237,10 +237,8 @@ class AsyncODataClientBase(ABC):
     async def test_connection(self) -> tuple[bool, str]:
         try:
             metadata = await self.get_metadata(force_refresh=True)
-            entity_sets = await self.list_entity_sets()
-            entity_count = len(entity_sets)
             version = metadata.version.value.upper()
-            return True, f"Connection successful. OData {version} service detected with {entity_count} entity sets."
+            return True, f"Connection successful. OData {version} service detected."
         except UserException as e:
             return False, str(e)
         except Exception as e:
