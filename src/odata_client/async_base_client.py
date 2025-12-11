@@ -37,6 +37,7 @@ class AsyncODataClientBase(ABC):
         self.enable_parallel = enable_parallel
         self.parallel_pages = parallel_pages
         self._metadata: ODataMetadata | None = None
+        self._metadata_lock = asyncio.Lock()
         self._client = AsyncHttpClient(
             base_url=self.base_url + "/",
             retries=max_retries,
@@ -149,17 +150,24 @@ class AsyncODataClientBase(ABC):
                 ),
             )
         except Exception as e:
-            # AsyncHttpClient raises httpx exceptions
+            # Handle httpx exceptions more specifically
+            # Note: AsyncHttpClient may wrap httpx exceptions, so we check the error message
             error_msg = str(e)
-            if "401" in error_msg:
+
+            # Check for HTTP status codes
+            if "401" in error_msg or "Unauthorized" in error_msg:
                 raise UserException(f"Authentication failed: {e}") from e
-            if "403" in error_msg:
+            if "403" in error_msg or "Forbidden" in error_msg:
                 raise UserException(f"Access forbidden: {e}") from e
-            if "404" in error_msg:
+            if "404" in error_msg or "Not Found" in error_msg:
                 raise UserException(f"Resource not found: {e}") from e
-            if "timeout" in error_msg.lower():
-                raise UserException(f"Request timeout after {self.timeout}s") from e
-            raise UserException(f"Request failed: {e}") from e
+            if "429" in error_msg or "Too Many Requests" in error_msg:
+                raise UserException(f"Rate limit exceeded: {e}") from e
+            if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+                raise UserException(f"Request timeout after {self.timeout}s: {e}") from e
+
+            # Generic HTTP error
+            raise UserException(f"HTTP request failed: {e}") from e
 
     async def _get_raw(
         self,
@@ -190,20 +198,31 @@ class AsyncODataClientBase(ABC):
             raise UserException(f"Request failed: {e}") from e
 
     async def get_metadata(self, force_refresh: bool = False) -> ODataMetadata:
+        """Get OData metadata with thread-safe caching.
+
+        Uses a lock to prevent multiple concurrent metadata fetches.
+        """
+        # Fast path: return cached metadata without locking
         if self._metadata is not None and not force_refresh:
             return self._metadata
 
-        try:
-            metadata_text = await self._get_raw(
-                endpoint_path="$metadata",
-                headers={"Accept": "application/xml"},
-            )
-            self._metadata = MetadataParser.parse(metadata_text, self._get_odata_version())
-            return self._metadata
-        except UserException:
-            raise
-        except Exception as e:
-            raise UserException(f"Failed to parse metadata: {e}") from e
+        # Slow path: fetch metadata with lock
+        async with self._metadata_lock:
+            # Double-check after acquiring lock (another coroutine may have fetched it)
+            if self._metadata is not None and not force_refresh:
+                return self._metadata
+
+            try:
+                metadata_text = await self._get_raw(
+                    endpoint_path="$metadata",
+                    headers={"Accept": "application/xml"},
+                )
+                self._metadata = MetadataParser.parse(metadata_text, self._get_odata_version())
+                return self._metadata
+            except UserException:
+                raise
+            except Exception as e:
+                raise UserException(f"Failed to parse metadata: {e}") from e
 
     async def list_entity_sets(self) -> list[EntitySet]:
         metadata = await self.get_metadata()
