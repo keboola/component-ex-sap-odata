@@ -59,6 +59,41 @@ class QueryOptions(BaseModel):
     filter_expression: str | None = Field(default=None, description="OData $filter expression")
     expand_properties: list[str] = Field(default_factory=list, description="Navigation properties to expand ($expand)")
 
+    @field_validator("filter_expression")
+    @classmethod
+    def validate_filter_expression(cls, v: str | None) -> str | None:
+        """Validate and fix common filter expression errors.
+
+        For OData V4, removes quotes around date/datetime literals.
+        Keeps OData V2 datetime'...' format intact.
+        """
+        if not v:
+            return v
+
+        import re
+
+        # Remove quotes around ISO date formats for OData V4
+        # Match patterns like '2024-01-01' or '2024-01-01T00:00:00Z'
+        # but NOT datetime'2024-01-01T00:00:00' (OData V2 format)
+
+        # Pattern for quoted dates: '2024-01-01' or '2024-01-01T00:00:00Z' or '2024-01-01T00:00:00'
+        # NOT preceded by "datetime" (to preserve OData V2 format)
+        pattern = r"(?<!datetime)'(\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z)?)?)'"
+
+        fixed = re.sub(pattern, r'\1', v)
+
+        if fixed != v:
+            import logging
+            logging.warning(
+                f"Filter expression contained quoted dates. Auto-fixed for OData V4 compatibility.\n"
+                f"Original: {v}\n"
+                f"Fixed: {fixed}\n"
+                f"Note: For OData V4, use dates without quotes (e.g., 2024-01-01). "
+                f"For OData V2, use datetime'2024-01-01T00:00:00' format."
+            )
+
+        return fixed
+
 
 class FetchingOptions(BaseModel):
     """Fetching options for OData API."""

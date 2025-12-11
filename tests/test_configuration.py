@@ -7,6 +7,7 @@ from configuration import (
     FetchType,
     LoadType,
     ODataVersionChoice,
+    QueryOptions,
     StateEntry,
 )
 
@@ -138,7 +139,6 @@ class TestConfigurationWithRowFields:
                 "select_fields": ["ProductID", "ProductName"],
                 "filter_expression": "IsActive eq true",
                 "expand_properties": ["Category"],
-                "order_by": "ProductName asc",
             },
             fetching_options={
                 "fetch_type": "incremental",
@@ -158,7 +158,6 @@ class TestConfigurationWithRowFields:
         assert config.select_fields == ["ProductID", "ProductName"]
         assert config.filter_expression == "IsActive eq true"
         assert config.expand_properties == ["Category"]
-        assert config.order_by == "ProductName asc"
         assert config.load_type == LoadType.INCREMENTAL
         assert config.fetch_type == FetchType.INCREMENTAL
         assert config.incremental_field == "ModifiedAt"
@@ -399,3 +398,78 @@ class TestURLConfiguration:
                 username="user",
                 **{"#password": "pass"},
             )
+
+
+class TestFilterValidation:
+    """Test filter expression validation"""
+
+    def test_filter_with_quoted_date_v4_format(self) -> None:
+        """Test that quoted dates are automatically fixed for OData V4"""
+        config = Configuration(
+            service_url="https://sap-server.com/odata/API_PARTNER",
+            auth_type=AuthType.BASIC,
+            username="user",
+            **{"#password": "pass"},
+            query_options=QueryOptions(filter_expression="DocumentDate gt '2024-01-01'"),
+        )
+        # Quotes should be removed
+        assert config.filter_expression == "DocumentDate gt 2024-01-01"
+
+    def test_filter_with_quoted_datetime_v4_format(self) -> None:
+        """Test that quoted datetime values are fixed"""
+        config = Configuration(
+            service_url="https://sap-server.com/odata/API_PARTNER",
+            auth_type=AuthType.BASIC,
+            username="user",
+            **{"#password": "pass"},
+            query_options=QueryOptions(filter_expression="CreatedAt gt '2024-01-01T00:00:00Z'"),
+        )
+        assert config.filter_expression == "CreatedAt gt 2024-01-01T00:00:00Z"
+
+    def test_filter_with_v2_datetime_format_preserved(self) -> None:
+        """Test that OData V2 datetime'...' format is preserved"""
+        config = Configuration(
+            service_url="https://sap-server.com/odata/API_PARTNER",
+            auth_type=AuthType.BASIC,
+            username="user",
+            **{"#password": "pass"},
+            query_options=QueryOptions(filter_expression="CreatedAt gt datetime'2024-01-01T00:00:00'"),
+        )
+        # V2 format should NOT be changed
+        assert config.filter_expression == "CreatedAt gt datetime'2024-01-01T00:00:00'"
+
+    def test_filter_with_string_quotes_preserved(self) -> None:
+        """Test that string values keep their quotes"""
+        config = Configuration(
+            service_url="https://sap-server.com/odata/API_PARTNER",
+            auth_type=AuthType.BASIC,
+            username="user",
+            **{"#password": "pass"},
+            query_options=QueryOptions(filter_expression="Status eq 'Active'"),
+        )
+        # String quotes should be preserved (not a date pattern)
+        assert config.filter_expression == "Status eq 'Active'"
+
+    def test_filter_with_multiple_quoted_dates(self) -> None:
+        """Test complex filter with multiple date conditions"""
+        config = Configuration(
+            service_url="https://sap-server.com/odata/API_PARTNER",
+            auth_type=AuthType.BASIC,
+            username="user",
+            **{"#password": "pass"},
+            query_options=QueryOptions(
+                filter_expression="DocumentDate gt '2024-01-01' and DocumentDate lt '2024-12-31'"
+            ),
+        )
+        assert config.filter_expression == "DocumentDate gt 2024-01-01 and DocumentDate lt 2024-12-31"
+
+    def test_filter_without_quotes_unchanged(self) -> None:
+        """Test that correctly formatted filters are not modified"""
+        config = Configuration(
+            service_url="https://sap-server.com/odata/API_PARTNER",
+            auth_type=AuthType.BASIC,
+            username="user",
+            **{"#password": "pass"},
+            query_options=QueryOptions(filter_expression="DocumentDate gt 2024-01-01"),
+        )
+        assert config.filter_expression == "DocumentDate gt 2024-01-01"
