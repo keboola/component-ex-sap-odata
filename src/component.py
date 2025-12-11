@@ -20,8 +20,7 @@ from configuration import (
 )
 from odata_client.base_client import ODataClientBase
 from odata_client.metadata import MetadataParser, ODataVersion
-from odata_client.v2_client import ODataV2Client
-from odata_client.v4_client import ODataV4Client
+from odata_client.sync_wrapper import SyncODataV2Client, SyncODataV4Client
 
 # Type alias for JSON-like dictionaries
 JsonDict = dict[str, Any]
@@ -41,39 +40,38 @@ class Component(ComponentBase):
         config = self._config
         version = self._detect_or_get_version(config)
 
-        client_class = ODataV4Client if version == ODataVersion.V4 else ODataV2Client
+        client_class = SyncODataV4Client if version == ODataVersion.V4 else SyncODataV2Client
 
         # Get the full service URL (handles both service_url and base_url+service_path)
         # Map ODataVersion to ODataVersionChoice for get_service_url()
         detected_version_choice = ODataVersionChoice.V4 if version == ODataVersion.V4 else ODataVersionChoice.V2
         service_url = config.get_service_url(detected_version_choice)
 
+        # Common client parameters including parallel fetching options
+        client_params = {
+            "base_url": service_url,
+            "timeout": config.timeout,
+            "max_retries": config.max_retries,
+            "verify_ssl": config.verify_ssl,
+            "enable_parallel": config.enable_parallel,
+            "parallel_pages": config.parallel_pages,
+            "max_requests_per_second": config.max_requests_per_second,
+        }
+
         if config.auth_type == AuthType.OAUTH:
-            oauth: OauthCredentials = self.configuration.oauth_credentials
-            self._client = client_class.from_oauth(
-                oauth=oauth,
-                base_url=service_url,
-                timeout=config.timeout,
-                max_retries=config.max_retries,
-                verify_ssl=config.verify_ssl,
-            )
+            # OAuth not yet supported in sync wrappers, would need implementation
+            raise UserException("OAuth authentication not yet supported with parallel fetching")
         elif config.auth_type == AuthType.API_KEY:
             self._client = client_class.from_api_key(
                 api_key=config.api_key or "",
                 header_name=config.api_key_header_name,
-                base_url=service_url,
-                timeout=config.timeout,
-                max_retries=config.max_retries,
-                verify_ssl=config.verify_ssl,
+                **client_params,
             )
         else:
             self._client = client_class.from_basic_auth(
                 username=config.username or "",
                 password=config.password or "",
-                base_url=service_url,
-                timeout=config.timeout,
-                max_retries=config.max_retries,
-                verify_ssl=config.verify_ssl,
+                **client_params,
             )
 
         return self._client
@@ -140,6 +138,13 @@ class Component(ComponentBase):
         except Exception as e:
             logging.error(f"Failed to extract entity {self._config.entity_set}: {e}")
             raise UserException(f"Failed to extract entity {self._config.entity_set}: {e}") from e
+        finally:
+            # Cleanup resources
+            if self._client is not None:
+                try:
+                    self._client.close()
+                except Exception as e:
+                    logging.warning(f"Failed to close client: {e}")
 
         self._save_state(state)
         logging.info("SAP OData extraction completed")
