@@ -8,6 +8,7 @@ from keboola.component.base import ComponentBase, sync_action
 from keboola.component.dao import OauthCredentials
 from keboola.component.exceptions import UserException
 from keboola.csvwriter import ElasticDictWriter
+from pydantic import ValidationError
 
 from configuration import (
     AuthType,
@@ -30,7 +31,16 @@ ODataClient = SyncODataV4Client | SyncODataV2Client
 class Component(ComponentBase):
     def __init__(self):
         super().__init__()
-        self._config = Configuration(**self.configuration.parameters)
+        try:
+            self._config = Configuration(**self.configuration.parameters)
+        except ValidationError as e:
+            # Convert Pydantic validation errors to user-friendly messages
+            errors = []
+            for error in e.errors():
+                field = ".".join(str(loc) for loc in error["loc"])
+                msg = error["msg"]
+                errors.append(f"{field}: {msg}")
+            raise UserException(f"Configuration validation failed: {'; '.join(errors)}") from e
         self._client: ODataClient | None = None
         self._detected_version: ODataVersion | None = None
 
