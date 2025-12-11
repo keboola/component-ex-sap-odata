@@ -1,7 +1,7 @@
-from .auth import AuthHandler, BasicAuthHandler, OAuthHandler
 from .async_base_client import AsyncODataClientBase
 from .async_v2_client import AsyncODataV2Client
 from .async_v4_client import AsyncODataV4Client
+from .auth import AuthHandler, BasicAuthHandler, OAuthHandler
 from .base_client import ODataClientBase
 from .metadata import (
     EntityProperty,

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Union
+from datetime import UTC, datetime
+from typing import Any
 
 from keboola.component.base import ComponentBase, sync_action
 from keboola.component.dao import OauthCredentials
@@ -24,7 +24,7 @@ from odata_client.sync_wrapper import SyncODataV2Client, SyncODataV4Client
 # Type alias for JSON-like dictionaries
 JsonDict = dict[str, Any]
 # Type alias for client types
-ODataClient = Union[SyncODataV4Client, SyncODataV2Client]
+ODataClient = SyncODataV4Client | SyncODataV2Client
 
 
 class Component(ComponentBase):
@@ -252,7 +252,7 @@ class Component(ComponentBase):
         """Update component state with extraction results."""
         state.update_entity_state(
             entity_set=self._config.entity_set or "",
-            last_sync_timestamp=datetime.now(timezone.utc).isoformat(),
+            last_sync_timestamp=datetime.now(UTC).isoformat(),
             last_incremental_value=last_incremental_value,
             records_synced=records_count,
         )
