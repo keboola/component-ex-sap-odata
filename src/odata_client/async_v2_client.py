@@ -211,7 +211,7 @@ class AsyncODataV2Client(AsyncODataClientBase):
             responses = await self._client.process_multiple(jobs)
 
             # Yield records from all responses in order
-            for page_num, response in zip(page_numbers, responses):
+            for page_num, response in zip(page_numbers, responses, strict=True):
                 results = response.get("d", {})
                 if isinstance(results, dict):
                     results = results.get("results", [])

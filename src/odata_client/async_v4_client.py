@@ -205,7 +205,7 @@ class AsyncODataV4Client(AsyncODataClientBase):
             responses = await self._client.process_multiple(jobs)
 
             # Yield records from all responses in order
-            for page_num, response in zip(page_numbers, responses):
+            for page_num, response in zip(page_numbers, responses, strict=True):
                 results = response.get("value", [])
                 logging.debug(f"Page {page_num}: {len(results)} records")
                 for record in results:
@@ -258,10 +258,10 @@ class AsyncODataV4Client(AsyncODataClientBase):
         Raises:
             RecursionError: If depth exceeds maximum (prevents stack overflow)
         """
-        MAX_DEPTH = 50  # Prevent stack overflow on deeply nested data
+        max_depth = 50  # Prevent stack overflow on deeply nested data
 
-        if _depth > MAX_DEPTH:
-            logging.warning(f"Maximum recursion depth ({MAX_DEPTH}) reached while cleaning record")
+        if _depth > max_depth:
+            logging.warning(f"Maximum recursion depth ({max_depth}) reached while cleaning record")
             return {}
 
         cleaned: JsonDict = {}
