@@ -40,6 +40,11 @@ class ConnectionOptions(BaseModel):
     timeout: int = Field(default=60, description="Request timeout in seconds")
     max_retries: int = Field(default=3, description="Maximum number of retries for failed requests")
     verify_ssl: bool = Field(default=True, description="Verify SSL certificates")
+    enable_parallel: bool = Field(default=True, description="Enable parallel page fetching for better performance")
+    parallel_pages: int = Field(default=5, description="Number of pages to fetch in parallel (when enabled)")
+    max_requests_per_second: float | None = Field(
+        default=None, description="Maximum requests per second (rate limiting)"
+    )
 
 
 class PaginationDefaults(BaseModel):
@@ -149,6 +154,27 @@ class Configuration(BaseModel):
         if self.connection_options:
             return self.connection_options[0].verify_ssl
         return True
+
+    @property
+    def enable_parallel(self) -> bool:
+        """Get enable_parallel value from connection_options or default."""
+        if self.connection_options:
+            return self.connection_options[0].enable_parallel
+        return True
+
+    @property
+    def parallel_pages(self) -> int:
+        """Get parallel_pages value from connection_options or default."""
+        if self.connection_options:
+            return self.connection_options[0].parallel_pages
+        return 5
+
+    @property
+    def max_requests_per_second(self) -> float | None:
+        """Get max_requests_per_second value from connection_options or None."""
+        if self.connection_options:
+            return self.connection_options[0].max_requests_per_second
+        return None
 
     @property
     def page_size(self) -> int:

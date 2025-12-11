@@ -72,3 +72,4 @@ Thumbs.db
 # Local development and testing
 /data/
 /inspection_results/
+.playwright-mcp/
