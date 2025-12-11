@@ -311,11 +311,16 @@ class Component(ComponentBase):
     @sync_action("loadEntities")
     def load_entities(self) -> list[dict[str, str]]:
         try:
+            logging.info(
+                f"loadEntities called - base_url: {self._config.base_url}, "
+                f"service_path: {self._config.service_path}"
+            )
             client = self._build_client()
             entities = client.list_entity_sets()
+            logging.info(f"loadEntities: found {len(entities)} entity sets")
             return [{"value": e.name, "label": e.name} for e in entities]
         except Exception as e:
-            logging.error(f"Failed to load entities: {e}")
+            logging.error(f"Failed to load entities: {e}", exc_info=True)
             return []
 
     @sync_action("loadFields")
