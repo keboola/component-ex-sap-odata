@@ -322,31 +322,39 @@ class Component(ComponentBase):
     @sync_action("loadFields")
     def load_fields(self) -> list[dict[str, str]]:
         try:
+            logging.info(f"loadFields called with entity_set: {self._config.entity_set}")
             if not self._config.entity_set:
+                logging.warning("loadFields: entity_set is not set")
                 return []
 
             client = self._build_client()
+            logging.info(f"loadFields: fetching fields for {self._config.entity_set}")
             fields = client.list_fields(self._config.entity_set)
+            logging.info(f"loadFields: found {len(fields)} fields")
             return [{"value": f.name, "label": f"{f.name} ({f.edm_type})"} for f in fields]
         except Exception as e:
-            logging.error(f"Failed to load fields: {e}")
+            logging.error(f"Failed to load fields for entity_set '{self._config.entity_set}': {e}", exc_info=True)
             return []
 
     @sync_action("loadPossiblePrimaryKeys")
     def load_possible_primary_keys(self) -> list[dict[str, str]]:
         try:
+            logging.info(f"loadPossiblePrimaryKeys called with entity_set: {self._config.entity_set}")
             if not self._config.entity_set:
+                logging.warning("loadPossiblePrimaryKeys: entity_set is not set")
                 return []
 
             client = self._build_client()
             metadata = client.get_metadata()
             entity = metadata.get_entity_set(self._config.entity_set)
             if entity is None:
+                logging.warning(f"loadPossiblePrimaryKeys: entity set '{self._config.entity_set}' not found in metadata")
                 return []
 
+            logging.info(f"loadPossiblePrimaryKeys: found {len(entity.key_properties)} key properties")
             return [{"value": k, "label": f"{k} (Key)"} for k in entity.key_properties]
         except Exception as e:
-            logging.error(f"Failed to load primary keys: {e}")
+            logging.error(f"Failed to load primary keys for entity_set '{self._config.entity_set}': {e}", exc_info=True)
             return []
 
     @sync_action("loadIncrementalFields")
@@ -402,20 +410,25 @@ class Component(ComponentBase):
     @sync_action("loadNavigationProperties")
     def load_navigation_properties(self) -> list[dict[str, str]]:
         try:
+            logging.info(f"loadNavigationProperties called with entity_set: {self._config.entity_set}")
             if not self._config.entity_set:
+                logging.warning("loadNavigationProperties: entity_set is not set")
                 return []
 
             client = self._build_client()
             metadata = client.get_metadata()
+            logging.info(f"loadNavigationProperties: fetching entity set {self._config.entity_set}")
             entity = metadata.get_entity_set(self._config.entity_set)
             if entity is None:
+                logging.warning(f"loadNavigationProperties: entity set '{self._config.entity_set}' not found in metadata")
                 return []
 
+            logging.info(f"loadNavigationProperties: found {len(entity.navigation_properties)} navigation properties")
             return [
                 {"value": np.name, "label": f"{np.name} -> {np.target_entity}"} for np in entity.navigation_properties
             ]
         except Exception as e:
-            logging.error(f"Failed to load navigation properties: {e}")
+            logging.error(f"Failed to load navigation properties for entity_set '{self._config.entity_set}': {e}", exc_info=True)
             return []
 
     @sync_action("previewData")
