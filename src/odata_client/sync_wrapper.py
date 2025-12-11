@@ -92,7 +92,7 @@ class SyncODataV4Client:
         parallel_pages: int = 5,
         max_requests_per_second: float | None = None,
     ) -> SyncODataV4Client:
-        async_client = AsyncODataV4Client.from_basic_auth(
+        async_client: AsyncODataV4Client = AsyncODataV4Client.from_basic_auth(  # type: ignore[assignment]
             username=username,
             password=password,
             base_url=base_url,
@@ -121,7 +121,7 @@ class SyncODataV4Client:
         parallel_pages: int = 5,
         max_requests_per_second: float | None = None,
     ) -> SyncODataV4Client:
-        async_client = AsyncODataV4Client.from_api_key(
+        async_client: AsyncODataV4Client = AsyncODataV4Client.from_api_key(  # type: ignore[assignment]
             api_key=api_key,
             header_name=header_name,
             base_url=base_url,
@@ -283,7 +283,7 @@ class SyncODataV2Client:
         parallel_pages: int = 5,
         max_requests_per_second: float | None = None,
     ) -> SyncODataV2Client:
-        async_client = AsyncODataV2Client.from_basic_auth(
+        async_client: AsyncODataV2Client = AsyncODataV2Client.from_basic_auth(  # type: ignore[assignment]
                     username=username,
                     password=password,
                     base_url=base_url,
@@ -296,6 +296,7 @@ class SyncODataV2Client:
                 )
         instance = cls.__new__(cls)
         instance._async_client = async_client
+        instance._closed = False
         return instance
 
     @classmethod
@@ -311,7 +312,7 @@ class SyncODataV2Client:
         parallel_pages: int = 5,
         max_requests_per_second: float | None = None,
     ) -> SyncODataV2Client:
-        async_client = AsyncODataV2Client.from_api_key(
+        async_client: AsyncODataV2Client = AsyncODataV2Client.from_api_key(  # type: ignore[assignment]
                     api_key=api_key,
                     header_name=header_name,
                     base_url=base_url,

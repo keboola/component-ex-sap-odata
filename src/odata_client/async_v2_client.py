@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator
 
+from keboola.component.exceptions import UserException
+
 from .async_base_client import AsyncODataClientBase, JsonDict
 from .metadata import ODataVersion
 

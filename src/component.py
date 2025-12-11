@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Union
 
 from keboola.component.base import ComponentBase, sync_action
 from keboola.component.dao import OauthCredentials
@@ -18,22 +18,23 @@ from configuration import (
     ODataVersionChoice,
     StateEntry,
 )
-from odata_client.base_client import ODataClientBase
 from odata_client.metadata import MetadataParser, ODataVersion
 from odata_client.sync_wrapper import SyncODataV2Client, SyncODataV4Client
 
 # Type alias for JSON-like dictionaries
 JsonDict = dict[str, Any]
+# Type alias for client types
+ODataClient = Union[SyncODataV4Client, SyncODataV2Client]
 
 
 class Component(ComponentBase):
     def __init__(self):
         super().__init__()
         self._config = Configuration(**self.configuration.parameters)
-        self._client: ODataClientBase | None = None
+        self._client: ODataClient | None = None
         self._detected_version: ODataVersion | None = None
 
-    def _build_client(self) -> ODataClientBase:
+    def _build_client(self) -> ODataClient:
         if self._client is not None:
             return self._client
 
@@ -191,7 +192,7 @@ class Component(ComponentBase):
         )
 
     def _process_records(
-        self, client: ODataClientBase, table_def, filter_expr: str | None
+        self, client: ODataClient, table_def, filter_expr: str | None
     ) -> tuple[int, str | None]:
         """Process and write records from OData service.
 
