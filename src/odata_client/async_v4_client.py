@@ -212,6 +212,11 @@ class AsyncODataV4Client(AsyncODataClientBase):
         logging.info(f"Finished parallel fetching {total_count} records from {entity_set}")
 
     async def get_record_count(self, entity_set: str, filter_expr: str | None = None) -> int | None:
+        """Get total record count for entity set.
+
+        Returns None if count is not available (expected for some OData implementations)
+        or on recoverable errors. Raises UserException for authentication/permission errors.
+        """
         endpoint_path = f"{entity_set}/$count"
         params = {}
         if filter_expr:
@@ -220,11 +225,43 @@ class AsyncODataV4Client(AsyncODataClientBase):
         try:
             response_text = await self._get_raw(endpoint_path=endpoint_path, params=params if params else None)
             return int(response_text.strip())
+        except UserException as e:
+            # Authentication or permission errors should propagate
+            error_msg = str(e)
+            if "Authentication failed" in error_msg or "Access forbidden" in error_msg:
+                logging.error(f"Cannot get record count due to auth/permission error: {e}")
+                raise
+            # 404 or other errors - count endpoint may not be supported
+            logging.info(f"Record count not available ($count not supported or failed): {e}")
+            return None
+        except ValueError as e:
+            # Invalid response format
+            logging.warning(f"Failed to parse record count response: {e}")
+            return None
         except Exception as e:
-            logging.warning(f"Failed to get record count: {e}")
+            # Unexpected error - log but continue without count
+            logging.warning(f"Unexpected error getting record count: {e}")
             return None
 
-    def _clean_record(self, record: JsonDict) -> JsonDict:
+    def _clean_record(self, record: JsonDict, _depth: int = 0) -> JsonDict:
+        """Clean OData record by removing OData metadata fields.
+
+        Args:
+            record: The record to clean
+            _depth: Current recursion depth (internal use only)
+
+        Returns:
+            Cleaned record dictionary
+
+        Raises:
+            RecursionError: If depth exceeds maximum (prevents stack overflow)
+        """
+        MAX_DEPTH = 50  # Prevent stack overflow on deeply nested data
+
+        if _depth > MAX_DEPTH:
+            logging.warning(f"Maximum recursion depth ({MAX_DEPTH}) reached while cleaning record")
+            return {}
+
         cleaned: JsonDict = {}
         for key, value in record.items():
             if key.startswith("@odata."):
@@ -232,9 +269,11 @@ class AsyncODataV4Client(AsyncODataClientBase):
             if isinstance(value, dict):
                 if "@odata.navigationLink" in value:
                     continue
-                cleaned[key] = self._clean_record(value)
+                cleaned[key] = self._clean_record(value, _depth + 1)
             elif isinstance(value, list):
-                cleaned[key] = [self._clean_record(item) if isinstance(item, dict) else item for item in value]
+                cleaned[key] = [
+                    self._clean_record(item, _depth + 1) if isinstance(item, dict) else item for item in value
+                ]
             else:
                 cleaned[key] = value
         return cleaned
