@@ -132,6 +132,22 @@ class TestFormatFilterLiteral:
             result = component._format_filter_literal("123", "TestField")
             assert result == "123", f"Failed for {edm_type}"
 
+    def test_detect_version_called_with_config(self, component):
+        """Test that _detect_or_get_version is called with config argument.
+
+        This test catches the bug where _detect_or_get_version was called
+        without the required config argument, which would cause TypeError
+        at runtime even though mocked tests would pass.
+        """
+        # Don't mock _detect_or_get_version, instead set _detected_version directly
+        # This way the real method gets called and we verify it works with the config
+        component._detected_version = ODataVersion.V4
+        component._get_field_edm_type = Mock(return_value="Edm.Date")
+
+        # This should not raise TypeError about missing config argument
+        result = component._format_filter_literal("2024-01-01", "TestField")
+        assert result == "2024-01-01"
+
 
 class TestGetFieldEdmType:
     """Tests for _get_field_edm_type method."""
