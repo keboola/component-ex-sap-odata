@@ -1165,22 +1165,6 @@ HTML_CONTENT = """<!DOCTYPE html>
                         // Mark this field as having async loading
                         if (!prop.options) prop.options = {};
                         prop.options._hasAsync = true;
-
-                        // Add empty enum to ensure JSONEditor renders as select dropdown
-                        if (!prop.enum) {
-                            prop.enum = [];
-                        }
-
-                        // Add note to description about dynamic loading
-                        const originalDesc = prop.description || '';
-                        const action = prop.options.async.action;
-                        const watchFields = prop.options.async.watch || [];
-
-                        let asyncNote = `\\n\\n💡 Dynamic loading: ${action}`;
-                        if (watchFields.length > 0) {
-                            asyncNote += `\\n🔍 Auto-loads when: ${watchFields.join(', ')} changes`;
-                        }
-                        prop.description = originalDesc + asyncNote;
                     }
 
                     // Ensure multiselect arrays work properly
