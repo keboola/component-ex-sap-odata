@@ -33,6 +33,7 @@
       "title": "Entity Set",
       "description": "OData entity set to extract data from.\n\nEntity sets are collections of entities (like database tables).\nExamples: A_BusinessPartner, SalesOrderSet, ProductSet\n\nThe dropdown will load available entity sets from the service's $metadata.",
       "format": "select",
+      "enum": [],
       "propertyOrder": 1,
       "options": {
         "async": {
@@ -127,6 +128,7 @@
           "title": "Incremental Field",
           "description": "Timestamp field for incremental fetch (required for Incremental Fetch).\n\nUsed to filter records: $filter={field} gt {last_run_timestamp}\n\nCommon SAP field names:\n• LastChangedAt / LastChangeDateTime\n• ModifiedOn / ChangedOn\n• CreatedAt / CreationDateTime\n• SystemModstamp\n\nThe field must:\n• Contain timestamps\n• Be indexed for performance\n• Update reliably on record changes",
           "format": "select",
+          "enum": [],
           "propertyOrder": 2,
           "options": {
             "dependencies": {
