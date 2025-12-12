@@ -207,7 +207,7 @@ class Component(ComponentBase):
         - Numeric fields: no quotes (e.g., 123)
         """
         edm_type = self._get_field_edm_type(field_name)
-        odata_version = self._detect_or_get_version()
+        odata_version = self._detect_or_get_version(self._config)
 
         if edm_type:
             if odata_version == ODataVersion.V4 and edm_type in ("Edm.Date", "Edm.DateTimeOffset"):
