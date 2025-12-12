@@ -311,6 +311,24 @@ class Component(ComponentBase):
     @sync_action("loadEntities")
     def load_entities(self) -> list[dict[str, str]]:
         try:
+            # Check required fields
+            if not self._config.base_url:
+                logging.error("loadEntities: base_url is not set")
+                return [
+                    {
+                        "value": "",
+                        "label": "⚠️ Error: Base URL not configured. Please check root configuration.",
+                    }
+                ]
+            if not self._config.service_path:
+                logging.error("loadEntities: service_path is not set")
+                return [
+                    {
+                        "value": "",
+                        "label": "⚠️ Error: Service Path is required. Please fill it in above.",
+                    }
+                ]
+
             logging.info(
                 f"loadEntities called - base_url: {self._config.base_url}, "
                 f"service_path: {self._config.service_path}"
@@ -318,10 +336,24 @@ class Component(ComponentBase):
             client = self._build_client()
             entities = client.list_entity_sets()
             logging.info(f"loadEntities: found {len(entities)} entity sets")
+
+            if not entities:
+                return [{"value": "", "label": "No entity sets found in service metadata"}]
+
             return [{"value": e.name, "label": e.name} for e in entities]
+        except UserException as e:
+            # User-facing errors (auth, connection, etc.)
+            logging.error(f"Failed to load entities: {e}")
+            return [{"value": "", "label": f"⚠️ Error: {e}"}]
         except Exception as e:
+            # Unexpected errors
             logging.error(f"Failed to load entities: {e}", exc_info=True)
-            return []
+            return [
+                {
+                    "value": "",
+                    "label": f"⚠️ Error loading entity sets. Check logs for details.",
+                }
+            ]
 
     @sync_action("loadFields")
     def load_fields(self) -> list[dict[str, str]]:
