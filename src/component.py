@@ -187,10 +187,59 @@ class Component(ComponentBase):
             and self._config.incremental_field
             and entity_state.last_incremental_value
         ):
-            incremental_filter = f"{self._config.incremental_field} gt '{entity_state.last_incremental_value}'"
+            literal = self._format_filter_literal(
+                entity_state.last_incremental_value,
+                self._config.incremental_field,
+            )
+            incremental_filter = f"{self._config.incremental_field} gt {literal}"
             filter_expr = f"({filter_expr}) and ({incremental_filter})" if filter_expr else incremental_filter
 
         return filter_expr
+
+    def _format_filter_literal(self, value: str, field_name: str) -> str:
+        """Format a value as an OData filter literal based on the field's EDM type.
+
+        OData literal formatting rules:
+        - OData V4 Edm.Date: YYYY-MM-DD without quotes (e.g., 2024-01-01)
+        - OData V4 Edm.DateTimeOffset: ISO format without quotes (e.g., 2024-01-01T00:00:00Z)
+        - OData V2 Edm.DateTime: datetime'YYYY-MM-DDTHH:MM:SS' format
+        - String fields: single quotes (e.g., 'Active')
+        - Numeric fields: no quotes (e.g., 123)
+        """
+        edm_type = self._get_field_edm_type(field_name)
+        odata_version = self._detect_or_get_version()
+
+        if edm_type:
+            if odata_version == ODataVersion.V4 and edm_type in ("Edm.Date", "Edm.DateTimeOffset"):
+                return value
+            elif odata_version == ODataVersion.V2 and edm_type == "Edm.DateTime":
+                datetime_value = value if "T" in value else f"{value}T00:00:00"
+                return f"datetime'{datetime_value}'"
+
+            if edm_type.startswith("Edm.Int") or edm_type in (
+                "Edm.Decimal",
+                "Edm.Double",
+                "Edm.Single",
+                "Edm.Byte",
+                "Edm.SByte",
+            ):
+                return value
+
+        return f"'{value}'"
+
+    def _get_field_edm_type(self, field_name: str) -> str | None:
+        """Get the EDM type of a field from metadata."""
+        try:
+            client = self._build_client()
+            metadata = client.get_metadata()
+            entity_set = metadata.get_entity_set(self._config.entity_set or "")
+            if entity_set:
+                for prop in entity_set.properties:
+                    if prop.name == field_name:
+                        return prop.edm_type
+        except Exception as e:
+            logging.warning(f"Could not determine EDM type for field '{field_name}': {e}")
+        return None
 
     def _create_output_table(self):
         """Create output table definition."""
