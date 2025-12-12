@@ -40,7 +40,7 @@
           "action": "loadEntities",
           "autoload": true,
           "cache": true,
-          "watch": "service_path"
+          "watch": ["service_path"]
         }
       }
     },
