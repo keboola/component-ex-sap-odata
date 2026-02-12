@@ -33,9 +33,15 @@ class TestConfiguration:
         config = Configuration(
             service_url="https://example.com/odata",
             auth_type=AuthType.OAUTH,
+            token_url="https://auth.example.com/oauth/token",
+            client_id="my-client-id",
+            **{"#client_secret": "my-client-secret"},
         )
 
         assert config.auth_type == AuthType.OAUTH
+        assert config.token_url == "https://auth.example.com/oauth/token"
+        assert config.client_id == "my-client-id"
+        assert config.client_secret == "my-client-secret"
         assert config.username is None
         assert config.password is None
 
@@ -190,6 +196,9 @@ class TestConfigurationWithRowFields:
         config = Configuration(
             service_url="https://example.com/odata",
             auth_type=AuthType.OAUTH,
+            token_url="https://auth.example.com/oauth/token",
+            client_id="my-client-id",
+            **{"#client_secret": "my-client-secret"},
         )
         assert config.get_output_table_name() == "output"
 

@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from typing import Any, cast
 
-from keboola.component.dao import OauthCredentials
 from keboola.component.exceptions import UserException
 from keboola.http_client import HttpClient
 from requests import HTTPError, RequestException, Timeout
@@ -37,24 +36,6 @@ class ODataClientBase(ABC):
             backoff_factor=0.3,
             status_forcelist=(500, 502, 503, 504),
             auth_header=auth_handler.get_auth_headers(),
-        )
-
-    @classmethod
-    def from_oauth(
-        cls,
-        oauth: OauthCredentials,
-        base_url: str,
-        timeout: int = 60,
-        max_retries: int = 3,
-        verify_ssl: bool = True,
-    ) -> ODataClientBase:
-        auth_handler = OAuthHandler(oauth)
-        return cls(
-            base_url=base_url,
-            auth_handler=auth_handler,
-            timeout=timeout,
-            max_retries=max_retries,
-            verify_ssl=verify_ssl,
         )
 
     @classmethod

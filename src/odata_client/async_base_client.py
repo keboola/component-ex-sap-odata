@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from typing import Any, cast
 
-from keboola.component.dao import OauthCredentials
 from keboola.component.exceptions import UserException
 from keboola.http_client import AsyncHttpClient
 
@@ -45,30 +44,6 @@ class AsyncODataClientBase(ABC):
             retry_status_codes=[500, 502, 503, 504],
             auth_header=auth_handler.get_auth_headers(),
             backoff_factor=0.3,
-            max_requests_per_second=max_requests_per_second,
-        )
-
-    @classmethod
-    def from_oauth(
-        cls,
-        oauth: OauthCredentials,
-        base_url: str,
-        timeout: int = 60,
-        max_retries: int = 3,
-        verify_ssl: bool = True,
-        enable_parallel: bool = True,
-        parallel_pages: int = 5,
-        max_requests_per_second: float | None = None,
-    ) -> AsyncODataClientBase:
-        auth_handler = OAuthHandler(oauth)
-        return cls(
-            base_url=base_url,
-            auth_handler=auth_handler,
-            timeout=timeout,
-            max_retries=max_retries,
-            verify_ssl=verify_ssl,
-            enable_parallel=enable_parallel,
-            parallel_pages=parallel_pages,
             max_requests_per_second=max_requests_per_second,
         )
 
