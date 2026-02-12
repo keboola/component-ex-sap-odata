@@ -1,22 +1,8 @@
 {
   "type": "object",
   "title": "Entity Extraction",
-  "required": ["service_path", "entity_set"],
+  "required": ["entity_set"],
   "properties": {
-    "service_path": {
-      "type": "string",
-      "title": "Service Path",
-      "description": "Path to the OData service (appended to Base URL).<br /><br />Examples:<ul><li>OData V2: API_BUSINESS_PARTNER</li><li>OData V4: api_fixedassetacquisition/srvd_a2x/sap/fixedassetacquisition/0001</li></ul>Find available services:<ul><li>SAP API Business Hub: <a href=\"https://api.sap.com/\" target=\"_blank\">https://api.sap.com/</a></li><li>Your system: /sap/opu/odata/IWFND/CATALOGSERVICE/ServiceCollection</li></ul>",
-      "propertyOrder": 0
-    },
-    "odata_version": {
-      "type": "string",
-      "title": "OData Version",
-      "enum": ["auto", "v2", "v4"],
-      "default": "auto",
-      "description": "OData protocol version for this service.<br /><br /><ul><li>auto: Automatically detect from $metadata (recommended)</li><li>v2: Force OData V2 (legacy SAP services)</li><li>v4: Force OData V4 (modern SAP services)</li></ul>Learn more: <a href=\"https://www.odata.org/documentation/\" target=\"_blank\">OData Documentation</a>",
-      "propertyOrder": 0.5
-    },
     "test_connection": {
       "type": "button",
       "format": "test-connection",
@@ -40,8 +26,7 @@
           "label": "Load Entity Sets",
           "action": "loadEntities",
           "autoload": true,
-          "cache": true,
-          "watch": ["service_path"]
+          "cache": true
         }
       }
     },
