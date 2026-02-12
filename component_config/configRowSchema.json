@@ -3,6 +3,14 @@
   "title": "Entity Extraction",
   "required": ["entity_set"],
   "properties": {
+    "odata_version": {
+      "type": "string",
+      "title": "OData Version",
+      "enum": ["auto", "v2", "v4"],
+      "default": "auto",
+      "description": "OData protocol version for this service.<br /><br /><ul><li>auto: Automatically detect from $metadata (recommended)</li><li>v2: Force OData V2 (legacy SAP services)</li><li>v4: Force OData V4 (modern SAP services)</li></ul>",
+      "propertyOrder": 0.5
+    },
     "test_connection": {
       "type": "button",
       "format": "test-connection",
