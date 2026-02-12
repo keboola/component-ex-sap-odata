@@ -11,18 +11,7 @@
       "description": "OData protocol version for this service.<br /><br /><ul><li>auto: Automatically detect from $metadata (recommended)</li><li>v2: Force OData V2 (legacy SAP services)</li><li>v4: Force OData V4 (modern SAP services)</li></ul>",
       "propertyOrder": 0.5
     },
-    "test_connection": {
-      "type": "button",
-      "format": "test-connection",
-      "propertyOrder": 0.7,
-      "options": {
-        "async": {
-          "label": "Test Connection",
-          "action": "testConnection"
-        }
-      }
-    },
-    "entity_set": {
+    "entity_set":{
       "type": "string",
       "title": "Entity Set",
       "description": "OData entity set to extract data from.<br /><br />Entity sets are collections of entities (like database tables).<br />Examples: A_BusinessPartner, SalesOrderSet, ProductSet<br /><br />The dropdown will load available entity sets from the service's $metadata.",

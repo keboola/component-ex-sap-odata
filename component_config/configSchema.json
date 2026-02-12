@@ -16,6 +16,17 @@
       "description": "Path to the OData service (appended to Base URL).<br /><br />Examples:<ul><li>OData V2: sap/opu/odata/sap/API_BUSINESS_PARTNER</li><li>OData V4: sap/opu/odata4/sap/api_fixedassetacquisition/srvd_a2x/sap/fixedassetacquisition/0001</li></ul>Find available services:<ul><li>SAP API Business Hub: <a href=\"https://api.sap.com/\" target=\"_blank\">https://api.sap.com/</a></li><li>Your system: /sap/opu/odata/IWFND/CATALOGSERVICE/ServiceCollection</li></ul>",
       "propertyOrder": 2
     },
+    "test_connection": {
+      "type": "button",
+      "format": "test-connection",
+      "propertyOrder": 3,
+      "options": {
+        "async": {
+          "label": "Test Connection",
+          "action": "testConnection"
+        }
+      }
+    },
     "auth_type":{
       "type": "string",
       "title": "Authentication Type",
