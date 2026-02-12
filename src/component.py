@@ -158,6 +158,11 @@ class Component(ComponentBase):
             logging.warning("No entity_set configured, nothing to extract")
             return
 
+        try:
+            self._config.validate_for_extraction()
+        except ValueError as e:
+            raise UserException(f"Configuration validation failed: {e}") from e
+
         state = self._load_state()
 
         try:

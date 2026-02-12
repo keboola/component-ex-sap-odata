@@ -332,14 +332,19 @@ class Configuration(BaseModel):
             if not self.client_secret:
                 raise ValueError("Client Secret is required for OAuth authentication")
 
-        # Validate incremental configurations only when entity_set is provided
-        # (sync actions like testConnection/loadEntities don't need these fields)
-        if self.entity_set:
-            if self.fetch_type == FetchType.INCREMENTAL and not self.incremental_field:
-                raise ValueError("'incremental_field' is required when fetch_type is 'incremental'")
+    def validate_for_extraction(self) -> None:
+        """Validate fields required only for actual data extraction.
 
-            if self.load_type == LoadType.INCREMENTAL and not self.primary_key:
-                raise ValueError("'primary_key' is required when load_type is 'incremental'")
+        Called from Component.run() before extraction starts.
+        Sync actions (testConnection, loadEntities, etc.) skip this validation
+        because KBC merges root+row config and the row may have fetch_type=incremental
+        without incremental_field set yet.
+        """
+        if self.fetch_type == FetchType.INCREMENTAL and not self.incremental_field:
+            raise ValueError("'incremental_field' is required when fetch_type is 'incremental'")
+
+        if self.load_type == LoadType.INCREMENTAL and not self.primary_key:
+            raise ValueError("'primary_key' is required when load_type is 'incremental'")
 
     def get_service_url(self, detected_version: ODataVersionChoice | None = None) -> str:
         """Get the full OData service URL.
