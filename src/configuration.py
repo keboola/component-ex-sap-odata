@@ -140,6 +140,9 @@ class Configuration(BaseModel):
     password: str | None = Field(default=None, alias="#password", description="Password for basic authentication")
     api_key: str | None = Field(default=None, alias="#api_key", description="API key for API key authentication")
     api_key_header_name: str = Field(default="APIKey", description="HTTP header name for the API key")
+    token_url: str | None = Field(default=None, description="OAuth 2.0 token endpoint URL")
+    client_id: str | None = Field(default=None, description="OAuth 2.0 client ID")
+    client_secret: str | None = Field(default=None, alias="#client_secret", description="OAuth 2.0 client secret")
 
     # Optional nested blocks (arrays with maxItems: 1)
     connection_options: list[ConnectionOptions] | None = Field(
@@ -321,6 +324,13 @@ class Configuration(BaseModel):
         elif self.auth_type == AuthType.API_KEY:
             if not self.api_key:
                 raise ValueError("API key is required for API key authentication")
+        elif self.auth_type == AuthType.OAUTH:
+            if not self.token_url:
+                raise ValueError("Token URL is required for OAuth authentication")
+            if not self.client_id:
+                raise ValueError("Client ID is required for OAuth authentication")
+            if not self.client_secret:
+                raise ValueError("Client Secret is required for OAuth authentication")
 
         # Validate incremental configurations
         if self.fetch_type == FetchType.INCREMENTAL and not self.incremental_field:

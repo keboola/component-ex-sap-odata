@@ -1,7 +1,7 @@
 {
   "type": "object",
   "title": "SAP OData Connection",
-  "required": ["base_url", "auth_type"],
+  "required": ["base_url", "service_path", "auth_type"],
   "properties": {
     "base_url": {
       "type": "string",
@@ -9,6 +9,20 @@
       "description": "Base URL of your SAP system (without service path).<br /><br />Examples:<ul><li>On-premise: https://my-sap-server.com</li><li>SAP API Business Hub: https://sandbox.api.sap.com/s4hanacloud</li><li>SAP BTP: https://my-tenant.s4hana.cloud.sap</li></ul>Learn more: <a href=\"https://api.sap.com/\" target=\"_blank\">https://api.sap.com/</a>",
       "propertyOrder": 1,
       "format": "url"
+    },
+    "service_path": {
+      "type": "string",
+      "title": "Service Path",
+      "description": "Path to the OData service (appended to Base URL).<br /><br />Examples:<ul><li>OData V2: sap/opu/odata/sap/API_BUSINESS_PARTNER</li><li>OData V4: sap/opu/odata4/sap/api_fixedassetacquisition/srvd_a2x/sap/fixedassetacquisition/0001</li></ul>Find available services:<ul><li>SAP API Business Hub: <a href=\"https://api.sap.com/\" target=\"_blank\">https://api.sap.com/</a></li><li>Your system: /sap/opu/odata/IWFND/CATALOGSERVICE/ServiceCollection</li></ul>",
+      "propertyOrder": 2
+    },
+    "odata_version": {
+      "type": "string",
+      "title": "OData Version",
+      "enum": ["auto", "v2", "v4"],
+      "default": "auto",
+      "description": "OData protocol version for this service.<br /><br /><ul><li>auto: Automatically detect from $metadata (recommended)</li><li>v2: Force OData V2 (legacy SAP services)</li><li>v4: Force OData V4 (modern SAP services)</li></ul>",
+      "propertyOrder": 3
     },
     "auth_type": {
       "type": "string",
@@ -63,6 +77,41 @@
       "options": {
         "dependencies": {
           "auth_type": "apiKey"
+        }
+      }
+    },
+    "token_url": {
+      "type": "string",
+      "title": "Token URL",
+      "description": "OAuth 2.0 token endpoint URL for client credentials flow.",
+      "format": "url",
+      "propertyOrder": 15,
+      "options": {
+        "dependencies": {
+          "auth_type": "oauth"
+        }
+      }
+    },
+    "client_id": {
+      "type": "string",
+      "title": "Client ID",
+      "description": "OAuth 2.0 client ID.",
+      "propertyOrder": 16,
+      "options": {
+        "dependencies": {
+          "auth_type": "oauth"
+        }
+      }
+    },
+    "#client_secret": {
+      "type": "string",
+      "title": "Client Secret",
+      "description": "OAuth 2.0 client secret (encrypted and stored securely).",
+      "format": "password",
+      "propertyOrder": 17,
+      "options": {
+        "dependencies": {
+          "auth_type": "oauth"
         }
       }
     },

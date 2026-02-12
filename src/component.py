@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 from typing import Any
 
 from keboola.component.base import ComponentBase, sync_action
-from keboola.component.dao import OauthCredentials
 from keboola.component.exceptions import UserException
 from keboola.csvwriter import ElasticDictWriter
 from pydantic import ValidationError
@@ -70,8 +69,22 @@ class Component(ComponentBase):
         }
 
         if config.auth_type == AuthType.OAUTH:
-            # OAuth not yet supported in sync wrappers, would need implementation
-            raise UserException("OAuth authentication not yet supported with parallel fetching")
+            from odata_client.auth import OAuthHandler
+            auth_handler = OAuthHandler(
+                token_url=config.token_url or "",
+                client_id=config.client_id or "",
+                client_secret=config.client_secret or "",
+            )
+            self._client = client_class(
+                base_url=service_url,
+                auth_handler=auth_handler,
+                timeout=config.timeout,
+                max_retries=config.max_retries,
+                verify_ssl=config.verify_ssl,
+                enable_parallel=config.enable_parallel,
+                parallel_pages=config.parallel_pages,
+                max_requests_per_second=config.max_requests_per_second,
+            )
         elif config.auth_type == AuthType.API_KEY:
             self._client = client_class.from_api_key(
                 api_key=config.api_key or "",
@@ -107,8 +120,11 @@ class Component(ComponentBase):
 
         auth_handler: AuthHandler
         if config.auth_type == AuthType.OAUTH:
-            oauth: OauthCredentials = self.configuration.oauth_credentials
-            auth_handler = OAuthHandler(oauth)
+            auth_handler = OAuthHandler(
+                token_url=config.token_url or "",
+                client_id=config.client_id or "",
+                client_secret=config.client_secret or "",
+            )
         elif config.auth_type == AuthType.API_KEY:
             auth_handler = ApiKeyAuthHandler(config.api_key or "", config.api_key_header_name)
         else:
