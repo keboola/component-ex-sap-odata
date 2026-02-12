@@ -30,11 +30,6 @@ class FetchType(str, Enum):
     INCREMENTAL = "incremental"
 
 
-# OData gateway path constants
-ODATA_V2_GATEWAY_PATH = "/sap/opu/odata/sap"
-ODATA_V4_GATEWAY_PATH = "/sap/opu/odata4/sap"
-
-
 class ConnectionOptions(BaseModel):
     """Advanced connection options."""
     timeout: int = Field(default=60, description="Request timeout in seconds")
@@ -338,11 +333,10 @@ class Configuration(BaseModel):
         """Get the full OData service URL.
 
         If service_url is provided, returns it directly.
-        If base_url + service_path are provided, constructs the URL with the appropriate gateway path.
+        If base_url + service_path are provided, constructs the URL by joining them.
 
         Args:
-            detected_version: The detected OData version (used when odata_version is AUTO).
-                            If not provided and version is AUTO, attempts to infer from service_path structure.
+            detected_version: The detected OData version (unused, kept for backward compatibility).
 
         Returns:
             Full OData service URL without entity set.
@@ -350,35 +344,13 @@ class Configuration(BaseModel):
         if self.service_url:
             return self.service_url
 
-        # Construct URL from base_url + service_path
         if not self.base_url or not self.service_path:
             raise ValueError("Either service_url or both base_url and service_path must be provided")
 
-        base = self.base_url.rstrip("/")  # Remove trailing slash if present
+        base = self.base_url.rstrip("/")
+        service_path = self.service_path.lstrip("/")
 
-        service_path = self.service_path.lstrip("/")  # Remove leading slash if present
-
-        # Check if service_path already contains the gateway path
-        # This prevents duplicate paths if user accidentally includes it
-        if f"{ODATA_V4_GATEWAY_PATH}/" in service_path or f"{ODATA_V2_GATEWAY_PATH}/" in service_path:
-            # Path already includes gateway, return as-is
-            return f"{base}/{service_path}"
-
-        # Determine which OData version to use for gateway path
-        version = self.odata_version
-        if version == ODataVersionChoice.AUTO:
-            if detected_version:
-                version = detected_version
-            else:
-                # Try to infer from service_path structure
-                # V4 paths typically have multiple components (e.g., "api_name/srvd_a2x/sap/service/0001")
-                # V2 paths are usually simple service names (e.g., "API_BUSINESS_PARTNER")
-                version = ODataVersionChoice.V4 if self.service_path.count("/") >= 2 else ODataVersionChoice.V2
-
-        # Add appropriate gateway path
-        gateway_path = ODATA_V2_GATEWAY_PATH if version == ODataVersionChoice.V2 else ODATA_V4_GATEWAY_PATH
-
-        return f"{base}{gateway_path}/{service_path}"
+        return f"{base}/{service_path}"
 
     def get_output_table_name(self) -> str:
         return self.output_table_name or self.entity_set or "output"
