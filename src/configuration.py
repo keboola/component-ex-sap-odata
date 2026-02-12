@@ -332,12 +332,14 @@ class Configuration(BaseModel):
             if not self.client_secret:
                 raise ValueError("Client Secret is required for OAuth authentication")
 
-        # Validate incremental configurations
-        if self.fetch_type == FetchType.INCREMENTAL and not self.incremental_field:
-            raise ValueError("'incremental_field' is required when fetch_type is 'incremental'")
+        # Validate incremental configurations only when entity_set is provided
+        # (sync actions like testConnection/loadEntities don't need these fields)
+        if self.entity_set:
+            if self.fetch_type == FetchType.INCREMENTAL and not self.incremental_field:
+                raise ValueError("'incremental_field' is required when fetch_type is 'incremental'")
 
-        if self.load_type == LoadType.INCREMENTAL and not self.primary_key:
-            raise ValueError("'primary_key' is required when load_type is 'incremental'")
+            if self.load_type == LoadType.INCREMENTAL and not self.primary_key:
+                raise ValueError("'primary_key' is required when load_type is 'incremental'")
 
     def get_service_url(self, detected_version: ODataVersionChoice | None = None) -> str:
         """Get the full OData service URL.
