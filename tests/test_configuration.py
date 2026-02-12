@@ -33,9 +33,15 @@ class TestConfiguration:
         config = Configuration(
             service_url="https://example.com/odata",
             auth_type=AuthType.OAUTH,
+            token_url="https://auth.example.com/oauth/token",
+            client_id="my-client-id",
+            **{"#client_secret": "my-client-secret"},
         )
 
         assert config.auth_type == AuthType.OAUTH
+        assert config.token_url == "https://auth.example.com/oauth/token"
+        assert config.client_id == "my-client-id"
+        assert config.client_secret == "my-client-secret"
         assert config.username is None
         assert config.password is None
 
@@ -190,6 +196,9 @@ class TestConfigurationWithRowFields:
         config = Configuration(
             service_url="https://example.com/odata",
             auth_type=AuthType.OAUTH,
+            token_url="https://auth.example.com/oauth/token",
+            client_id="my-client-id",
+            **{"#client_secret": "my-client-secret"},
         )
         assert config.get_output_table_name() == "output"
 
@@ -300,7 +309,7 @@ class TestURLConfiguration:
         )
 
         url = config.get_service_url()
-        assert url == "https://sap-server.com/sap/opu/odata/sap/API_BUSINESS_PARTNER"
+        assert url == "https://sap-server.com/API_BUSINESS_PARTNER"
 
     def test_split_url_v4(self) -> None:
         """Test split URL configuration for OData V4"""
@@ -314,13 +323,13 @@ class TestURLConfiguration:
         )
 
         url = config.get_service_url()
-        assert url == "https://sap-server.com/sap/opu/odata4/sap/api_fixedasset/srvd_a2x/sap/fixedasset/0001"
+        assert url == "https://sap-server.com/api_fixedasset/srvd_a2x/sap/fixedasset/0001"
 
     def test_split_url_auto_v2_inference(self) -> None:
-        """Test that AUTO version infers V2 from simple service path"""
+        """Test that AUTO version uses simple path joining"""
         config = Configuration(
             base_url="https://sap-server.com",
-            service_path="API_BUSINESS_PARTNER",  # Simple path -> V2
+            service_path="API_BUSINESS_PARTNER",
             odata_version=ODataVersionChoice.AUTO,
             auth_type=AuthType.BASIC,
             username="user",
@@ -328,13 +337,13 @@ class TestURLConfiguration:
         )
 
         url = config.get_service_url()
-        assert url == "https://sap-server.com/sap/opu/odata/sap/API_BUSINESS_PARTNER"
+        assert url == "https://sap-server.com/API_BUSINESS_PARTNER"
 
     def test_split_url_auto_v4_inference(self) -> None:
-        """Test that AUTO version infers V4 from complex service path"""
+        """Test that AUTO version uses simple path joining"""
         config = Configuration(
             base_url="https://sap-server.com",
-            service_path="api_fixedasset/srvd_a2x/sap/fixedasset/0001",  # Complex path -> V4
+            service_path="api_fixedasset/srvd_a2x/sap/fixedasset/0001",
             odata_version=ODataVersionChoice.AUTO,
             auth_type=AuthType.BASIC,
             username="user",
@@ -342,13 +351,13 @@ class TestURLConfiguration:
         )
 
         url = config.get_service_url()
-        assert url == "https://sap-server.com/sap/opu/odata4/sap/api_fixedasset/srvd_a2x/sap/fixedasset/0001"
+        assert url == "https://sap-server.com/api_fixedasset/srvd_a2x/sap/fixedasset/0001"
 
     def test_split_url_with_trailing_slash(self) -> None:
         """Test that trailing/leading slashes are handled correctly"""
         config = Configuration(
-            base_url="https://sap-server.com/",  # Trailing slash
-            service_path="/API_BUSINESS_PARTNER",  # Leading slash
+            base_url="https://sap-server.com/",
+            service_path="/API_BUSINESS_PARTNER",
             odata_version=ODataVersionChoice.V2,
             auth_type=AuthType.BASIC,
             username="user",
@@ -356,7 +365,7 @@ class TestURLConfiguration:
         )
 
         url = config.get_service_url()
-        assert url == "https://sap-server.com/sap/opu/odata/sap/API_BUSINESS_PARTNER"
+        assert url == "https://sap-server.com/API_BUSINESS_PARTNER"
 
     def test_neither_url_config_raises_error(self) -> None:
         """Test that providing neither URL configuration raises an error"""

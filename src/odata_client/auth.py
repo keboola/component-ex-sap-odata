@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import base64
+import logging
 from abc import ABC, abstractmethod
 
-from keboola.component.dao import OauthCredentials
+import requests
 
 
 class AuthHandler(ABC):
@@ -43,25 +44,39 @@ class BasicAuthHandler(AuthHandler):
 
 
 class OAuthHandler(AuthHandler):
-    def __init__(self, oauth_credentials: OauthCredentials):
-        self.oauth = oauth_credentials
+    def __init__(self, token_url: str, client_id: str, client_secret: str):
+        self.token_url = token_url
+        self.client_id = client_id
+        self.client_secret = client_secret
         self._access_token: str | None = None
-        self._extract_access_token()
 
-    def _extract_access_token(self) -> None:
-        if self.oauth.data:
-            self._access_token = self.oauth.data.get("access_token")
+    def _fetch_access_token(self) -> None:
+        try:
+            response = requests.post(
+                self.token_url,
+                data={
+                    "grant_type": "client_credentials",
+                    "client_id": self.client_id,
+                    "client_secret": self.client_secret,
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=30,
+            )
+            response.raise_for_status()
+            token_data = response.json()
+            self._access_token = token_data.get("access_token")
             if not self._access_token:
-                self._access_token = self.oauth.data.get("token")
+                raise ValueError("No access_token in OAuth response")
+        except requests.RequestException as e:
+            logging.error(f"Failed to fetch OAuth token: {e}")
+            raise ValueError(f"OAuth token request failed: {e}") from e
 
     def get_auth_headers(self) -> dict[str, str]:
-        headers = {}
-        if self._access_token:
-            headers["Authorization"] = f"Bearer {self._access_token}"
-        return headers
+        if not self._access_token:
+            self._fetch_access_token()
+        return {"Authorization": f"Bearer {self._access_token}"}
 
     def get_auth_params(self) -> dict[str, str]:
-        """Get query parameters for authentication."""
         return {}
 
     @property
