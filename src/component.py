@@ -368,13 +368,73 @@ class Component(ComponentBase):
 
     @sync_action("testConnection")
     def test_connection(self) -> dict[str, str]:
-        """Test connection to SAP OData service."""
+        """Test connection to SAP OData service.
+
+        Performs a lightweight connectivity check by making a simple HTTP request
+        to the service URL with authentication headers. Does not fetch $metadata
+        because some SAP CPI iFlows don't expose a $metadata sub-path.
+        """
+        import requests as req
+
         try:
-            client = self._build_client()
-            ok, message = client.test_connection()
-            if ok:
-                return {"status": "success", "message": message}
-            return {"status": "error", "message": message}
+            config = self._config
+            if not config.base_url or not config.service_path:
+                return {"status": "error", "message": "Base URL and Service Path are required"}
+
+            service_url = config.get_service_url()
+
+            from odata_client.auth import ApiKeyAuthHandler, BasicAuthHandler, OAuthHandler
+
+            if config.auth_type == AuthType.OAUTH:
+                auth_handler = OAuthHandler(
+                    token_url=config.token_url or "",
+                    client_id=config.client_id or "",
+                    client_secret=config.client_secret or "",
+                )
+            elif config.auth_type == AuthType.API_KEY:
+                auth_handler = ApiKeyAuthHandler(
+                    api_key=config.api_key or "",
+                    header_name=config.api_key_header_name,
+                )
+            else:
+                auth_handler = BasicAuthHandler(
+                    username=config.username or "",
+                    password=config.password or "",
+                )
+
+            headers = auth_handler.get_auth_headers()
+            headers["Accept"] = "application/xml"
+
+            timeout = config.timeout
+            verify_ssl = config.verify_ssl
+
+            response = req.get(
+                service_url,
+                headers=headers,
+                timeout=timeout,
+                verify=verify_ssl,
+            )
+
+            if response.status_code == 401:
+                return {"status": "error", "message": "Authentication failed (401 Unauthorized). Check your credentials."}
+            if response.status_code == 403:
+                return {"status": "error", "message": "Access forbidden (403). Check permissions for the service."}
+            if response.status_code == 404:
+                return {
+                    "status": "error",
+                    "message": f"Service not found (404) at {service_url}. Check Base URL and Service Path.",
+                }
+
+            return {
+                "status": "success",
+                "message": f"Connection successful! Server responded with HTTP {response.status_code}.",
+            }
+        except req.exceptions.ConnectionError as e:
+            return {"status": "error", "message": f"Cannot reach server: {e}"}
+        except req.exceptions.Timeout:
+            return {"status": "error", "message": f"Connection timed out after {config.timeout}s"}
+        except ValueError as e:
+            return {"status": "error", "message": f"Configuration error: {e}"}
         except Exception as e:
             return {"status": "error", "message": f"Connection failed: {e}"}
 
