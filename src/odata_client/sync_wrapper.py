@@ -13,6 +13,7 @@ from typing import Any
 from .async_v2_client import AsyncODataV2Client
 from .async_v4_client import AsyncODataV4Client
 from .auth import AuthHandler
+from .catalog_parser import ServiceInfo
 from .metadata import EntitySet, ODataMetadata, ODataVersion
 
 JsonDict = dict[str, Any]
@@ -148,6 +149,10 @@ class SyncODataV4Client:
     def list_fields(self, entity_set_name: str) -> list:
         loop = _get_or_create_event_loop()
         return loop.run_until_complete(self._async_client.list_fields(entity_set_name))
+
+    def list_catalog_services(self) -> list[ServiceInfo]:
+        loop = _get_or_create_event_loop()
+        return loop.run_until_complete(self._async_client.list_catalog_services())
 
     def test_connection(self) -> tuple[bool, str]:
         loop = _get_or_create_event_loop()
@@ -339,6 +344,10 @@ class SyncODataV2Client:
     def list_fields(self, entity_set_name: str) -> list:
         loop = _get_or_create_event_loop()
         return loop.run_until_complete(self._async_client.list_fields(entity_set_name))
+
+    def list_catalog_services(self) -> list[ServiceInfo]:
+        loop = _get_or_create_event_loop()
+        return loop.run_until_complete(self._async_client.list_catalog_services())
 
     def test_connection(self) -> tuple[bool, str]:
         loop = _get_or_create_event_loop()

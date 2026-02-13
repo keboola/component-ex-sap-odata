@@ -5,6 +5,7 @@ import logging
 from abc import ABC, abstractmethod
 
 import requests
+from keboola.component.exceptions import UserException
 
 
 class AuthHandler(ABC):
@@ -66,10 +67,18 @@ class OAuthHandler(AuthHandler):
             token_data = response.json()
             self._access_token = token_data.get("access_token")
             if not self._access_token:
-                raise ValueError("No access_token in OAuth response")
+                raise UserException("No access_token in OAuth response")
         except requests.RequestException as e:
             logging.error(f"Failed to fetch OAuth token: {e}")
-            raise ValueError(f"OAuth token request failed: {e}") from e
+            if hasattr(e, 'response') and e.response is not None:
+                status_code = e.response.status_code
+                if status_code == 401:
+                    raise UserException("OAuth authentication failed: Invalid client credentials. Please verify client_id and client_secret.") from e
+                elif status_code == 403:
+                    raise UserException("OAuth authentication failed: Access forbidden. Check your OAuth permissions.") from e
+                else:
+                    raise UserException(f"OAuth token request failed with HTTP {status_code}: {e}") from e
+            raise UserException(f"OAuth token request failed: {e}") from e
 
     def get_auth_headers(self) -> dict[str, str]:
         if not self._access_token:

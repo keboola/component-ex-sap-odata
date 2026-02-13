@@ -464,6 +464,22 @@ class Component(ComponentBase):
                 f"service_path: {self._config.service_path}"
             )
             client = self._build_client()
+
+            # Try to get catalog services first (for SAP catalog endpoints)
+            catalog_services = client.list_catalog_services()
+            if catalog_services:
+                logging.info(f"loadEntities: found {len(catalog_services)} services in SAP catalog")
+                # Return list of services from catalog
+                return [
+                    {
+                        "value": service.id,
+                        "label": f"{service.title} - {service.description}" if service.description
+                        else service.title,
+                    }
+                    for service in catalog_services
+                ]
+
+            # Fall back to entity sets (for normal OData services)
             entities = client.list_entity_sets()
             logging.info(f"loadEntities: found {len(entities)} entity sets")
 
