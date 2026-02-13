@@ -65,6 +65,103 @@ Each row extracts one entity set. Multiple rows can be configured for different 
 | `page_size` | No | Override default page size for this entity |
 | `max_records` | No | Override default max records for this entity |
 
+## SAP Service Catalog Support
+
+### What is a Service Catalog?
+
+A **Service Catalog** is a SAP-specific endpoint that lists all available OData services in your SAP system. This is **not part of the OData standard** - it's SAP proprietary.
+
+Instead of directly connecting to an OData service, you can browse the catalog to see what services are available, then copy the service path to your configuration.
+
+### Using Service Catalog
+
+#### Step 1: Configure Catalog Endpoint
+
+Set `catalog_path` instead of `service_path`:
+
+```json
+{
+  "parameters": {
+    "base_url": "https://your-sap-system.com",
+    "catalog_path": "sap/opu/odata/IWFND/CATALOGSERVICE;v=2/ServiceCollection",
+    "auth_type": "oauth",
+    "token_url": "https://your-auth.com/oauth/token",
+    "client_id": "your-client-id",
+    "#client_secret": "your-secret"
+  }
+}
+```
+
+#### Step 2: Browse Available Services
+
+Run the **loadEntities** sync action. Instead of entity sets, you'll get a list of available OData services:
+
+```json
+[
+  {
+    "value": "ZAPI_BUSINESS_PARTNER_0001",
+    "label": "API_BUSINESS_PARTNER - Business Partner API"
+  },
+  {
+    "value": "ZFCLM_CASH_BANKTRANSFER_SRV_0001",
+    "label": "FCLM_CASH_BANKTRANSFER_SRV - Bank Transfer"
+  }
+]
+```
+
+#### Step 3: Use Service Path
+
+From the catalog results, copy the service name (without the `Z...._0001` prefix) and use it as `service_path`:
+
+```json
+{
+  "parameters": {
+    "base_url": "https://your-sap-system.com",
+    "service_path": "sap/opu/odata/sap/FCLM_CASH_BANKTRANSFER_SRV",
+    "auth_type": "oauth",
+    ...
+  }
+}
+```
+
+Now **loadEntities** will return entity sets from that service, and you can proceed with normal data extraction.
+
+### Important Limitations
+
+#### 1. Authentication Issue
+
+**Problem:** Catalog and actual services may require different authentication.
+
+**Example:**
+- Catalog is accessed via SAP CPI proxy with OAuth 2.0
+- Catalog returns service URLs like `http://20.113.120.45:50000/sap/opu/odata/sap/SERVICE_NAME`
+- Those internal URLs require SAP Basic Auth (username/password), not OAuth
+
+**Solution:** Use the catalog to **browse only**. Don't try to use the exact URLs returned by the catalog. Instead, use your proxy/gateway URL structure.
+
+#### 2. Internal URLs
+
+**Problem:** Catalog often returns **internal private IP addresses** (e.g., `http://20.113.120.45:50000` or `http://10.x.x.x`).
+
+**Why this happens:**
+- `20.x.x.x`, `10.x.x.x`, `192.168.x.x` are private IP ranges
+- Only accessible from inside the SAP network
+- Not routable from the internet
+
+**Solution:**
+- Extract only the **service name** from catalog entries (e.g., `FCLM_CASH_BANKTRANSFER_SRV`)
+- Construct your own URL using your **public gateway/proxy** URL
+- Example: `https://your-cpi-proxy.com/http/path/to/FCLM_CASH_BANKTRANSFER_SRV`
+
+### Catalog vs. Direct Service
+
+| Mode | catalog_path set | service_path set | loadEntities returns |
+|------|-----------------|------------------|---------------------|
+| **Browsing catalog** | ✅ Yes | ❌ No | List of OData services |
+| **Using service** | ❌ No | ✅ Yes | List of entity sets |
+
+**Note:** You cannot set both `catalog_path` and `service_path` at the same time. If `catalog_path` is set, it takes precedence.
+
 ## Development
 
 ### Prerequisites

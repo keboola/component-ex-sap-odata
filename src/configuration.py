@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class AuthType(str, Enum):
@@ -131,6 +131,10 @@ class Configuration(BaseModel):
         default=None,
         description="OData service path. For V2: API_BUSINESS_PARTNER. For V4: api_fixedassetacquisition/srvd_a2x/sap/fixedassetacquisition/0001",
     )
+    catalog_path: str | None = Field(
+        default=None,
+        description="SAP Service Catalog path (optional). Example: sap/opu/odata/IWFND/CATALOGSERVICE;v=2/ServiceCollection. When set, loadEntities returns list of available OData services instead of entity sets.",
+    )
 
     odata_version: ODataVersionChoice = Field(
         default=ODataVersionChoice.AUTO, description="OData protocol version (auto, v2, v4)"
@@ -170,6 +174,26 @@ class Configuration(BaseModel):
     def strip_entity_set(cls, v: str | None) -> str | None:
         """Strip whitespace from entity_set to handle user input errors."""
         return v.strip() if v else v
+
+    @model_validator(mode="after")
+    def validate_url_configuration(self) -> "Configuration":
+        """Validate that URL configuration is properly set."""
+        # If service_url is provided, that's sufficient
+        if self.service_url:
+            return self
+
+        # If catalog_path is provided with base_url, that's valid
+        if self.catalog_path and self.base_url:
+            return self
+
+        # Otherwise, both base_url and service_path are required
+        if not self.base_url or not self.service_path:
+            raise ValueError(
+                "Either 'service_url' or both 'base_url' and 'service_path' must be provided. "
+                "Use 'service_url' for full URL or 'base_url'+'service_path' for split configuration."
+            )
+
+        return self
 
     # Property accessors for backward-compatible field access
     @property
@@ -296,8 +320,9 @@ class Configuration(BaseModel):
         # Validate URL configuration - exactly one method must be used
         has_service_url = self.service_url is not None
         has_split_url = self.base_url is not None and self.service_path is not None
+        has_catalog = self.base_url is not None and self.catalog_path is not None
 
-        if not has_service_url and not has_split_url:
+        if not has_service_url and not has_split_url and not has_catalog:
             raise ValueError(
                 "Either 'service_url' or both 'base_url' and 'service_path' must be provided. "
                 "Use 'service_url' for full URL or 'base_url'+'service_path' for split configuration."
@@ -309,11 +334,18 @@ class Configuration(BaseModel):
                 "Choose one URL configuration method."
             )
 
-        if self.base_url is not None and self.service_path is None:
-            raise ValueError("'service_path' is required when 'base_url' is provided")
+        # When using catalog_path, service_path is not required
+        if self.catalog_path:
+            # catalog_path requires base_url
+            if not self.base_url:
+                raise ValueError("'base_url' is required when 'catalog_path' is provided")
+        else:
+            # Normal validation when not using catalog
+            if self.base_url is not None and self.service_path is None:
+                raise ValueError("'service_path' is required when 'base_url' is provided")
 
-        if self.service_path is not None and self.base_url is None:
-            raise ValueError("'base_url' is required when 'service_path' is provided")
+            if self.service_path is not None and self.base_url is None:
+                raise ValueError("'base_url' is required when 'service_path' is provided")
 
         # Validate authentication
         if self.auth_type == AuthType.BASIC:
@@ -350,19 +382,37 @@ class Configuration(BaseModel):
         """Get the full OData service URL.
 
         If service_url is provided, returns it directly.
+        If catalog_path is set, uses it (for browsing catalog).
         If base_url + service_path are provided, constructs the URL by joining them.
 
         Args:
             detected_version: The detected OData version (unused, kept for backward compatibility).
 
         Returns:
-            Full OData service URL without entity set.
+            Full OData service URL without entity set, or catalog URL if catalog_path is set.
         """
         if self.service_url:
             return self.service_url
 
-        if not self.base_url or not self.service_path:
-            raise ValueError("Either service_url or both base_url and service_path must be provided")
+        # If catalog_path is set, use it instead of service_path
+        if self.catalog_path:
+            if not self.base_url:
+                raise ValueError("base_url is required when using catalog_path")
+            base = self.base_url.rstrip("/")
+            catalog = self.catalog_path.lstrip("/")
+            return f"{base}/{catalog}"
+
+        if not self.base_url:
+            raise ValueError(
+                "Either 'service_url' or both 'base_url' and 'service_path' must be provided. "
+                "Use 'service_url' for full URL or 'base_url'+'service_path' for split configuration."
+            )
+
+        if not self.service_path:
+            raise ValueError(
+                "Either 'service_url' or both 'base_url' and 'service_path' must be provided. "
+                "Use 'service_url' for full URL or 'base_url'+'service_path' for split configuration."
+            )
 
         base = self.base_url.rstrip("/")
         service_path = self.service_path.lstrip("/")
