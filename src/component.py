@@ -378,8 +378,13 @@ class Component(ComponentBase):
 
         try:
             config = self._config
-            if not config.base_url or not config.service_path:
-                return {"status": "error", "message": "Base URL and Service Path are required"}
+
+            # Validate configuration (service_url OR base_url+service_path/catalog_path)
+            if not config.service_url:
+                if not config.base_url:
+                    return {"status": "error", "message": "Base URL is required"}
+                if not config.service_path and not config.catalog_path:
+                    return {"status": "error", "message": "Either Service Path or Catalog Path is required"}
 
             service_url = config.get_service_url()
 
@@ -441,28 +446,30 @@ class Component(ComponentBase):
     @sync_action("loadEntities")
     def load_entities(self) -> list[dict[str, str]]:
         try:
-            # Check required fields
-            if not self._config.base_url:
-                logging.error("loadEntities: base_url is not set")
-                return [
-                    {
-                        "value": "",
-                        "label": "⚠️ Error: Base URL not configured. Please check root configuration.",
-                    }
-                ]
+            # Validate configuration (service_url OR base_url+service_path/catalog_path)
+            if not self._config.service_url:
+                if not self._config.base_url:
+                    logging.error("loadEntities: base_url is not set")
+                    return [
+                        {
+                            "value": "",
+                            "label": "⚠️ Error: Base URL not configured. Please check root configuration.",
+                        }
+                    ]
 
-            # service_path is required unless catalog_path is set
-            if not self._config.service_path and not self._config.catalog_path:
-                logging.error("loadEntities: neither service_path nor catalog_path is set")
-                return [
-                    {
-                        "value": "",
-                        "label": "⚠️ Error: Service Path or Catalog Path is required. Please fill it in above.",
-                    }
-                ]
+                # service_path is required unless catalog_path is set
+                if not self._config.service_path and not self._config.catalog_path:
+                    logging.error("loadEntities: neither service_path nor catalog_path is set")
+                    return [
+                        {
+                            "value": "",
+                            "label": "⚠️ Error: Service Path or Catalog Path is required. Please fill it in above.",
+                        }
+                    ]
 
             logging.info(
-                f"loadEntities called - base_url: {self._config.base_url}, "
+                f"loadEntities called - service_url: {self._config.service_url}, "
+                f"base_url: {self._config.base_url}, "
                 f"service_path: {self._config.service_path}, catalog_path: {self._config.catalog_path}"
             )
             client = self._build_client()
