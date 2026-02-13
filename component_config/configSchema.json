@@ -1,7 +1,7 @@
 {
   "type": "object",
   "title": "SAP OData Connection",
-  "required": ["base_url", "service_path", "auth_type"],
+  "required": ["base_url", "auth_type"],
   "properties": {
     "base_url": {
       "type": "string",
@@ -10,16 +10,36 @@
       "propertyOrder": 1,
       "format": "url"
     },
+    "catalog_path": {
+      "type": "string",
+      "title": "Catalog Path (Optional)",
+      "description": "Path to SAP Service Catalog for browsing available services.<br /><br />Example: <code>http/keboola/catalog</code><br /><br />Leave empty if you already know your Service Path. If provided, use the button below to load available services.",
+      "propertyOrder": 2
+    },
+    "load_services": {
+      "type": "button",
+      "format": "sync-action",
+      "propertyOrder": 3,
+      "options": {
+        "async": {
+          "label": "🔍 Load Available Services",
+          "action": "loadEntities"
+        },
+        "dependencies": {
+          "catalog_path": true
+        }
+      }
+    },
     "service_path": {
       "type": "string",
       "title": "Service Path",
-      "description": "Path to the OData service (appended to Base URL).<br /><br />Examples:<ul><li>OData V2: sap/opu/odata/sap/API_BUSINESS_PARTNER</li><li>OData V4: sap/opu/odata4/sap/api_fixedassetacquisition/srvd_a2x/sap/fixedassetacquisition/0001</li></ul>Find available services:<ul><li>SAP API Business Hub: <a href=\"https://api.sap.com/\" target=\"_blank\">https://api.sap.com/</a></li><li>Your system: /sap/opu/odata/IWFND/CATALOGSERVICE/ServiceCollection</li></ul>",
-      "propertyOrder": 2
+      "description": "Path to the OData service (appended to Base URL).<br /><br />This field will be automatically filled when you select a service from the catalog above, or you can enter it manually if you know the path.<br /><br />Examples:<ul><li>From catalog: <code>http/keboola/connector/sap/opu/odata/sap/API_BUSINESS_PARTNER</code></li><li>OData V2: <code>sap/opu/odata/sap/API_BUSINESS_PARTNER</code></li><li>OData V4: <code>sap/opu/odata4/sap/api_fixedassetacquisition/srvd_a2x/sap/fixedassetacquisition/0001</code></li></ul>",
+      "propertyOrder": 4
     },
     "test_connection": {
       "type": "button",
       "format": "test-connection",
-      "propertyOrder": 3,
+      "propertyOrder": 5,
       "options": {
         "async": {
           "label": "Test Connection",
@@ -34,13 +54,13 @@
       "enum": ["basic", "oauth", "apiKey"],
       "enum_titles": ["Username & Password", "OAuth 2.0", "API Key"],
       "default": "basic",
-      "propertyOrder": 10
+      "propertyOrder": 20
     },
     "username": {
       "type": "string",
       "title": "Username",
       "description": "SAP system username for basic authentication.",
-      "propertyOrder": 11,
+      "propertyOrder": 21,
       "options": {
         "dependencies": {
           "auth_type": "basic"
@@ -52,7 +72,7 @@
       "title": "Password",
       "description": "SAP system password (encrypted and stored securely).",
       "format": "password",
-      "propertyOrder": 12,
+      "propertyOrder": 22,
       "options": {
         "dependencies": {
           "auth_type": "basic"
@@ -64,7 +84,7 @@
       "title": "API Key",
       "description": "API key for authentication (encrypted and stored securely).<br /><br />Used with SAP API Business Hub or custom API gateways.<br />Get your key at: <a href=\"https://api.sap.com/\" target=\"_blank\">https://api.sap.com/</a>",
       "format": "password",
-      "propertyOrder": 13,
+      "propertyOrder": 23,
       "options": {
         "dependencies": {
           "auth_type": "apiKey"
@@ -76,7 +96,7 @@
       "title": "API Key Header Name",
       "default": "APIKey",
       "description": "HTTP header name for the API key.<br /><br />Common values:<ul><li>APIKey (SAP API Business Hub)</li><li>X-API-Key (custom gateways)</li><li>Authorization (with 'Bearer' prefix)</li></ul>",
-      "propertyOrder": 14,
+      "propertyOrder": 24,
       "options": {
         "dependencies": {
           "auth_type": "apiKey"
@@ -88,7 +108,7 @@
       "title": "Token URL",
       "description": "OAuth 2.0 token endpoint URL for client credentials flow.",
       "format": "url",
-      "propertyOrder": 15,
+      "propertyOrder": 25,
       "options": {
         "dependencies": {
           "auth_type": "oauth"
@@ -99,7 +119,7 @@
       "type": "string",
       "title": "Client ID",
       "description": "OAuth 2.0 client ID.",
-      "propertyOrder": 16,
+      "propertyOrder": 26,
       "options": {
         "dependencies": {
           "auth_type": "oauth"
@@ -111,7 +131,7 @@
       "title": "Client Secret",
       "description": "OAuth 2.0 client secret (encrypted and stored securely).",
       "format": "password",
-      "propertyOrder": 17,
+      "propertyOrder": 27,
       "options": {
         "dependencies": {
           "auth_type": "oauth"
@@ -123,7 +143,7 @@
       "title": "⚙️ Advanced Connection Options (Optional)",
       "description": "Configure timeout, retries, and SSL verification. Leave empty to use defaults.",
       "maxItems": 1,
-      "propertyOrder": 20,
+      "propertyOrder": 30,
       "items": {
         "type": "object",
         "title": "Connection Settings",
@@ -157,7 +177,7 @@
       "title": "📄 Default Pagination Settings (Optional)",
       "description": "Override default page size and max records. Leave empty to use standard defaults (page_size: 1000, max_records: unlimited).",
       "maxItems": 1,
-      "propertyOrder": 30,
+      "propertyOrder": 40,
       "items": {
         "type": "object",
         "title": "Pagination Settings",

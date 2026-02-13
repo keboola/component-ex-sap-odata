@@ -478,15 +478,32 @@ class Component(ComponentBase):
             catalog_services = client.list_catalog_services()
             if catalog_services:
                 logging.info(f"loadEntities: found {len(catalog_services)} services in SAP catalog")
-                # Return list of services from catalog
-                return [
-                    {
-                        "value": service.id,
+
+                # Convert internal service URLs to proxy-compatible service paths
+                # Extract path from internal URL and add proxy-specific prefix
+                from urllib.parse import urlparse
+
+                result = []
+                for service in catalog_services:
+                    # Parse internal URL: http://20.113.120.45:50000/sap/opu/odata/sap/SERVICE_NAME
+                    parsed = urlparse(service.service_url)
+                    internal_path = parsed.path.lstrip('/')  # sap/opu/odata/sap/SERVICE_NAME
+
+                    # Detect proxy prefix from catalog_path
+                    # If catalog_path is "http/keboola/catalog", prefix is "http/keboola/connector/"
+                    if self._config.catalog_path and "keboola" in self._config.catalog_path:
+                        service_path = f"http/keboola/connector/{internal_path}"
+                    else:
+                        # For other proxies, use internal path as-is
+                        service_path = internal_path
+
+                    result.append({
+                        "value": service_path,
                         "label": f"{service.title} - {service.description}" if service.description
                         else service.title,
-                    }
-                    for service in catalog_services
-                ]
+                    })
+
+                return result
 
             # Fall back to entity sets (for normal OData services)
             entities = client.list_entity_sets()
