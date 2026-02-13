@@ -1,0 +1,27 @@
+{
+  "parameters": {
+    "service_url": "https://services.odata.org/V4/Northwind/Northwind.svc",
+    "odata_version": "v4",
+    "auth_type": "basic",
+    "username": "test",
+    "#password": "test",
+    "entity_set": "Products",
+    "fetching_options": [
+      {
+        "fetch_type": "incremental",
+        "incremental_field": "ProductID"
+      }
+    ],
+    "destination": [
+      {
+        "load_type": "incremental",
+        "primary_key": ["ProductID"]
+      }
+    ],
+    "pagination_defaults": [
+      {
+        "max_records": 10
+      }
+    ]
+  }
+}

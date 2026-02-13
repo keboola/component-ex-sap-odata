@@ -1,0 +1,9 @@
+{
+  "entity_states": {
+    "Products": {
+      "last_incremental_value": "5",
+      "last_sync_timestamp": "2024-01-01T00:00:00Z",
+      "records_synced": 5
+    }
+  }
+}
