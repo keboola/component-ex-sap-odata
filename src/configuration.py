@@ -381,26 +381,19 @@ class Configuration(BaseModel):
     def get_service_url(self, detected_version: ODataVersionChoice | None = None) -> str:
         """Get the full OData service URL.
 
-        If service_url is provided, returns it directly.
-        If catalog_path is set, uses it (for browsing catalog).
-        If base_url + service_path are provided, constructs the URL by joining them.
+        Priority order:
+        1. service_url (if provided - legacy mode)
+        2. base_url + service_path (if service_path is set - normal mode)
+        3. base_url + catalog_path (if only catalog_path is set - browsing mode)
 
         Args:
             detected_version: The detected OData version (unused, kept for backward compatibility).
 
         Returns:
-            Full OData service URL without entity set, or catalog URL if catalog_path is set.
+            Full OData service URL without entity set, or catalog URL if in browsing mode.
         """
         if self.service_url:
             return self.service_url
-
-        # If catalog_path is set, use it instead of service_path
-        if self.catalog_path:
-            if not self.base_url:
-                raise ValueError("base_url is required when using catalog_path")
-            base = self.base_url.rstrip("/")
-            catalog = self.catalog_path.lstrip("/")
-            return f"{base}/{catalog}"
 
         if not self.base_url:
             raise ValueError(
@@ -408,16 +401,22 @@ class Configuration(BaseModel):
                 "Use 'service_url' for full URL or 'base_url'+'service_path' for split configuration."
             )
 
-        if not self.service_path:
-            raise ValueError(
-                "Either 'service_url' or both 'base_url' and 'service_path' must be provided. "
-                "Use 'service_url' for full URL or 'base_url'+'service_path' for split configuration."
-            )
-
         base = self.base_url.rstrip("/")
-        service_path = self.service_path.lstrip("/")
 
-        return f"{base}/{service_path}"
+        # Priority 1: service_path (normal mode - accessing a specific service)
+        if self.service_path:
+            service_path = self.service_path.lstrip("/")
+            return f"{base}/{service_path}"
+
+        # Priority 2: catalog_path (browsing mode - discovering services)
+        if self.catalog_path:
+            catalog = self.catalog_path.lstrip("/")
+            return f"{base}/{catalog}"
+
+        raise ValueError(
+            "Either 'service_url' or both 'base_url' and 'service_path' must be provided. "
+            "Use 'service_url' for full URL or 'base_url'+'service_path' for split configuration."
+        )
 
     def get_output_table_name(self) -> str:
         return self.output_table_name or self.entity_set or "output"
