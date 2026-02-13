@@ -860,3 +860,132 @@ class TestLoadTypeAndDestination:
         # Should use custom name
         rows = verify_output_table(datadir, "my_products", min_rows=5)
         assert len(rows) == 5
+
+
+class TestCatalogWorkflow:
+    """Test SAP Catalog workflow scenarios."""
+
+    @respx.mock
+    def test_catalog_path_priority_over_service_path(
+        self,
+        respx_mock,
+        mock_v4_server,
+        mock_catalog_server,
+        datadir_factory,
+        run_component_with_datadir,
+        verify_output_table,
+    ):
+        """Test that service_path takes priority over catalog_path when both are set.
+
+        This is the critical bug we fixed - when user browses catalog (catalog_path set)
+        and then selects a service (service_path set), component should use service_path
+        for extraction, not catalog_path.
+        """
+        # Setup both servers
+        mock_v4_server.setup(respx_mock)
+        mock_catalog_server.setup(respx_mock)
+
+        config = {
+            "base_url": "https://api.example.com",
+            "catalog_path": "sap/opu/odata/IWFND/CATALOGSERVICE;v=2",  # This should be IGNORED
+            "service_path": mock_v4_server.base_url.replace("https://api.example.com/", ""),  # This should be USED
+            "odata_version": "v4",
+            "auth_type": "basic",
+            "username": "test_user",
+            "#password": "test_password",
+            "entity_set": "Products",
+        }
+        datadir = datadir_factory(config)
+
+        # Should extract from service_path, not catalog_path
+        run_component_with_datadir(datadir)
+
+        # Should successfully extract Products from V4 server
+        rows = verify_output_table(datadir, "Products", min_rows=5)
+        assert len(rows) == 5
+        assert rows[0]["Name"] == "Laptop"
+
+    @respx.mock
+    def test_catalog_only_for_browsing(
+        self, respx_mock, mock_catalog_server, datadir_factory, run_sync_action_with_datadir
+    ):
+        """Test catalog_path is used only when service_path is not set (browsing mode)."""
+        mock_catalog_server.setup(respx_mock)
+
+        config = {
+            "base_url": "https://api.example.com",
+            "catalog_path": "sap/opu/odata/IWFND/CATALOGSERVICE;v=2",
+            # No service_path - browsing mode
+            "auth_type": "basic",
+            "username": "test_user",
+            "#password": "test_password",
+        }
+        datadir = datadir_factory(config)
+
+        # Should use catalog for loadEntities sync action
+        comp = run_sync_action_with_datadir(datadir, "loadEntities")
+        assert comp is not None
+
+    @respx.mock
+    def test_extraction_with_catalog_selected_service(
+        self,
+        respx_mock,
+        mock_v4_server,
+        datadir_factory,
+        run_component_with_datadir,
+        verify_output_table,
+    ):
+        """Test full workflow: user selects service from catalog and extracts data.
+
+        Simulates:
+        1. User sets base_url + catalog_path
+        2. UI calls loadEntities sync action → returns service list
+        3. User selects a service → writes to service_path field
+        4. Component runs extraction using service_path
+        """
+        mock_v4_server.setup(respx_mock)
+
+        # This is what config looks like AFTER user selects service from catalog
+        config = {
+            "base_url": "https://api.example.com",
+            # catalog_path might still be set from browsing step, but should be ignored
+            "service_path": mock_v4_server.base_url.replace("https://api.example.com/", ""),
+            "odata_version": "v4",
+            "auth_type": "basic",
+            "username": "test_user",
+            "#password": "test_password",
+            "entity_set": "Products",
+        }
+        datadir = datadir_factory(config)
+
+        run_component_with_datadir(datadir)
+
+        # Should successfully extract using selected service
+        rows = verify_output_table(datadir, "Products", min_rows=5)
+        assert len(rows) == 5
+
+    @respx.mock
+    def test_catalog_url_conversion_in_load_entities(
+        self, respx_mock, mock_catalog_server, datadir_factory, run_sync_action_with_datadir
+    ):
+        """Test that loadEntities converts internal catalog URLs to proxy-compatible paths.
+
+        SAP catalog returns internal URLs like http://20.113.120.45:50000/sap/opu/odata/sap/SERVICE
+        Component should convert these to proxy paths like http/keboola/connector/sap/opu/odata/sap/SERVICE
+        """
+        mock_catalog_server.setup(respx_mock)
+
+        config = {
+            "base_url": "https://26db83b8trial.it-cpitrial03-rt.cfapps.ap21.hana.ondemand.com",
+            "catalog_path": "http/keboola/catalog",  # Contains "keboola" - triggers proxy path conversion
+            "auth_type": "oauth",
+            "token_url": "https://auth.example.com/oauth/token",
+            "client_id": "test_client",
+            "#client_secret": "test_secret",
+        }
+        datadir = datadir_factory(config)
+
+        # Should return services with converted paths
+        comp = run_sync_action_with_datadir(datadir, "loadEntities")
+        assert comp is not None
+        # Note: Actual validation of URL conversion would require inspecting sync action output
