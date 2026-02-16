@@ -124,7 +124,7 @@ jobs:
             -e PYTHONPATH=/code/src \
             -w /code \
             ${{ env.KBC_DEVELOPERPORTAL_APP }}:latest \
-            sh -c "uv pip install --system pytest pytest-cov responses freezegun && python -m pytest tests -v --ignore=tests/functional"
+            sh -c "uv pip install --system pytest pytest-cov responses freezegun respx && python -m pytest tests -v --ignore=tests/functional"
 
       - name: Run Functional Tests (if SAP_API_KEY available)
         env:
