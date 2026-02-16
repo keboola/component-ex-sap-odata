@@ -3,6 +3,40 @@
   "title": "Entity Extraction",
   "required": ["entity_set"],
   "properties": {
+    "service_header": {
+      "type": "string",
+      "title": "🌐 Service Selection",
+      "propertyOrder": 0.1,
+      "options": {
+        "infoText": "Select the OData service to extract data from. You can browse the catalog or enter the service path directly."
+      }
+    },
+    "catalog_path": {
+      "type": "string",
+      "title": "Catalog Path (Optional)",
+      "description": "Path to SAP Service Catalog for browsing available services.<br /><br />Example: <code>http/keboola/catalog</code><br /><br />If provided, use the button below to load available services and select one.",
+      "propertyOrder": 0.2
+    },
+    "load_services": {
+      "type": "button",
+      "format": "sync-action",
+      "propertyOrder": 0.3,
+      "options": {
+        "async": {
+          "label": "🔍 Load Available Services",
+          "action": "loadEntities"
+        },
+        "dependencies": {
+          "catalog_path": true
+        }
+      }
+    },
+    "service_path": {
+      "type": "string",
+      "title": "Service Path",
+      "description": "Path to the OData service (appended to Base URL from root config).<br /><br />This field will be automatically filled when you select a service from the catalog above, or you can enter it manually.<br /><br />Examples:<ul><li>From catalog: <code>http/keboola/connector/sap/opu/odata/sap/API_BUSINESS_PARTNER</code></li><li>OData V2: <code>sap/opu/odata/sap/API_BUSINESS_PARTNER</code></li><li>OData V4: <code>sap/opu/odata4/sap/api_fixedassetacquisition/srvd_a2x/sap/fixedassetacquisition/0001</code></li></ul>",
+      "propertyOrder": 0.4
+    },
     "odata_version": {
       "type": "string",
       "title": "OData Version",
@@ -10,6 +44,14 @@
       "default": "auto",
       "description": "OData protocol version for this service.<br /><br /><ul><li>auto: Automatically detect from $metadata (recommended)</li><li>v2: Force OData V2 (legacy SAP services)</li><li>v4: Force OData V4 (modern SAP services)</li></ul>",
       "propertyOrder": 0.5
+    },
+    "entity_header": {
+      "type": "string",
+      "title": "📊 Entity Selection",
+      "propertyOrder": 0.9,
+      "options": {
+        "infoText": "Select the entity set (data table) to extract from this service."
+      }
     },
     "entity_set":{
       "type": "string",
@@ -29,7 +71,7 @@
     },
     "query_options": {
       "type": "object",
-      "title": "🔍 OData Query Options (Optional)",
+      "title": "🔍 Query Options (Optional)",
       "description": "Configure field selection, filters, expansion, and ordering",
       "propertyOrder": 10,
       "properties": {
