@@ -3,48 +3,27 @@
   "title": "SAP OData Connection",
   "required": ["base_url", "auth_type"],
   "properties": {
+    "connection_header": {
+      "type": "string",
+      "title": "🔗 Connection Details",
+      "propertyOrder": 1,
+      "options": {
+        "infoText": "Configure your SAP system connection endpoint."
+      }
+    },
     "base_url": {
       "type": "string",
       "title": "Base URL",
       "description": "Base URL of your SAP system (without service path).<br /><br />Examples:<ul><li>On-premise: https://my-sap-server.com</li><li>SAP API Business Hub: https://sandbox.api.sap.com/s4hanacloud</li><li>SAP BTP: https://my-tenant.s4hana.cloud.sap</li></ul>Learn more: <a href=\"https://api.sap.com/\" target=\"_blank\">https://api.sap.com/</a>",
-      "propertyOrder": 1,
+      "propertyOrder": 2,
       "format": "url"
     },
-    "catalog_path": {
+    "auth_header": {
       "type": "string",
-      "title": "Catalog Path (Optional)",
-      "description": "Path to SAP Service Catalog for browsing available services.<br /><br />Example: <code>http/keboola/catalog</code><br /><br />Leave empty if you already know your Service Path. If provided, use the button below to load available services.",
-      "propertyOrder": 2
-    },
-    "load_services": {
-      "type": "button",
-      "format": "sync-action",
-      "propertyOrder": 3,
+      "title": "🔐 Authentication",
+      "propertyOrder": 10,
       "options": {
-        "async": {
-          "label": "🔍 Load Available Services",
-          "action": "loadEntities"
-        },
-        "dependencies": {
-          "catalog_path": true
-        }
-      }
-    },
-    "service_path": {
-      "type": "string",
-      "title": "Service Path",
-      "description": "Path to the OData service (appended to Base URL).<br /><br />This field will be automatically filled when you select a service from the catalog above, or you can enter it manually if you know the path.<br /><br />Examples:<ul><li>From catalog: <code>http/keboola/connector/sap/opu/odata/sap/API_BUSINESS_PARTNER</code></li><li>OData V2: <code>sap/opu/odata/sap/API_BUSINESS_PARTNER</code></li><li>OData V4: <code>sap/opu/odata4/sap/api_fixedassetacquisition/srvd_a2x/sap/fixedassetacquisition/0001</code></li></ul>",
-      "propertyOrder": 4
-    },
-    "test_connection": {
-      "type": "button",
-      "format": "test-connection",
-      "propertyOrder": 5,
-      "options": {
-        "async": {
-          "label": "Test Connection",
-          "action": "testConnection"
-        }
+        "infoText": "Configure authentication credentials for your SAP system."
       }
     },
     "auth_type":{
@@ -54,13 +33,13 @@
       "enum": ["basic", "oauth", "apiKey"],
       "enum_titles": ["Username & Password", "OAuth 2.0", "API Key"],
       "default": "basic",
-      "propertyOrder": 20
+      "propertyOrder": 11
     },
     "username": {
       "type": "string",
       "title": "Username",
       "description": "SAP system username for basic authentication.",
-      "propertyOrder": 21,
+      "propertyOrder": 12,
       "options": {
         "dependencies": {
           "auth_type": "basic"
@@ -72,7 +51,7 @@
       "title": "Password",
       "description": "SAP system password (encrypted and stored securely).",
       "format": "password",
-      "propertyOrder": 22,
+      "propertyOrder": 13,
       "options": {
         "dependencies": {
           "auth_type": "basic"
@@ -84,7 +63,7 @@
       "title": "API Key",
       "description": "API key for authentication (encrypted and stored securely).<br /><br />Used with SAP API Business Hub or custom API gateways.<br />Get your key at: <a href=\"https://api.sap.com/\" target=\"_blank\">https://api.sap.com/</a>",
       "format": "password",
-      "propertyOrder": 23,
+      "propertyOrder": 14,
       "options": {
         "dependencies": {
           "auth_type": "apiKey"
@@ -96,7 +75,7 @@
       "title": "API Key Header Name",
       "default": "APIKey",
       "description": "HTTP header name for the API key.<br /><br />Common values:<ul><li>APIKey (SAP API Business Hub)</li><li>X-API-Key (custom gateways)</li><li>Authorization (with 'Bearer' prefix)</li></ul>",
-      "propertyOrder": 24,
+      "propertyOrder": 15,
       "options": {
         "dependencies": {
           "auth_type": "apiKey"
@@ -108,7 +87,7 @@
       "title": "Token URL",
       "description": "OAuth 2.0 token endpoint URL for client credentials flow.",
       "format": "url",
-      "propertyOrder": 25,
+      "propertyOrder": 16,
       "options": {
         "dependencies": {
           "auth_type": "oauth"
@@ -119,7 +98,7 @@
       "type": "string",
       "title": "Client ID",
       "description": "OAuth 2.0 client ID.",
-      "propertyOrder": 26,
+      "propertyOrder": 17,
       "options": {
         "dependencies": {
           "auth_type": "oauth"
@@ -131,19 +110,38 @@
       "title": "Client Secret",
       "description": "OAuth 2.0 client secret (encrypted and stored securely).",
       "format": "password",
-      "propertyOrder": 27,
+      "propertyOrder": 18,
       "options": {
         "dependencies": {
           "auth_type": "oauth"
         }
       }
     },
+    "test_connection": {
+      "type": "button",
+      "format": "test-connection",
+      "propertyOrder": 19,
+      "options": {
+        "async": {
+          "label": "Test Connection",
+          "action": "testConnection"
+        }
+      }
+    },
+    "advanced_header": {
+      "type": "string",
+      "title": "⚙️ Advanced Options",
+      "propertyOrder": 30,
+      "options": {
+        "infoText": "Optional advanced settings for connection and pagination."
+      }
+    },
     "connection_options": {
       "type": "array",
-      "title": "⚙️ Advanced Connection Options (Optional)",
+      "title": "Connection Options",
       "description": "Configure timeout, retries, and SSL verification. Leave empty to use defaults.",
       "maxItems": 1,
-      "propertyOrder": 30,
+      "propertyOrder": 31,
       "items": {
         "type": "object",
         "title": "Connection Settings",
@@ -174,10 +172,10 @@
     },
     "pagination_defaults": {
       "type": "array",
-      "title": "📄 Default Pagination Settings (Optional)",
+      "title": "Default Pagination Settings",
       "description": "Override default page size and max records. Leave empty to use standard defaults (page_size: 1000, max_records: unlimited).",
       "maxItems": 1,
-      "propertyOrder": 40,
+      "propertyOrder": 32,
       "items": {
         "type": "object",
         "title": "Pagination Settings",
