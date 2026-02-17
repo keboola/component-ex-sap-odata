@@ -111,6 +111,30 @@ class TestConnectionAction:
         assert comp is not None
 
 
+class TestLoadServicesAction:
+    """Test loadServices sync action."""
+
+    @respx.mock
+    def test_load_services_from_catalog(
+        self, respx_mock, mock_catalog_server, datadir_factory, run_sync_action_with_datadir
+    ):
+        """Test loading services from SAP catalog."""
+        mock_catalog_server.setup(respx_mock)
+
+        config = {
+            "base_url": "https://api.example.com",
+            "catalog_path": "sap/opu/odata/IWFND/CATALOGSERVICE;v=2",
+            "auth_type": "basic",
+            "username": "test_user",
+            "#password": "test_password",
+        }
+        datadir = datadir_factory(config)
+
+        comp = run_sync_action_with_datadir(datadir, "loadServices")
+        assert comp is not None
+        # Should return list of services
+
+
 class TestLoadEntitiesAction:
     """Test loadEntities sync action."""
 
@@ -149,27 +173,6 @@ class TestLoadEntitiesAction:
 
         comp = run_sync_action_with_datadir(datadir, "loadEntities")
         assert comp is not None
-
-    @respx.mock
-    def test_load_entities_from_catalog(
-        self, respx_mock, mock_catalog_server, datadir_factory, run_sync_action_with_datadir
-    ):
-        """Test loading services from SAP catalog."""
-        mock_catalog_server.setup(respx_mock)
-
-        config = {
-            "base_url": "https://api.example.com",
-            "catalog_path": "sap/opu/odata/IWFND/CATALOGSERVICE;v=2",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
-        }
-        datadir = datadir_factory(config)
-
-        comp = run_sync_action_with_datadir(datadir, "loadEntities")
-        assert comp is not None
-
-        # Should return list of services, not entity sets
 
     @respx.mock
     def test_load_entities_empty_metadata(self, respx_mock, datadir_factory, run_sync_action_with_datadir):

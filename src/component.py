@@ -443,10 +443,93 @@ class Component(ComponentBase):
         except Exception as e:
             return {"status": "error", "message": f"Connection failed: {e}"}
 
+    @sync_action("loadServices")
+    def load_services(self) -> list[dict[str, str]]:
+        """Load available OData services from SAP catalog.
+
+        Returns:
+            List of services with value (service_path) and label (title + description)
+        """
+        try:
+            # Validate configuration
+            if not self._config.base_url:
+                logging.error("loadServices: base_url is not set")
+                return [
+                    {
+                        "value": "",
+                        "label": "⚠️ Error: Base URL not configured. Please check root configuration.",
+                    }
+                ]
+
+            if not self._config.catalog_path:
+                logging.error("loadServices: catalog_path is not set")
+                return [
+                    {
+                        "value": "",
+                        "label": "⚠️ Error: Catalog Path is required to load services. Please configure it in root settings.",
+                    }
+                ]
+
+            logging.info(
+                f"loadServices called - base_url: {self._config.base_url}, catalog_path: {self._config.catalog_path}"
+            )
+            client = self._build_client()
+
+            # Get catalog services
+            catalog_services = client.list_catalog_services()
+            if not catalog_services:
+                logging.warning("loadServices: no services found in SAP catalog")
+                return [{"value": "", "label": "No services found in catalog"}]
+
+            logging.info(f"loadServices: found {len(catalog_services)} services in SAP catalog")
+
+            # Convert internal service URLs to proxy-compatible service paths
+            from urllib.parse import urlparse
+
+            result = []
+            for service in catalog_services:
+                # Parse internal URL: http://20.113.120.45:50000/sap/opu/odata/sap/SERVICE_NAME
+                parsed = urlparse(service.service_url)
+                internal_path = parsed.path.lstrip('/')  # sap/opu/odata/sap/SERVICE_NAME
+
+                # Detect proxy prefix from catalog_path
+                # If catalog_path is "http/keboola/catalog", prefix is "http/keboola/connector/"
+                if self._config.catalog_path and "keboola" in self._config.catalog_path:
+                    service_path = f"http/keboola/connector/{internal_path}"
+                else:
+                    # For other proxies, use internal path as-is
+                    service_path = internal_path
+
+                result.append({
+                    "value": service_path,
+                    "label": f"{service.title} - {service.description}" if service.description
+                    else service.title,
+                })
+
+            return result
+        except UserException as e:
+            # User-facing errors (auth, connection, etc.)
+            logging.error(f"Failed to load services from catalog: {e}")
+            return [{"value": "", "label": f"⚠️ Error: {e}"}]
+        except Exception as e:
+            # Unexpected errors
+            logging.error(f"Failed to load services from catalog: {e}", exc_info=True)
+            return [
+                {
+                    "value": "",
+                    "label": f"⚠️ Error loading services. Check logs for details.",
+                }
+            ]
+
     @sync_action("loadEntities")
     def load_entities(self) -> list[dict[str, str]]:
+        """Load available entity sets from OData service metadata.
+
+        Returns:
+            List of entity sets with value and label (entity set name)
+        """
         try:
-            # Validate configuration (service_url OR base_url+service_path/catalog_path)
+            # Validate configuration
             if not self._config.service_url:
                 if not self._config.base_url:
                     logging.error("loadEntities: base_url is not set")
@@ -457,55 +540,22 @@ class Component(ComponentBase):
                         }
                     ]
 
-                # service_path is required unless catalog_path is set
-                if not self._config.service_path and not self._config.catalog_path:
-                    logging.error("loadEntities: neither service_path nor catalog_path is set")
+                if not self._config.service_path:
+                    logging.error("loadEntities: service_path is not set")
                     return [
                         {
                             "value": "",
-                            "label": "⚠️ Error: Service Path or Catalog Path is required. Please fill it in above.",
+                            "label": "⚠️ Error: Service Path is required. Please fill it in above.",
                         }
                     ]
 
             logging.info(
                 f"loadEntities called - service_url: {self._config.service_url}, "
-                f"base_url: {self._config.base_url}, "
-                f"service_path: {self._config.service_path}, catalog_path: {self._config.catalog_path}"
+                f"base_url: {self._config.base_url}, service_path: {self._config.service_path}"
             )
             client = self._build_client()
 
-            # Try to get catalog services first (for SAP catalog endpoints)
-            catalog_services = client.list_catalog_services()
-            if catalog_services:
-                logging.info(f"loadEntities: found {len(catalog_services)} services in SAP catalog")
-
-                # Convert internal service URLs to proxy-compatible service paths
-                # Extract path from internal URL and add proxy-specific prefix
-                from urllib.parse import urlparse
-
-                result = []
-                for service in catalog_services:
-                    # Parse internal URL: http://20.113.120.45:50000/sap/opu/odata/sap/SERVICE_NAME
-                    parsed = urlparse(service.service_url)
-                    internal_path = parsed.path.lstrip('/')  # sap/opu/odata/sap/SERVICE_NAME
-
-                    # Detect proxy prefix from catalog_path
-                    # If catalog_path is "http/keboola/catalog", prefix is "http/keboola/connector/"
-                    if self._config.catalog_path and "keboola" in self._config.catalog_path:
-                        service_path = f"http/keboola/connector/{internal_path}"
-                    else:
-                        # For other proxies, use internal path as-is
-                        service_path = internal_path
-
-                    result.append({
-                        "value": service_path,
-                        "label": f"{service.title} - {service.description}" if service.description
-                        else service.title,
-                    })
-
-                return result
-
-            # Fall back to entity sets (for normal OData services)
+            # Get entity sets from service metadata
             entities = client.list_entity_sets()
             logging.info(f"loadEntities: found {len(entities)} entity sets")
 
@@ -515,11 +565,11 @@ class Component(ComponentBase):
             return [{"value": e.name, "label": e.name} for e in entities]
         except UserException as e:
             # User-facing errors (auth, connection, etc.)
-            logging.error(f"Failed to load entities: {e}")
+            logging.error(f"Failed to load entity sets: {e}")
             return [{"value": "", "label": f"⚠️ Error: {e}"}]
         except Exception as e:
             # Unexpected errors
-            logging.error(f"Failed to load entities: {e}", exc_info=True)
+            logging.error(f"Failed to load entity sets: {e}", exc_info=True)
             return [
                 {
                     "value": "",
