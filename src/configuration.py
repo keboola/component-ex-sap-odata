@@ -169,6 +169,80 @@ class Configuration(BaseModel):
         default=None, description="Advanced entity-specific options"
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def flatten_nested_config(cls, data: Any) -> dict[str, Any]:
+        """Flatten nested configuration structure from UI to flat fields.
+
+        Supports both new nested structure (from configSchema.json with objects)
+        and old flat structure (backward compatibility).
+
+        New structure:
+        {
+          "connection": {"base_url": "...", "catalog_path": "..."},
+          "authentication": {"auth_type": "basic", "username": "...", "#password": "..."},
+          "advanced_options": {"connection_options": [...], "pagination_defaults": [...]},
+          "service_path": "...",  // from row config
+          "entity_set": "..."     // from row config
+        }
+
+        Old structure (still supported):
+        {
+          "base_url": "...",
+          "auth_type": "basic",
+          ...
+        }
+        """
+        if not isinstance(data, dict):
+            return data
+
+        # Create a copy to avoid modifying original
+        flattened = dict(data)
+
+        # Flatten connection block
+        if "connection" in data and isinstance(data["connection"], dict):
+            connection = data["connection"]
+            if "base_url" in connection:
+                flattened["base_url"] = connection["base_url"]
+            if "catalog_path" in connection:
+                flattened["catalog_path"] = connection["catalog_path"]
+            # Remove the nested block
+            del flattened["connection"]
+
+        # Flatten authentication block
+        if "authentication" in data and isinstance(data["authentication"], dict):
+            auth = data["authentication"]
+            if "auth_type" in auth:
+                flattened["auth_type"] = auth["auth_type"]
+            if "username" in auth:
+                flattened["username"] = auth["username"]
+            if "#password" in auth:
+                flattened["#password"] = auth["#password"]
+            if "#api_key" in auth:
+                flattened["#api_key"] = auth["#api_key"]
+            if "api_key_header_name" in auth:
+                flattened["api_key_header_name"] = auth["api_key_header_name"]
+            if "token_url" in auth:
+                flattened["token_url"] = auth["token_url"]
+            if "client_id" in auth:
+                flattened["client_id"] = auth["client_id"]
+            if "#client_secret" in auth:
+                flattened["#client_secret"] = auth["#client_secret"]
+            # Remove the nested block
+            del flattened["authentication"]
+
+        # Flatten advanced_options block (if it's an object, not array)
+        if "advanced_options" in data and isinstance(data["advanced_options"], dict):
+            adv_opts = data["advanced_options"]
+            if "connection_options" in adv_opts:
+                flattened["connection_options"] = adv_opts["connection_options"]
+            if "pagination_defaults" in adv_opts:
+                flattened["pagination_defaults"] = adv_opts["pagination_defaults"]
+            # Remove the nested block
+            del flattened["advanced_options"]
+
+        return flattened
+
     @field_validator("entity_set")
     @classmethod
     def strip_entity_set(cls, v: str | None) -> str | None:
