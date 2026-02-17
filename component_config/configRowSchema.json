@@ -22,7 +22,7 @@
         "tags": true,
         "async": {
           "label": "Load Available Services",
-          "action": "loadEntities"
+          "action": "loadServices"
         }
       }
     },
