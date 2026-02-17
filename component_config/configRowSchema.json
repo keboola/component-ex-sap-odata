@@ -16,6 +16,7 @@
       "title": "Service Path",
       "description": "Path to the OData service (appended to Base URL from root config).<br /><br />You can select from catalog (if configured in root) or enter manually.<br /><br />Examples:<ul><li>From catalog: <code>http/keboola/connector/sap/opu/odata/sap/API_BUSINESS_PARTNER</code></li><li>OData V2: <code>sap/opu/odata/sap/API_BUSINESS_PARTNER</code></li><li>OData V4: <code>sap/opu/odata4/sap/api_fixedassetacquisition/srvd_a2x/sap/fixedassetacquisition/0001</code></li></ul>",
       "format": "select",
+      "enum": [],
       "propertyOrder": 2,
       "options": {
         "tags": true,
@@ -30,6 +31,7 @@
       "title": "Entity Set",
       "description": "OData entity set to extract data from.<br /><br />You can select from available entity sets or enter manually.<br /><br />Entity sets are collections of entities (like database tables).<br />Examples: A_BusinessPartner, SalesOrderSet, ProductSet",
       "format": "select",
+      "enum": [],
       "propertyOrder": 3,
       "options": {
         "tags": true,
