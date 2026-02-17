@@ -243,6 +243,18 @@ class Configuration(BaseModel):
 
         return flattened
 
+    @field_validator(
+        "service_url", "base_url", "service_path", "catalog_path",
+        "username", "api_key_header_name", "token_url", "client_id",
+        mode="before"
+    )
+    @classmethod
+    def empty_string_to_none(cls, v: Any) -> Any:
+        """Convert empty strings to None (Keboola UI sends empty strings for unset fields)."""
+        if isinstance(v, str) and v.strip() == "":
+            return None
+        return v
+
     @field_validator("entity_set")
     @classmethod
     def strip_entity_set(cls, v: str | None) -> str | None:
