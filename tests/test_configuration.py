@@ -368,45 +368,49 @@ class TestURLConfiguration:
         assert url == "https://sap-server.com/API_BUSINESS_PARTNER"
 
     def test_neither_url_config_raises_error(self) -> None:
-        """Test that providing neither URL configuration raises an error"""
+        """Test that providing neither URL configuration raises an error when validating for extraction"""
+        config = Configuration(
+            auth_type=AuthType.BASIC,
+            username="user",
+            **{"#password": "pass"},
+        )
         with pytest.raises(ValueError, match="Either 'service_url' or both 'base_url' and 'service_path'"):
-            Configuration(
-                auth_type=AuthType.BASIC,
-                username="user",
-                **{"#password": "pass"},
-            )
+            config.validate_for_extraction()
 
     def test_both_url_configs_raises_error(self) -> None:
-        """Test that providing both URL configurations raises an error"""
+        """Test that providing both URL configurations raises an error when getting service URL"""
+        config = Configuration(
+            service_url="https://sap-server.com/sap/opu/odata/sap/API_BUSINESS_PARTNER",
+            base_url="https://sap-server.com",
+            service_path="API_BUSINESS_PARTNER",
+            auth_type=AuthType.BASIC,
+            username="user",
+            **{"#password": "pass"},
+        )
         with pytest.raises(ValueError, match="Cannot use both 'service_url' and 'base_url'"):
-            Configuration(
-                service_url="https://sap-server.com/sap/opu/odata/sap/API_BUSINESS_PARTNER",
-                base_url="https://sap-server.com",
-                service_path="API_BUSINESS_PARTNER",
-                auth_type=AuthType.BASIC,
-                username="user",
-                **{"#password": "pass"},
-            )
+            config.get_service_url()
 
     def test_base_url_without_service_path_raises_error(self) -> None:
-        """Test that base_url without service_path raises an error"""
+        """Test that base_url without service_path raises an error when validating for extraction"""
+        config = Configuration(
+            base_url="https://sap-server.com",
+            auth_type=AuthType.BASIC,
+            username="user",
+            **{"#password": "pass"},
+        )
         with pytest.raises(Exception, match="Either 'service_url' or both 'base_url' and 'service_path'"):
-            Configuration(
-                base_url="https://sap-server.com",
-                auth_type=AuthType.BASIC,
-                username="user",
-                **{"#password": "pass"},
-            )
+            config.validate_for_extraction()
 
     def test_service_path_without_base_url_raises_error(self) -> None:
-        """Test that service_path without base_url raises an error"""
+        """Test that service_path without base_url raises an error when getting service URL"""
+        config = Configuration(
+            service_path="API_BUSINESS_PARTNER",
+            auth_type=AuthType.BASIC,
+            username="user",
+            **{"#password": "pass"},
+        )
         with pytest.raises(Exception, match="Either 'service_url' or both 'base_url' and 'service_path'"):
-            Configuration(
-                service_path="API_BUSINESS_PARTNER",
-                auth_type=AuthType.BASIC,
-                username="user",
-                **{"#password": "pass"},
-            )
+            config.get_service_url()
 
 
 class TestFilterValidation:
