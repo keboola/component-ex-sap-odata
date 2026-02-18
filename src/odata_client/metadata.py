@@ -38,9 +38,15 @@ class EntityProperty:
     max_length: int | None = None
     precision: int | None = None
     scale: int | None = None
+    # SAP-specific annotations
+    sap_label: str | None = None
+    sap_quickinfo: str | None = None
+    sap_filterable: bool | None = None
+    sap_creatable: bool | None = None
+    sap_updatable: bool | None = None
 
     def to_dict(self) -> JsonDict:
-        return {
+        result = {
             "name": self.name,
             "edm_type": self.edm_type,
             "nullable": self.nullable,
@@ -48,6 +54,18 @@ class EntityProperty:
             "precision": self.precision,
             "scale": self.scale,
         }
+        # Include SAP annotations if present
+        if self.sap_label is not None:
+            result["sap_label"] = self.sap_label
+        if self.sap_quickinfo is not None:
+            result["sap_quickinfo"] = self.sap_quickinfo
+        if self.sap_filterable is not None:
+            result["sap_filterable"] = self.sap_filterable
+        if self.sap_creatable is not None:
+            result["sap_creatable"] = self.sap_creatable
+        if self.sap_updatable is not None:
+            result["sap_updatable"] = self.sap_updatable
+        return result
 
 
 @dataclass
@@ -202,6 +220,19 @@ class MetadataParser:
 
             properties = []
             for prop in entity_type.findall(f"{{{edm_ns}}}Property") if edm_ns else entity_type.findall("Property"):
+                # Parse SAP annotations (namespace: http://www.sap.com/Protocols/SAPData)
+                sap_ns = "{http://www.sap.com/Protocols/SAPData}"
+                sap_label = prop.get(f"{sap_ns}label")
+                sap_quickinfo = prop.get(f"{sap_ns}quickinfo")
+                sap_filterable_str = prop.get(f"{sap_ns}filterable")
+                sap_creatable_str = prop.get(f"{sap_ns}creatable")
+                sap_updatable_str = prop.get(f"{sap_ns}updatable")
+
+                # Convert string booleans to bool | None
+                sap_filterable = sap_filterable_str.lower() == "true" if sap_filterable_str else None
+                sap_creatable = sap_creatable_str.lower() == "true" if sap_creatable_str else None
+                sap_updatable = sap_updatable_str.lower() == "true" if sap_updatable_str else None
+
                 properties.append(
                     EntityProperty(
                         name=prop.get("Name", ""),
@@ -210,6 +241,11 @@ class MetadataParser:
                         max_length=_safe_int(prop.get("MaxLength")),
                         precision=_safe_int(prop.get("Precision")),
                         scale=_safe_int(prop.get("Scale")),
+                        sap_label=sap_label,
+                        sap_quickinfo=sap_quickinfo,
+                        sap_filterable=sap_filterable,
+                        sap_creatable=sap_creatable,
+                        sap_updatable=sap_updatable,
                     )
                 )
 
