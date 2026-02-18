@@ -383,13 +383,6 @@ class Component(ComponentBase):
             if not config.service_url and not config.base_url:
                 return {"status": "error", "message": "Either service_url or base_url is required"}
 
-            # For testConnection, use base_url if service_url not provided
-            # (don't require service_path, just test the base URL connectivity)
-            if config.service_url:
-                service_url = config.service_url
-            else:
-                service_url = config.base_url
-
             from odata_client.auth import ApiKeyAuthHandler, BasicAuthHandler, OAuthHandler
 
             if config.auth_type == AuthType.OAUTH:
@@ -415,21 +408,47 @@ class Component(ComponentBase):
             timeout = config.timeout
             verify_ssl = config.verify_ssl
 
+            # Test 1: Always test base_url (or service_url if provided)
+            if config.service_url:
+                test_url = config.service_url
+            else:
+                test_url = config.base_url
+
             response = req.get(
-                service_url,
+                test_url,
                 headers=headers,
                 timeout=timeout,
                 verify=verify_ssl,
             )
 
             if response.status_code == 401:
-                return {"status": "error", "message": "Authentication failed (401 Unauthorized). Check your credentials."}
+                return {"status": "error", "message": f"Authentication failed (401) at {test_url}. Check your credentials."}
             if response.status_code == 403:
-                return {"status": "error", "message": "Access forbidden (403). Check permissions for the service."}
-            if response.status_code == 404:
+                return {"status": "error", "message": f"Access forbidden (403) at {test_url}. Check permissions."}
+            # Note: 404 on base_url is OK - server exists, just no root endpoint
+            # Only fail on 500+ errors or connection failures
+
+            # Test 2: If catalog_path is set, also test catalog URL
+            if config.catalog_path and config.base_url:
+                catalog_url = f"{config.base_url.rstrip('/')}/{config.catalog_path.lstrip('/')}"
+
+                catalog_response = req.get(
+                    catalog_url,
+                    headers=headers,
+                    timeout=timeout,
+                    verify=verify_ssl,
+                )
+
+                if catalog_response.status_code == 401:
+                    return {"status": "error", "message": f"Authentication failed (401) at catalog {catalog_url}. Check your credentials."}
+                if catalog_response.status_code == 403:
+                    return {"status": "error", "message": f"Access forbidden (403) at catalog {catalog_url}. Check permissions."}
+                if catalog_response.status_code == 404:
+                    return {"status": "error", "message": f"Catalog not found (404) at {catalog_url}. Check Catalog Path."}
+
                 return {
-                    "status": "error",
-                    "message": f"Service not found (404) at {service_url}. Check Base URL and Service Path.",
+                    "status": "success",
+                    "message": f"Connection successful! Base URL and Catalog both responded with HTTP 200.",
                 }
 
             return {
