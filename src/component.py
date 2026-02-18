@@ -587,9 +587,49 @@ class Component(ComponentBase):
 
             client = self._build_client()
             logging.info(f"loadFields: fetching fields for {self._config.entity_set}")
+
+            # Get metadata to check for key fields
+            metadata = client.get_metadata()
+            entity = metadata.get_entity_set(self._config.entity_set)
+            key_fields = set(entity.key_properties) if entity else set()
+
             fields = client.list_fields(self._config.entity_set)
             logging.info(f"loadFields: found {len(fields)} fields")
-            return [{"value": f.name, "label": f"{f.name} ({f.edm_type})"} for f in fields]
+
+            result = []
+            for field in fields:
+                # Build label: FieldName (SAP Label) - Type [KEY, filterable] - QuickInfo
+                label_parts = []
+
+                # Field name with SAP label
+                if field.sap_label:
+                    label_parts.append(f"{field.name} ({field.sap_label})")
+                else:
+                    label_parts.append(field.name)
+
+                # EDM type
+                label_parts.append(field.edm_type)
+
+                # Capabilities [KEY, filterable]
+                caps = []
+                if field.name in key_fields:
+                    caps.append("KEY")
+                if field.sap_filterable:
+                    caps.append("filterable")
+
+                if caps:
+                    label_parts.append(f"[{', '.join(caps)}]")
+
+                # QuickInfo (only if different from label)
+                if field.sap_quickinfo and field.sap_quickinfo != field.sap_label:
+                    label_parts.append(field.sap_quickinfo)
+
+                result.append({
+                    "value": field.name,
+                    "label": " - ".join(label_parts)
+                })
+
+            return result
         except Exception as e:
             logging.error(f"Failed to load fields for entity_set '{self._config.entity_set}': {e}", exc_info=True)
             return []
