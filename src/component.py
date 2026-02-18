@@ -379,14 +379,16 @@ class Component(ComponentBase):
         try:
             config = self._config
 
-            # Validate configuration (service_url OR base_url+service_path/catalog_path)
-            if not config.service_url:
-                if not config.base_url:
-                    return {"status": "error", "message": "Base URL is required"}
-                if not config.service_path and not config.catalog_path:
-                    return {"status": "error", "message": "Either Service Path or Catalog Path is required"}
+            # Validate configuration - just need base_url for testConnection
+            if not config.service_url and not config.base_url:
+                return {"status": "error", "message": "Either service_url or base_url is required"}
 
-            service_url = config.get_service_url()
+            # For testConnection, use base_url if service_url not provided
+            # (don't require service_path, just test the base URL connectivity)
+            if config.service_url:
+                service_url = config.service_url
+            else:
+                service_url = config.base_url
 
             from odata_client.auth import ApiKeyAuthHandler, BasicAuthHandler, OAuthHandler
 
