@@ -261,16 +261,27 @@ class Configuration(BaseModel):
         """Strip whitespace from entity_set to handle user input errors."""
         return v.strip() if v else v
 
-    @model_validator(mode="after")
-    def validate_url_configuration(self) -> "Configuration":
-        """Validate that URL configuration is properly set."""
+    def _validate_url_configuration(self) -> None:
+        """Validate that URL configuration is properly set for extraction.
+
+        Called from validate_for_extraction() to ensure URLs are configured
+        before running data extraction. Sync actions skip this and do their
+        own validation with user-friendly error messages.
+        """
         # If service_url is provided, that's sufficient
         if self.service_url:
-            return self
+            return
 
-        # If catalog_path is provided with base_url, that's valid
+        # If catalog_path is provided with base_url, that's valid for loadServices only
+        # For extraction, we need actual service URL
         if self.catalog_path and self.base_url:
-            return self
+            # This is OK for loadServices, but extraction needs service_path
+            if not self.service_path:
+                raise ValueError(
+                    "Service Path is required for data extraction. "
+                    "Use the 'loadServices' sync action to select a service first."
+                )
+            return
 
         # Otherwise, both base_url and service_path are required
         if not self.base_url or not self.service_path:
@@ -278,8 +289,6 @@ class Configuration(BaseModel):
                 "Either 'service_url' or both 'base_url' and 'service_path' must be provided. "
                 "Use 'service_url' for full URL or 'base_url'+'service_path' for split configuration."
             )
-
-        return self
 
     # Property accessors for backward-compatible field access
     @property
@@ -403,35 +412,11 @@ class Configuration(BaseModel):
         return []
 
     def model_post_init(self, __context: Any) -> None:
-        # Validate URL configuration - exactly one method must be used
-        has_service_url = self.service_url is not None
-        has_split_url = self.base_url is not None and self.service_path is not None
-        has_catalog = self.base_url is not None and self.catalog_path is not None
-
-        if not has_service_url and not has_split_url and not has_catalog:
-            raise ValueError(
-                "Either 'service_url' or both 'base_url' and 'service_path' must be provided. "
-                "Use 'service_url' for full URL or 'base_url'+'service_path' for split configuration."
-            )
-
-        if has_service_url and has_split_url:
-            raise ValueError(
-                "Cannot use both 'service_url' and 'base_url'+'service_path'. "
-                "Choose one URL configuration method."
-            )
-
-        # When using catalog_path, service_path is not required
-        if self.catalog_path:
-            # catalog_path requires base_url
-            if not self.base_url:
-                raise ValueError("'base_url' is required when 'catalog_path' is provided")
-        else:
-            # Normal validation when not using catalog
-            if self.base_url is not None and self.service_path is None:
-                raise ValueError("'service_path' is required when 'base_url' is provided")
-
-            if self.service_path is not None and self.base_url is None:
-                raise ValueError("'base_url' is required when 'service_path' is provided")
+        # URL validation is now handled in:
+        # 1. validate_for_extraction() - for actual data extraction (run() method)
+        # 2. Individual sync actions - each validates what it needs with user-friendly messages
+        # 3. get_service_url() - validates when building URLs
+        # This allows sync actions to work with partial configurations.
 
         # Validate authentication
         if self.auth_type == AuthType.BASIC:
@@ -458,6 +443,9 @@ class Configuration(BaseModel):
         because KBC merges root+row config and the row may have fetch_type=incremental
         without incremental_field set yet.
         """
+        # Validate URL configuration for extraction
+        self._validate_url_configuration()
+
         if self.fetch_type == FetchType.INCREMENTAL and not self.incremental_field:
             raise ValueError("'incremental_field' is required when fetch_type is 'incremental'")
 
@@ -479,6 +467,12 @@ class Configuration(BaseModel):
             Full OData service URL without entity set, or catalog URL if in browsing mode.
         """
         if self.service_url:
+            # Check if both service_url and base_url are provided (conflicting configuration)
+            if self.base_url:
+                raise ValueError(
+                    "Cannot use both 'service_url' and 'base_url'+'service_path'. "
+                    "Choose one URL configuration method."
+                )
             return self.service_url
 
         if not self.base_url:
