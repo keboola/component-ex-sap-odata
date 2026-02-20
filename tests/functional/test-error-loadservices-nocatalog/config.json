@@ -1,0 +1,17 @@
+{
+  "action": "loadServices",
+  "parameters": {
+    "connection": {
+      "base_url": "https://sandbox.api.sap.com/s4hanacloud"
+    },
+    "authentication": {
+      "auth_type": "apiKey",
+      "#api_key": "dummy_key_not_needed",
+      "api_key_header_name": "APIKey"
+    },
+    "advanced_options": {
+      "connection_options": [],
+      "pagination_defaults": []
+    }
+  }
+}

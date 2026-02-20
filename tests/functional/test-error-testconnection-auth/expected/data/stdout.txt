@@ -1,0 +1,1 @@
+{"status": "warning", "message": "Connection partially successful - server is reachable but returned 404. Verify your URL and credentials."}

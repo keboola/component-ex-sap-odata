@@ -68,7 +68,7 @@ def datadir_factory(tmp_path):
         (datadir / "out" / "tables").mkdir(parents=True)
         (datadir / "out" / "files").mkdir(parents=True)
 
-        # Write config
+        # Write config (must be nested structure matching config schemas)
         with open(datadir / "config.json", "w") as f:
             json.dump({"parameters": config}, f, indent=2)
 

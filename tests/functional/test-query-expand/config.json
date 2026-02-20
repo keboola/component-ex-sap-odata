@@ -1,0 +1,30 @@
+{
+  "parameters": {
+    "connection": {
+      "base_url": "https://sandbox.api.sap.com/s4hanacloud"
+    },
+    "authentication": {
+      "auth_type": "apiKey",
+      "#api_key": "%env(string:SAP_API_KEY)%",
+      "api_key_header_name": "APIKey"
+    },
+    "advanced_options": {
+      "connection_options": [],
+      "pagination_defaults": [
+        {
+          "page_size": 5,
+          "max_records": 10
+        }
+      ]
+    },
+    "odata_version": "auto",
+    "service_path": "sap/opu/odata/sap/API_BUSINESS_PARTNER",
+    "entity_set": "A_BusinessPartner",
+    "query_options": {
+      "expand_properties": ["to_BusinessPartnerAddress"]
+    },
+    "destination": {
+      "load_type": "full"
+    }
+  }
+}

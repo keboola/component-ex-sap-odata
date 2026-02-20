@@ -1,0 +1,18 @@
+{
+  "action": "loadServices",
+  "parameters": {
+    "connection": {
+      "base_url": "https://26db83b8trial.it-cpitrial03-rt.cfapps.ap21.hana.ondemand.com",
+      "catalog_path": "/http/keboola/connector/sap/opu/odata/IWFND/CATALOGSERVICE;v=2/ServiceCollection"
+    },
+    "authentication": {
+      "auth_type": "basic",
+      "username": "__SAP_SCI_USERNAME__",
+      "#password": "__SAP_SCI_PASSWORD__"
+    },
+    "advanced_options": {
+      "connection_options": [],
+      "pagination_defaults": []
+    }
+  }
+}

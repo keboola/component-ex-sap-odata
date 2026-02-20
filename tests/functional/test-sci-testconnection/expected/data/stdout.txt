@@ -1,0 +1,1 @@
+{"status": "success", "message": "Connection successful! Base URL and Catalog both responded with HTTP 200."}

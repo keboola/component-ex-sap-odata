@@ -1,0 +1,1 @@
+{"status": "error", "message": "Preview failed: Resource not found: Client error '404 Not Found' for url 'https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata/sap/API_BUSINESS_PARTNER/THIS_ENTITY_DOES_NOT_EXIST?%24format=json&%24top=10'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404"}

@@ -1,147 +1,80 @@
-# Functional Tests (Datadir Pattern)
+# Functional Tests
 
-This directory contains functional tests using the Keboola datadir test pattern.
+This directory contains datadir tests for the SAP OData extractor component.
 
-## Available Test Cases
+## Test Categories
 
-### ✅ Working Tests (with expected data)
-- **test-v2-company-code** - OData V2 with API key auth (SAP sandbox)
-- **test-v4-fixed-asset** - OData V4 with API key auth (SAP sandbox)
+### Sync Actions (8 tests)
+- `test-sync-testconnection` - testConnection sync action
+- `test-sync-loadentities` - loadEntities sync action
+- `test-sync-loadfields` - loadFields sync action
+- `test-sync-loadincrementalfields` - loadIncrementalFields sync action
+- `test-sync-loadprimarykeys` - loadPossiblePrimaryKeys sync action
+- `test-sync-loadnavproperties` - loadNavigationProperties sync action
+- `test-sync-validatefilter` - validateFilter sync action
+- `test-sync-previewdata` - previewData sync action
 
-### 📝 Template Tests (require setup)
-- **test-v4-split-url** - OData V4 with split URL configuration (SAP sandbox)
-- **test-v2-basic-auth** - OData V2 with basic authentication (requires SAP server)
-- **test-v2-split-url** - OData V2 with split URL configuration (requires SAP server)
-- **test-v4-basic-auth** - OData V4 with basic authentication (requires SAP server)
-- **test-incremental-sync** - Demonstrates incremental loading pattern (requires SAP server)
-- **test-with-expand** - Demonstrates expand/navigation properties (requires SAP server)
+### Authentication (2 tests)
+- `test-auth-apikey` - API Key authentication
+- `test-auth-basic` - Basic authentication
 
-Template tests have `expected-code` set to `1` (failure) because they need:
-1. Valid SAP server credentials in environment variables
-2. Expected output data generated with `generate_expected_data.sh`
+### Extraction Types (4 tests)
+- `test-extract-full-full` - Full fetch + Full load
+- `test-extract-full-incremental` - Full fetch + Incremental load
+- `test-extract-incremental-full` - Incremental fetch + Full load
+- `test-extract-incremental-incremental` - Incremental fetch + Incremental load
 
-## Test Structure
+### Query Options (4 tests)
+- `test-query-select` - Select fields ($select)
+- `test-query-filter` - Filter expression ($filter)
+- `test-query-expand` - Expand navigation properties ($expand)
+- `test-query-combined` - Combined query options
 
-Each test case is a directory with the following structure:
+### OData Versions (3 tests)
+- `test-version-auto` - Auto version detection
+- `test-version-v2` - Forced OData V2
+- `test-version-v4` - Forced OData V4
 
-```
-test-case-name/
-├── config.json              # Component configuration with env placeholders
-├── expected-code            # Expected exit code (0 = success)
-├── source/
-│   └── data/
-│       ├── in/
-│       │   ├── tables/      # Input CSV tables (usually empty for extractors)
-│       │   └── files/       # Input files
-│       └── ...
-└── expected/
-    └── data/
-        └── out/
-            ├── tables/      # Expected output CSV tables (optional)
-            └── files/       # Expected output files (optional)
-```
+### Advanced Options (3 tests)
+- `test-advanced-connection` - Connection options (timeout, retries, SSL)
+- `test-advanced-pagination-global` - Global pagination defaults
+- `test-advanced-pagination-row` - Row-level pagination override
 
-## Environment Variables in Config
+## Test Data Sources
 
-Use the placeholder format `%env(TYPE:VAR_NAME)%` in `config.json`:
+Tests use publicly available OData services:
 
-```json
-{
-  "parameters": {
-    "#api_key": "%env(string:SAP_API_KEY)%",
-    "max_records": "%env(int:MAX_RECORDS)%"
-  }
-}
-```
+- **Northwind OData V4**: https://services.odata.org/V4/Northwind/Northwind.svc
+  - Used for: V4 tests, basic auth tests
+  - No API key required
 
-Supported types: `string`, `int`, `float`, `bool`
+- **TripPin OData V4**: https://services.odata.org/V4/TripPinServiceRW
+  - Used for: Sample OData V4 service
+  - No API key required
 
 ## Running Tests
 
-### Run all functional tests:
+### Generate Expected Data
+
 ```bash
-export SAP_API_KEY="your-api-key"
+cd tests/functional
+./generate_expected_data.sh
+```
+
+### Run All Tests
+
+```bash
 PYTHONPATH=src uv run pytest tests/functional/run_datadir_tests.py -v
 ```
 
-### Run specific test case:
+### Run Specific Test
+
 ```bash
-PYTHONPATH=src uv run pytest tests/functional/run_datadir_tests.py::TestDatadirFunctional::test_datadir_case[test-v2-company-code] -v
+PYTHONPATH=src uv run pytest tests/functional/run_datadir_tests.py::test_functional[test-version-v4] -v
 ```
 
-### Tests are automatically skipped if SAP_API_KEY is not set:
-```bash
-# Without API key - tests will be skipped
-PYTHONPATH=src uv run pytest tests/functional/ -v
-```
+## Notes
 
-## Available Test Cases
-
-### `test-v2-company-code`
-- Tests OData V2 extraction
-- API: SAP Company Code API (API_COMPANYCODE_SRV)
-- Entity: A_CompanyCode
-- Features: Basic extraction with field selection
-
-### `test-v4-fixed-asset`
-- Tests OData V4 extraction with split URL configuration
-- API: Fixed Asset Acquisition API
-- Entity: FixedAssetAcquisition
-- Features: Split URL (base_url + service_path), filtering
-
-## Adding New Test Cases
-
-1. Create a new directory: `test-your-test-name/`
-2. Create the directory structure:
-   ```bash
-   mkdir -p test-your-test-name/{source/data/{in/tables,in/files},expected/data/{out/tables,out/files}}
-   ```
-3. Create `config.json` with your test configuration
-4. Create `expected-code` with the expected exit code (usually `0`)
-5. (Optional) Add expected output CSV files to `expected/data/out/tables/`
-6. Run the test:
-   ```bash
-   export SAP_API_KEY="your-key"
-   PYTHONPATH=src uv run pytest tests/functional/run_datadir_tests.py -v
-   ```
-
-## How It Works
-
-The test runner (`run_datadir_tests.py`):
-1. Discovers all directories starting with `test-`
-2. Processes `config.json` and replaces environment variable placeholders
-3. Creates a temporary data directory
-4. Runs the component with `KBC_DATADIR` set to the temp directory
-5. Compares the exit code with `expected-code`
-6. Verifies that output files were created
-7. (Optional) Compares output with expected files
-
-## CI/CD
-
-In GitHub Actions, functional tests run when the `SAP_API_KEY` secret is set:
-
-```yaml
-- name: Run Functional Tests
-  if: ${{ secrets.SAP_API_KEY != '' }}
-  env:
-    SAP_API_KEY: ${{ secrets.SAP_API_KEY }}
-  run: |
-    docker run -e SAP_API_KEY=${{ secrets.SAP_API_KEY }} component:latest \
-      python -m pytest /code/tests/functional -v
-```
-
-## Troubleshooting
-
-**Tests are skipped:**
-- Make sure `SAP_API_KEY` environment variable is set
-- Check that the API key is valid
-
-**Component fails:**
-- Check the STDOUT/STDERR in the test output
-- Try running the component manually with the test config
-- Verify the API endpoint is accessible
-
-**No output files created:**
-- Check if the entity set exists in the API
-- Verify filter expressions are correct
-- Check max_records isn't set to 0
+- SAP API Business Hub tests require API key (set SAP_API_KEY environment variable)
+- Some SAP endpoints may not be available on sandbox environment
+- Tests use small page sizes (5-20 records) to minimize test execution time

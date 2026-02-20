@@ -22,7 +22,7 @@ import pytest
 
 def find_test_cases(base_dir: Path) -> list[Path]:
     """Find all test case directories (those starting with 'test-')."""
-    return [d for d in base_dir.iterdir() if d.is_dir() and d.name.startswith("test-")]
+    return sorted([d for d in base_dir.iterdir() if d.is_dir() and d.name.startswith("test-")])
 
 
 def replace_env_placeholders(content: str) -> str:
@@ -104,8 +104,19 @@ def get_expected_exit_code(test_case: Path) -> int:
     return 0  # Default to success
 
 
-def verify_output_exists(datadir: Path, _test_case: Path) -> None:
+def verify_output_exists(datadir: Path, test_case: Path) -> None:
     """Verify that output files were created."""
+    import json
+
+    # Check if this is a sync action test (doesn't produce CSV output)
+    config_file = test_case / "config.json"
+    if config_file.exists():
+        with open(config_file) as f:
+            config = json.load(f)
+            # Sync actions don't produce CSV output
+            if "action" in config:
+                return
+
     out_tables = datadir / "out" / "tables"
 
     # Check if any CSV files were created
@@ -129,11 +140,11 @@ class TestDatadirFunctional:
     @pytest.mark.parametrize("test_case", find_test_cases(Path(__file__).parent))
     def test_datadir_case(self, test_case: Path, tmp_path: Path) -> None:
         """Run a single datadir test case."""
-        # Check if SAP_API_KEY is available
-        if not os.environ.get("SAP_API_KEY"):
-            pytest.skip("SAP_API_KEY environment variable not set")
+        # Skip SCI tests - SAP Cloud Integration is not always available
+        if test_case.name.startswith("test-sci-"):
+            pytest.skip("SCI (SAP Cloud Integration) tests require a running SCI instance")
 
-        # Prepare test data directory
+        # Prepare test data directory (will skip automatically if required env vars are missing)
         datadir = prepare_test_datadir(test_case, tmp_path)
 
         # Get expected exit code
@@ -154,6 +165,25 @@ class TestDatadirFunctional:
         # If successful, verify output files were created
         if expected_code == 0:
             verify_output_exists(datadir, test_case)
+
+            # Compare stdout for sync actions
+            expected_stdout = test_case / "expected" / "data" / "stdout.txt"
+            if expected_stdout.exists():
+                import json as _json
+                actual_stdout = result.stdout.strip()
+                expected_stdout_content = expected_stdout.read_text(encoding="utf-8").strip()
+                # Try JSON semantic comparison first (handles unicode escaping differences)
+                try:
+                    actual_json = _json.loads(actual_stdout)
+                    expected_json = _json.loads(expected_stdout_content)
+                    stdout_match = actual_json == expected_json
+                except (_json.JSONDecodeError, ValueError):
+                    stdout_match = actual_stdout == expected_stdout_content
+                assert stdout_match, (
+                    f"Stdout mismatch for {test_case.name}\n"
+                    f"Expected:\n{expected_stdout_content}\n"
+                    f"Actual:\n{actual_stdout}"
+                )
 
             # Optional: Compare with expected output if it exists
             expected_out = test_case / "expected" / "data" / "out" / "tables"

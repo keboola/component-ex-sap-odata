@@ -1,0 +1,20 @@
+{
+  "action": "loadNavigationProperties",
+  "parameters": {
+    "connection": {
+      "base_url": "https://26db83b8trial.it-cpitrial03-rt.cfapps.ap21.hana.ondemand.com"
+    },
+    "authentication": {
+      "auth_type": "basic",
+      "username": "__SAP_SCI_USERNAME__",
+      "#password": "__SAP_SCI_PASSWORD__"
+    },
+    "advanced_options": {
+      "connection_options": [],
+      "pagination_defaults": []
+    },
+    "odata_version": "auto",
+    "service_path": "/http/keboola/connector/sap/opu/odata/sap/FCLM_CASH_BANKTRANSFER_SRV",
+    "entity_set": "VL_CH_BNKA"
+  }
+}

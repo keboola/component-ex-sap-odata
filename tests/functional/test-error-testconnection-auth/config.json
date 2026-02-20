@@ -1,0 +1,17 @@
+{
+  "action": "testConnection",
+  "parameters": {
+    "connection": {
+      "base_url": "https://sandbox.api.sap.com/s4hanacloud"
+    },
+    "authentication": {
+      "auth_type": "apiKey",
+      "#api_key": "WRONG_API_KEY_12345",
+      "api_key_header_name": "APIKey"
+    },
+    "advanced_options": {
+      "connection_options": [],
+      "pagination_defaults": []
+    }
+  }
+}
