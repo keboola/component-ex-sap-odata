@@ -23,11 +23,9 @@ class TestConnectionAction:
         mock_v4_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v4_server.base_url,
+            "connection": {"base_url": mock_v4_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v4",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
         }
         datadir = datadir_factory(config)
 
@@ -40,11 +38,9 @@ class TestConnectionAction:
         mock_v2_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v2_server.base_url,
+            "connection": {"base_url": mock_v2_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v2",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
         }
         datadir = datadir_factory(config)
 
@@ -58,11 +54,9 @@ class TestConnectionAction:
         respx_mock.get("{mock_v4_server.base_url}/").mock(return_value=httpx.Response(401, content="Unauthorized"))
 
         config = {
-            "service_url": mock_v4_server.base_url,
+            "connection": {"base_url": mock_v4_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "wrong_user", "#password": "wrong_password"},
             "odata_version": "v4",
-            "auth_type": "basic",
-            "username": "wrong_user",
-            "#password": "wrong_password",
         }
         datadir = datadir_factory(config)
 
@@ -77,11 +71,9 @@ class TestConnectionAction:
         respx_mock.get("{base_url}/").mock(return_value=httpx.Response(404, content="Not Found"))
 
         config = {
-            "service_url": base_url,
+            "connection": {"base_url": base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v4",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
         }
         datadir = datadir_factory(config)
 
@@ -98,12 +90,10 @@ class TestConnectionAction:
         respx_mock.get("{full_url}/").mock(return_value=httpx.Response(200, content="OK"))
 
         config = {
-            "base_url": base_url,
+            "connection": {"base_url": base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "service_path": service_path,
             "odata_version": "v4",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
         }
         datadir = datadir_factory(config)
 
@@ -122,11 +112,11 @@ class TestLoadServicesAction:
         mock_catalog_server.setup(respx_mock)
 
         config = {
-            "base_url": "https://api.example.com",
-            "catalog_path": "sap/opu/odata/IWFND/CATALOGSERVICE;v=2",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
+            "connection": {
+                "base_url": "https://api.example.com",
+                "catalog_path": "sap/opu/odata/IWFND/CATALOGSERVICE;v=2",
+            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
         }
         datadir = datadir_factory(config)
 
@@ -144,11 +134,9 @@ class TestLoadEntitiesAction:
         mock_v4_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v4_server.base_url,
+            "connection": {"base_url": mock_v4_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v4",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
         }
         datadir = datadir_factory(config)
 
@@ -163,11 +151,9 @@ class TestLoadEntitiesAction:
         mock_v2_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v2_server.base_url,
+            "connection": {"base_url": mock_v2_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v2",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
         }
         datadir = datadir_factory(config)
 
@@ -197,11 +183,9 @@ class TestLoadEntitiesAction:
         )
 
         config = {
-            "service_url": base_url,
+            "connection": {"base_url": base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v4",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
         }
         datadir = datadir_factory(config)
 
@@ -218,11 +202,9 @@ class TestLoadFieldsAction:
         mock_v4_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v4_server.base_url,
+            "connection": {"base_url": mock_v4_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v4",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
             "entity_set": "Products",
         }
         datadir = datadir_factory(config)
@@ -236,11 +218,9 @@ class TestLoadFieldsAction:
         mock_v2_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v2_server.base_url,
+            "connection": {"base_url": mock_v2_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v2",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
             "entity_set": "A_BusinessPartner",
         }
         datadir = datadir_factory(config)
@@ -256,11 +236,9 @@ class TestLoadFieldsAction:
         mock_v4_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v4_server.base_url,
+            "connection": {"base_url": mock_v4_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v4",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
             # entity_set not specified
         }
         datadir = datadir_factory(config)
@@ -279,11 +257,9 @@ class TestLoadPrimaryKeysAction:
         mock_v4_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v4_server.base_url,
+            "connection": {"base_url": mock_v4_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v4",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
             "entity_set": "Products",
         }
         datadir = datadir_factory(config)
@@ -297,11 +273,9 @@ class TestLoadPrimaryKeysAction:
         mock_v2_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v2_server.base_url,
+            "connection": {"base_url": mock_v2_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v2",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
             "entity_set": "A_BusinessPartner",
         }
         datadir = datadir_factory(config)
@@ -321,11 +295,9 @@ class TestLoadIncrementalFieldsAction:
         mock_v4_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v4_server.base_url,
+            "connection": {"base_url": mock_v4_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v4",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
             "entity_set": "Products",
         }
         datadir = datadir_factory(config)
@@ -342,11 +314,9 @@ class TestLoadIncrementalFieldsAction:
         mock_v2_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v2_server.base_url,
+            "connection": {"base_url": mock_v2_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v2",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
             "entity_set": "A_BusinessPartner",
         }
         datadir = datadir_factory(config)
@@ -366,11 +336,9 @@ class TestLoadNavigationPropertiesAction:
         mock_v4_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v4_server.base_url,
+            "connection": {"base_url": mock_v4_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v4",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
             "entity_set": "Products",
         }
         datadir = datadir_factory(config)
@@ -386,11 +354,9 @@ class TestLoadNavigationPropertiesAction:
         mock_v2_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v2_server.base_url,
+            "connection": {"base_url": mock_v2_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v2",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
             "entity_set": "A_BusinessPartner",
         }
         datadir = datadir_factory(config)
@@ -408,11 +374,9 @@ class TestPreviewDataAction:
         mock_v4_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v4_server.base_url,
+            "connection": {"base_url": mock_v4_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v4",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
             "entity_set": "Products",
         }
         datadir = datadir_factory(config)
@@ -426,11 +390,9 @@ class TestPreviewDataAction:
         mock_v4_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v4_server.base_url,
+            "connection": {"base_url": mock_v4_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v4",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
             "entity_set": "Products",
             "query_options": {
                     "filter_expression": "Category eq 'Electronics'",
@@ -451,11 +413,9 @@ class TestValidateFilterAction:
         mock_v4_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v4_server.base_url,
+            "connection": {"base_url": mock_v4_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v4",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
             "entity_set": "Products",
             "query_options": {
                     "filter_expression": "Category eq 'Electronics'",
@@ -472,11 +432,9 @@ class TestValidateFilterAction:
         mock_v4_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v4_server.base_url,
+            "connection": {"base_url": mock_v4_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v4",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
             "entity_set": "Products",
         }
         datadir = datadir_factory(config)
@@ -496,11 +454,9 @@ class TestLoadMetadataSummaryAction:
         mock_v4_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v4_server.base_url,
+            "connection": {"base_url": mock_v4_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v4",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
         }
         datadir = datadir_factory(config)
 
@@ -515,11 +471,9 @@ class TestLoadMetadataSummaryAction:
         mock_v2_server.setup(respx_mock)
 
         config = {
-            "service_url": mock_v2_server.base_url,
+            "connection": {"base_url": mock_v2_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v2",
-            "auth_type": "basic",
-            "username": "test_user",
-            "#password": "test_password",
         }
         datadir = datadir_factory(config)
 

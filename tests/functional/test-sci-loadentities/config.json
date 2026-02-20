@@ -1,0 +1,20 @@
+{
+  "action": "loadEntities",
+  "parameters": {
+    "connection": {
+      "base_url": "https://26db83b8trial.it-cpitrial03-rt.cfapps.ap21.hana.ondemand.com",
+      "catalog_path": "http/keboola/catalog"
+    },
+    "authentication": {
+      "auth_type": "basic",
+      "username": "sb-43c96ca1-8b99-49f7-8698-4c1209f04ac8!b105926|it-rt-26db83b8trial!b196",
+      "#password": "aa0305ff-973a-46a7-b501-1eef6b792ec9$pG2VVmWcas7OgWYXF8rNeLwDIIJDL7VZ7_JhlZoFmeU="
+    },
+    "advanced_options": {
+      "connection_options": [],
+      "pagination_defaults": []
+    },
+    "odata_version": "auto",
+    "service_path": "/http/keboola/connector/sap/opu/odata/sap/FCLM_CASH_BANKTRANSFER_SRV"
+  }
+}

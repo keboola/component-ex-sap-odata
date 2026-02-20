@@ -20,6 +20,8 @@ SAP_SERVICE_PATH = "/sap/opu/odata4/sap/api_fixedassetacquisition/srvd_a2x/sap/f
 SAP_API_KEY = os.getenv("SAP_API_KEY", "")
 ENTITY_SET = "FixedAssetAcquisition"
 
+pytestmark = pytest.mark.skipif(not SAP_API_KEY, reason="SAP_API_KEY environment variable not set")
+
 
 @pytest.fixture
 def sync_client_parallel() -> SyncODataV4Client:

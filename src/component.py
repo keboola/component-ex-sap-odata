@@ -27,6 +27,68 @@ JsonDict = dict[str, Any]
 ODataClient = SyncODataV4Client | SyncODataV2Client
 
 
+def _simplify_error_message(error: Exception, base_url: str | None = None) -> str:
+    """Convert Python exceptions to user-friendly error messages.
+
+    Args:
+        error: The exception to simplify
+        base_url: Optional base URL for context
+
+    Returns:
+        User-friendly error message
+    """
+    import requests as req
+
+    error_str = str(error)
+
+    # Handle requests connection errors
+    if isinstance(error, req.exceptions.ConnectionError):
+        # Extract domain from error or use base_url
+        if base_url:
+            return f"Cannot reach server at {base_url}: Connection failed"
+        # Try to extract URL from error message
+        import re
+        match = re.search(r"host='([^']+)'", error_str)
+        if match:
+            host = match.group(1)
+            return f"Cannot reach server at {host}: Connection failed"
+        return "Cannot reach server: Connection failed"
+
+    # Handle HTTP errors
+    if isinstance(error, req.exceptions.HTTPError):
+        if hasattr(error, 'response') and error.response is not None:
+            status = error.response.status_code
+            url = error.response.url
+            return f"HTTP {status} error at {url}"
+        return f"HTTP error: {error_str}"
+
+    # Handle timeout errors
+    if isinstance(error, req.exceptions.Timeout):
+        if base_url:
+            return f"Connection to {base_url} timed out"
+        return "Connection timed out"
+
+    # Handle SSL errors
+    if isinstance(error, req.exceptions.SSLError):
+        if base_url:
+            return f"SSL certificate verification failed for {base_url}"
+        return "SSL certificate verification failed"
+
+    # For other errors, return simplified message
+    # Remove long tracebacks and technical details
+    if "HTTPSConnectionPool" in error_str or "HTTPConnectionPool" in error_str:
+        if base_url:
+            return f"Cannot reach server at {base_url}: Connection failed"
+        import re
+        match = re.search(r"host='([^']+)'", error_str)
+        if match:
+            host = match.group(1)
+            return f"Cannot reach server at https://{host}: Connection failed"
+
+    # Default: return first line of error only
+    return error_str.split('\n')[0] if '\n' in error_str else error_str
+
+
 class Component(ComponentBase):
     def __init__(self):
         super().__init__()
@@ -380,8 +442,8 @@ class Component(ComponentBase):
             config = self._config
 
             # Validate configuration - just need base_url for testConnection
-            if not config.service_url and not config.base_url:
-                return {"status": "error", "message": "Either service_url or base_url is required"}
+            if not config.base_url:
+                return {"status": "error", "message": "base_url is required"}
 
             from odata_client.auth import ApiKeyAuthHandler, BasicAuthHandler, OAuthHandler
 
@@ -408,11 +470,8 @@ class Component(ComponentBase):
             timeout = config.timeout
             verify_ssl = config.verify_ssl
 
-            # Test 1: Always test base_url (or service_url if provided)
-            if config.service_url:
-                test_url = config.service_url
-            else:
-                test_url = config.base_url
+            # Test 1: Always test base_url
+            test_url = config.base_url
 
             response = req.get(
                 test_url,
@@ -425,12 +484,15 @@ class Component(ComponentBase):
                 return {"status": "error", "message": f"Authentication failed (401) at {test_url}. Check your credentials."}
             if response.status_code == 403:
                 return {"status": "error", "message": f"Access forbidden (403) at {test_url}. Check permissions."}
-            # Note: 404 on base_url is OK - server exists, just no root endpoint
-            # Only fail on 500+ errors or connection failures
+            if response.status_code == 404:
+                # 404 on base_url without catalog_path is a warning - server reachable but endpoint not found
+                if not config.catalog_path:
+                    return {"status": "warning", "message": f"Connection partially successful - server is reachable but returned 404. Verify your URL and credentials."}
+                # If catalog_path is set, we'll test that next
 
             # Test 2: If catalog_path is set, also test catalog URL
             if config.catalog_path and config.base_url:
-                catalog_url = f"{config.base_url.rstrip('/')}/{config.catalog_path.lstrip('/')}"
+                catalog_url = config.get_catalog_url()
 
                 catalog_response = req.get(
                     catalog_url,
@@ -456,13 +518,15 @@ class Component(ComponentBase):
                 "message": f"Connection successful! Server responded with HTTP {response.status_code}.",
             }
         except req.exceptions.ConnectionError as e:
-            return {"status": "error", "message": f"Cannot reach server: {e}"}
-        except req.exceptions.Timeout:
-            return {"status": "error", "message": f"Connection timed out after {config.timeout}s"}
+            return {"status": "error", "message": _simplify_error_message(e, config.base_url)}
+        except req.exceptions.Timeout as e:
+            return {"status": "error", "message": _simplify_error_message(e, config.base_url)}
+        except req.exceptions.SSLError as e:
+            return {"status": "error", "message": _simplify_error_message(e, config.base_url)}
         except ValueError as e:
             return {"status": "error", "message": f"Configuration error: {e}"}
         except Exception as e:
-            return {"status": "error", "message": f"Connection failed: {e}"}
+            return {"status": "error", "message": _simplify_error_message(e, config.base_url)}
 
     @sync_action("loadServices")
     def load_services(self) -> list[dict[str, str]]:
@@ -494,13 +558,79 @@ class Component(ComponentBase):
             logging.info(
                 f"loadServices called - base_url: {self._config.base_url}, catalog_path: {self._config.catalog_path}"
             )
-            client = self._build_client()
 
-            # Get catalog services
+            # First test catalog URL to get meaningful error messages
+            import requests as req
+            catalog_url = self._config.get_catalog_url()
+
+            # Build auth handler
+            from odata_client.auth import ApiKeyAuthHandler, BasicAuthHandler, OAuthAuthHandler
+            auth_handler: ApiKeyAuthHandler | BasicAuthHandler | OAuthAuthHandler
+            if self._config.auth_type == AuthType.API_KEY:
+                auth_handler = ApiKeyAuthHandler(
+                    api_key=self._config.api_key or "",
+                    header_name=self._config.api_key_header_name,
+                )
+            elif self._config.auth_type == AuthType.OAUTH:
+                auth_handler = OAuthAuthHandler(
+                    token_url=self._config.token_url or "",
+                    client_id=self._config.client_id or "",
+                    client_secret=self._config.client_secret or "",
+                )
+            else:
+                auth_handler = BasicAuthHandler(
+                    username=self._config.username or "",
+                    password=self._config.password or "",
+                )
+
+            headers = auth_handler.get_auth_headers()
+            headers["Accept"] = "application/atom+xml, application/xml, application/json, */*"
+
+            try:
+                catalog_response = req.get(
+                    catalog_url,
+                    headers=headers,
+                    timeout=self._config.timeout,
+                    verify=self._config.verify_ssl,
+                )
+
+                if catalog_response.status_code == 404:
+                    return [{
+                        "value": "",
+                        "label": f"⚠️ Error loading services from {catalog_url}: HTTP 404 Not Found"
+                    }]
+                elif catalog_response.status_code == 401:
+                    return [{
+                        "value": "",
+                        "label": f"⚠️ Error loading services from {catalog_url}: HTTP 401 Unauthorized - Check credentials"
+                    }]
+                elif catalog_response.status_code == 403:
+                    return [{
+                        "value": "",
+                        "label": f"⚠️ Error loading services from {catalog_url}: HTTP 403 Forbidden - Check permissions"
+                    }]
+                elif catalog_response.status_code >= 500:
+                    return [{
+                        "value": "",
+                        "label": f"⚠️ Error loading services from {catalog_url}: HTTP {catalog_response.status_code} Server Error"
+                    }]
+            except req.exceptions.ConnectionError as e:
+                return [{
+                    "value": "",
+                    "label": f"⚠️ Error loading services: {_simplify_error_message(e, catalog_url)}"
+                }]
+            except req.exceptions.Timeout:
+                return [{
+                    "value": "",
+                    "label": f"⚠️ Error loading services from {catalog_url}: Connection timed out"
+                }]
+
+            # Now get catalog services with client
+            client = self._build_client()
             catalog_services = client.list_catalog_services()
             if not catalog_services:
                 logging.warning("loadServices: no services found in SAP catalog")
-                return [{"value": "", "label": "No services found in catalog"}]
+                return [{"value": "", "label": f"No services found in catalog at {catalog_url}"}]
 
             logging.info(f"loadServices: found {len(catalog_services)} services in SAP catalog")
 
@@ -551,27 +681,26 @@ class Component(ComponentBase):
         """
         try:
             # Validate configuration
-            if not self._config.service_url:
-                if not self._config.base_url:
-                    logging.error("loadEntities: base_url is not set")
-                    return [
-                        {
-                            "value": "",
-                            "label": "⚠️ Error: Base URL not configured. Please check root configuration.",
-                        }
-                    ]
+            if not self._config.base_url:
+                logging.error("loadEntities: base_url is not set")
+                return [
+                    {
+                        "value": "",
+                        "label": "⚠️ Error: Base URL not configured. Please check root configuration.",
+                    }
+                ]
 
-                if not self._config.service_path:
-                    logging.error("loadEntities: service_path is not set")
-                    return [
-                        {
-                            "value": "",
-                            "label": "⚠️ Error: Service Path is required. Please fill it in above.",
-                        }
-                    ]
+            if not self._config.service_path:
+                logging.error("loadEntities: service_path is not set")
+                return [
+                    {
+                        "value": "",
+                        "label": "⚠️ Error: Service Path is required. Please fill it in above.",
+                    }
+                ]
 
             logging.info(
-                f"loadEntities called - service_url: {self._config.service_url}, "
+                f"loadEntities called - "
                 f"base_url: {self._config.base_url}, service_path: {self._config.service_path}"
             )
             client = self._build_client()
@@ -604,7 +733,7 @@ class Component(ComponentBase):
             logging.info(f"loadFields called with entity_set: {self._config.entity_set}")
             if not self._config.entity_set:
                 logging.warning("loadFields: entity_set is not set")
-                return []
+                return [{"value": "", "label": "⚠️ Error: Entity Set is required to load fields. Please select an entity above."}]
 
             client = self._build_client()
             logging.info(f"loadFields: fetching fields for {self._config.entity_set}")
@@ -661,7 +790,7 @@ class Component(ComponentBase):
             logging.info(f"loadPossiblePrimaryKeys called with entity_set: {self._config.entity_set}")
             if not self._config.entity_set:
                 logging.warning("loadPossiblePrimaryKeys: entity_set is not set")
-                return []
+                return [{"value": "", "label": "⚠️ Error: Entity Set is required to load primary keys. Please select an entity above."}]
 
             client = self._build_client()
             metadata = client.get_metadata()
@@ -680,7 +809,7 @@ class Component(ComponentBase):
     def load_incremental_fields(self) -> list[dict[str, str]]:
         try:
             if not self._config.entity_set:
-                return []
+                return [{"value": "", "label": "⚠️ Error: Entity Set is required to load incremental fields. Please select an entity above."}]
 
             client = self._build_client()
             fields = client.list_fields(self._config.entity_set)
@@ -732,7 +861,7 @@ class Component(ComponentBase):
             logging.info(f"loadNavigationProperties called with entity_set: {self._config.entity_set}")
             if not self._config.entity_set:
                 logging.warning("loadNavigationProperties: entity_set is not set")
-                return []
+                return [{"value": "", "label": "⚠️ Error: Entity Set is required to load navigation properties. Please select an entity above."}]
 
             client = self._build_client()
             metadata = client.get_metadata()

@@ -1,0 +1,17 @@
+{
+  "action": "testConnection",
+  "parameters": {
+    "connection": {
+      "base_url": "https://this-domain-does-not-exist-12345.com"
+    },
+    "authentication": {
+      "auth_type": "basic",
+      "username": "test",
+      "#password": "test"
+    },
+    "advanced_options": {
+      "connection_options": [],
+      "pagination_defaults": []
+    }
+  }
+}
