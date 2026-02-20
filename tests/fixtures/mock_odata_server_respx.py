@@ -468,27 +468,86 @@ class MockODataV2Server:
 
 
 class MockSAPCatalogServer:
-    """Mock SAP Service Catalog server."""
+    """Mock SAP Service Catalog server.
+
+    The catalog is an SAP-specific endpoint that returns available OData services.
+    It responds with ATOM/XML feed containing ServiceUrl and MetadataUrl for each service.
+    The catalog URL itself (root) returns the ATOM feed, which is what list_catalog_services() fetches.
+    """
+
+    # Internal SAP server URL embedded in ServiceUrl entries
+    INTERNAL_SAP_SERVER = "http://sap-server:50000"
+    SERVICES = [
+        {
+            "id": "API_BUSINESS_PARTNER",
+            "title": "Business Partner API",
+            "description": "SAP Business Partner API",
+            "path": "sap/opu/odata/sap/API_BUSINESS_PARTNER",
+        },
+        {
+            "id": "API_FIXEDASSET",
+            "title": "Fixed Asset API",
+            "description": "SAP Fixed Asset API",
+            "path": "sap/opu/odata/sap/API_FIXEDASSET",
+        },
+    ]
 
     def __init__(self, base_url: str):
         self.base_url = base_url.rstrip("/")
 
+    def get_catalog_atom_xml(self) -> str:
+        """Return ATOM/XML catalog feed – what list_catalog_services() actually parses.
+
+        CatalogParser.parse_sap_catalog_xml() looks for d:ServiceUrl and d:MetadataUrl
+        inside m:properties of each ATOM entry.
+        """
+        entries = ""
+        for svc in self.SERVICES:
+            service_url = f"{self.INTERNAL_SAP_SERVER}/{svc['path']}"
+            metadata_url = f"{service_url}/$metadata"
+            entries += f"""
+  <entry xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata"
+         xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices">
+    <id>{service_url}</id>
+    <title type="text">{svc['title']}</title>
+    <content type="application/xml">
+      <m:properties>
+        <d:ID>{svc['id']}</d:ID>
+        <d:Title>{svc['title']}</d:Title>
+        <d:Description>{svc['description']}</d:Description>
+        <d:ServiceUrl>{service_url}</d:ServiceUrl>
+        <d:MetadataUrl>{metadata_url}</d:MetadataUrl>
+      </m:properties>
+    </content>
+  </entry>"""
+
+        return f"""<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">SAP Service Catalog</title>{entries}
+</feed>"""
+
     def setup(self, respx_mock: respx.MockRouter) -> None:
-        """Setup mock responses for SAP catalog."""
-        # Catalog metadata
-        catalog_metadata = """<?xml version="1.0" encoding="utf-8"?>
+        """Setup mock responses for SAP catalog.
+
+        Mocks the catalog root URL (what list_catalog_services fetches) with an ATOM XML
+        feed containing services with proper ServiceUrl fields.
+        """
+        atom_xml = self.get_catalog_atom_xml()
+
+        # The catalog root URL – this is what list_catalog_services() fetches directly
+        respx_mock.get(self.base_url).mock(
+            return_value=httpx.Response(
+                200,
+                content=atom_xml,
+                headers={"Content-Type": "application/atom+xml; charset=utf-8"},
+            )
+        )
+
+        # Also mock /$metadata (for OData introspection of the catalog service itself)
+        catalog_odata_metadata = """<?xml version="1.0" encoding="utf-8"?>
 <edmx:Edmx Version="1.0" xmlns:edmx="http://schemas.microsoft.com/ado/2007/06/edmx">
   <edmx:DataServices m:DataServiceVersion="2.0" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata">
     <Schema Namespace="CATALOGSERVICE" xmlns="http://schemas.microsoft.com/ado/2008/09/edm">
-      <EntityType Name="Service">
-        <Key>
-          <PropertyRef Name="ID"/>
-        </Key>
-        <Property Name="ID" Type="Edm.String" Nullable="false"/>
-        <Property Name="Title" Type="Edm.String"/>
-        <Property Name="Author" Type="Edm.String"/>
-        <Property Name="Updated" Type="Edm.DateTime"/>
-      </EntityType>
       <EntityContainer Name="CatalogService" m:IsDefaultEntityContainer="true">
         <EntitySet Name="ServiceCollection" EntityType="CATALOGSERVICE.Service"/>
       </EntityContainer>
@@ -499,41 +558,7 @@ class MockSAPCatalogServer:
         respx_mock.get(f"{self.base_url}/$metadata").mock(
             return_value=httpx.Response(
                 200,
-                content=catalog_metadata,
+                content=catalog_odata_metadata,
                 headers={"Content-Type": "application/xml"},
             )
-        )
-
-        # ServiceCollection with available services
-        catalog_response = {
-            "d": {
-                "results": [
-                    {
-                        "ID": "API_BUSINESS_PARTNER",
-                        "Title": "Business Partner API",
-                        "Author": "SAP",
-                        "Updated": "/Date(1704067200000)/",
-                        "TechnicalServiceName": "API_BUSINESS_PARTNER",
-                        "TechnicalServiceVersion": "0001",
-                        "__metadata": {
-                            "uri": "http://sap-server:50000/sap/opu/odata/sap/API_BUSINESS_PARTNER"
-                        },
-                    },
-                    {
-                        "ID": "API_FIXEDASSET",
-                        "Title": "Fixed Asset API",
-                        "Author": "SAP",
-                        "Updated": "/Date(1704153600000)/",
-                        "TechnicalServiceName": "API_FIXEDASSET",
-                        "TechnicalServiceVersion": "0001",
-                        "__metadata": {
-                            "uri": "http://sap-server:50000/sap/opu/odata/sap/API_FIXEDASSET"
-                        },
-                    },
-                ]
-            }
-        }
-
-        respx_mock.get(f"{self.base_url}/ServiceCollection").mock(
-            return_value=httpx.Response(200, json=catalog_response)
         )
