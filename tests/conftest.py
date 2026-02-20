@@ -139,6 +139,15 @@ def run_sync_action_with_datadir(monkeypatch):
 
         from component import Component
 
+        # Write action into config.json at root level (Keboola format: {"action": "...", "parameters": {...}})
+        # execute_action() reads configuration.action from config.json, not from KBC_ACTION env var
+        config_path = datadir / "config.json"
+        with open(config_path) as f:
+            cfg_data = json.load(f)
+        cfg_data["action"] = action
+        with open(config_path, "w") as f:
+            json.dump(cfg_data, f, indent=2)
+
         # Set environment variables
         monkeypatch.setenv("KBC_DATADIR", str(datadir))
         monkeypatch.setenv("KBC_ACTION", action)

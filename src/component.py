@@ -564,15 +564,15 @@ class Component(ComponentBase):
             catalog_url = self._config.get_catalog_url()
 
             # Build auth handler
-            from odata_client.auth import ApiKeyAuthHandler, BasicAuthHandler, OAuthAuthHandler
-            auth_handler: ApiKeyAuthHandler | BasicAuthHandler | OAuthAuthHandler
+            from odata_client.auth import ApiKeyAuthHandler, BasicAuthHandler, OAuthHandler
+            auth_handler: ApiKeyAuthHandler | BasicAuthHandler | OAuthHandler
             if self._config.auth_type == AuthType.API_KEY:
                 auth_handler = ApiKeyAuthHandler(
                     api_key=self._config.api_key or "",
                     header_name=self._config.api_key_header_name,
                 )
             elif self._config.auth_type == AuthType.OAUTH:
-                auth_handler = OAuthAuthHandler(
+                auth_handler = OAuthHandler(
                     token_url=self._config.token_url or "",
                     client_id=self._config.client_id or "",
                     client_secret=self._config.client_secret or "",
