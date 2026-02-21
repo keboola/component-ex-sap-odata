@@ -151,6 +151,10 @@ class Configuration(BaseModel):
     advanced_options: RootAdvancedOptions | RowAdvancedOptions | None = Field(
         default=None, description="Advanced options"
     )
+    # Populated by validator when Keboola deep-merges root dict + row list into one dict
+    root_advanced_options: RootAdvancedOptions | None = Field(
+        default=None, description="Root advanced options (populated when merged with row)"
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -158,6 +162,11 @@ class Configuration(BaseModel):
         """Convert array fields (maxItems: 1) to single objects.
 
         Keboola sends arrays for maxItems: 1, we convert to objects or None.
+
+        When running a row job, Keboola deep-merges root and row parameters.
+        If both have 'advanced_options', the result is a mixed dict:
+          {"connection_options": [], "pagination_defaults": [], 0: {"page_size": X}}
+        In this case we split: row item → advanced_options, root parts → root_advanced_options.
         """
         if not isinstance(data, dict):
             return data
@@ -170,17 +179,31 @@ class Configuration(BaseModel):
             if isinstance(adv, list):
                 result["advanced_options"] = adv[0] if adv else None
             elif isinstance(adv, dict):
-                # Check if it's root format (has connection_options/pagination_defaults)
-                # or row format (has page_size/max_records)
-                # Convert arrays inside root advanced_options
-                if "connection_options" in adv:
-                    conn_opts = adv["connection_options"]
-                    if isinstance(conn_opts, list):
-                        adv["connection_options"] = conn_opts if conn_opts else []
-                if "pagination_defaults" in adv:
-                    pag_def = adv["pagination_defaults"]
-                    if isinstance(pag_def, list):
-                        adv["pagination_defaults"] = pag_def if pag_def else []
+                # Detect Keboola's deep-merge artifact: numeric keys present alongside string keys
+                # (happens when root has a dict and row has a list for the same key)
+                has_numeric_key = any(
+                    isinstance(k, int) or (isinstance(k, str) and k.isdigit())
+                    for k in adv
+                )
+                if has_numeric_key:
+                    # Split into row item (numeric key 0) and root parts (string keys)
+                    row_item = adv.get(0) or adv.get("0")
+                    root_parts = {k: v for k, v in adv.items()
+                                  if not (isinstance(k, int) or (isinstance(k, str) and k.isdigit()))}
+                    result["advanced_options"] = row_item if isinstance(row_item, dict) else None
+                    if root_parts:
+                        result["root_advanced_options"] = root_parts
+                else:
+                    # Pure dict - either root or row format
+                    # Handle nested arrays inside root advanced_options
+                    if "connection_options" in adv:
+                        conn_opts = adv["connection_options"]
+                        if isinstance(conn_opts, list):
+                            adv["connection_options"] = conn_opts if conn_opts else []
+                    if "pagination_defaults" in adv:
+                        pag_def = adv["pagination_defaults"]
+                        if isinstance(pag_def, list):
+                            adv["pagination_defaults"] = pag_def if pag_def else []
 
         return result
 
@@ -197,6 +220,13 @@ class Configuration(BaseModel):
     def strip_entity_set(cls, v: str | None) -> str | None:
         """Strip whitespace from entity_set."""
         return v.strip() if v else v
+
+    @property
+    def _root_opts(self) -> RootAdvancedOptions | None:
+        """Return root advanced options from either field (supports merged row+root case)."""
+        return self.root_advanced_options or (
+            self.advanced_options if isinstance(self.advanced_options, RootAdvancedOptions) else None
+        )
 
     # Property accessors for convenient access
     @property
@@ -241,44 +271,44 @@ class Configuration(BaseModel):
 
     @property
     def timeout(self) -> int:
-        if isinstance(self.advanced_options, RootAdvancedOptions):
-            if self.advanced_options.connection_options:
-                return self.advanced_options.connection_options[0].timeout
+        root = self._root_opts
+        if root and root.connection_options:
+            return root.connection_options[0].timeout
         return 60
 
     @property
     def max_retries(self) -> int:
-        if isinstance(self.advanced_options, RootAdvancedOptions):
-            if self.advanced_options.connection_options:
-                return self.advanced_options.connection_options[0].max_retries
+        root = self._root_opts
+        if root and root.connection_options:
+            return root.connection_options[0].max_retries
         return 3
 
     @property
     def verify_ssl(self) -> bool:
-        if isinstance(self.advanced_options, RootAdvancedOptions):
-            if self.advanced_options.connection_options:
-                return self.advanced_options.connection_options[0].verify_ssl
+        root = self._root_opts
+        if root and root.connection_options:
+            return root.connection_options[0].verify_ssl
         return True
 
     @property
     def enable_parallel(self) -> bool:
-        if isinstance(self.advanced_options, RootAdvancedOptions):
-            if self.advanced_options.connection_options:
-                return self.advanced_options.connection_options[0].enable_parallel
+        root = self._root_opts
+        if root and root.connection_options:
+            return root.connection_options[0].enable_parallel
         return True
 
     @property
     def parallel_pages(self) -> int:
-        if isinstance(self.advanced_options, RootAdvancedOptions):
-            if self.advanced_options.connection_options:
-                return self.advanced_options.connection_options[0].parallel_pages
+        root = self._root_opts
+        if root and root.connection_options:
+            return root.connection_options[0].parallel_pages
         return 5
 
     @property
     def max_requests_per_second(self) -> float | None:
-        if isinstance(self.advanced_options, RootAdvancedOptions):
-            if self.advanced_options.connection_options:
-                return self.advanced_options.connection_options[0].max_requests_per_second
+        root = self._root_opts
+        if root and root.connection_options:
+            return root.connection_options[0].max_requests_per_second
         return None
 
     @property
@@ -288,9 +318,9 @@ class Configuration(BaseModel):
             if self.advanced_options.page_size is not None:
                 return self.advanced_options.page_size
         # Then root pagination_defaults
-        if isinstance(self.advanced_options, RootAdvancedOptions):
-            if self.advanced_options.pagination_defaults:
-                return self.advanced_options.pagination_defaults[0].page_size
+        root = self._root_opts
+        if root and root.pagination_defaults:
+            return root.pagination_defaults[0].page_size
         return 1000
 
     @property
@@ -300,9 +330,9 @@ class Configuration(BaseModel):
             if self.advanced_options.max_records is not None:
                 return self.advanced_options.max_records
         # Then root pagination_defaults
-        if isinstance(self.advanced_options, RootAdvancedOptions):
-            if self.advanced_options.pagination_defaults:
-                return self.advanced_options.pagination_defaults[0].max_records
+        root = self._root_opts
+        if root and root.pagination_defaults:
+            return root.pagination_defaults[0].max_records
         return 0
 
     @property
