@@ -553,3 +553,166 @@ class TestFilterValidation:
             query_options=QueryOptions(filter_expression="DocumentDate gt 2024-01-01")
         )
         assert config.filter_expression == "DocumentDate gt 2024-01-01"
+
+
+class TestValidateForExtraction:
+    """Tests for validate_for_extraction() validation logic."""
+
+    _BASIC_AUTH = {
+        "auth_type": "basic",
+        "username": "user",
+        "#password": "pass",
+    }
+
+    def _base_config(self, **kwargs) -> Configuration:
+        """Return a minimal valid config with base_url set."""
+        return Configuration(
+            connection={"base_url": "https://example.com"},
+            authentication=self._BASIC_AUTH,
+            **kwargs,
+        )
+
+    def test_incremental_fetch_without_incremental_field_raises(self) -> None:
+        """fetch_type=incremental without incremental_field should raise ValueError."""
+        config = self._base_config(
+            fetching_options={"fetch_type": "incremental"},
+        )
+        with pytest.raises(ValueError, match="'incremental_field' is required when fetch_type is 'incremental'"):
+            config.validate_for_extraction()
+
+    def test_incremental_fetch_with_incremental_field_passes(self) -> None:
+        """fetch_type=incremental with incremental_field should not raise."""
+        config = self._base_config(
+            fetching_options={"fetch_type": "incremental", "incremental_field": "ModifiedAt"},
+        )
+        config.validate_for_extraction()  # must not raise
+
+    def test_full_fetch_without_incremental_field_passes(self) -> None:
+        """fetch_type=full without incremental_field should not raise."""
+        config = self._base_config(
+            fetching_options={"fetch_type": "full"},
+        )
+        config.validate_for_extraction()  # must not raise
+
+    def test_incremental_load_without_primary_key_raises(self) -> None:
+        """load_type=incremental without primary_key should raise ValueError."""
+        config = self._base_config(
+            destination={"load_type": "incremental"},
+        )
+        with pytest.raises(ValueError, match="'primary_key' is required when load_type is 'incremental'"):
+            config.validate_for_extraction()
+
+    def test_incremental_load_with_primary_key_passes(self) -> None:
+        """load_type=incremental with primary_key should not raise."""
+        config = self._base_config(
+            destination={"load_type": "incremental", "primary_key": ["ID"]},
+        )
+        config.validate_for_extraction()  # must not raise
+
+    def test_full_load_without_primary_key_passes(self) -> None:
+        """load_type=full without primary_key should not raise."""
+        config = self._base_config(
+            destination={"load_type": "full"},
+        )
+        config.validate_for_extraction()  # must not raise
+
+    def test_no_base_url_no_service_path_raises(self) -> None:
+        """Both base_url and service_path being None should raise ValueError."""
+        config = Configuration(
+            connection={},
+            authentication=self._BASIC_AUTH,
+        )
+        with pytest.raises(ValueError, match="Either base_url or service_path is required"):
+            config.validate_for_extraction()
+
+    def test_only_service_path_passes(self) -> None:
+        """service_path without base_url should pass validate_for_extraction (URL check only)."""
+        config = Configuration(
+            connection={},
+            authentication=self._BASIC_AUTH,
+            service_path="sap/opu/odata/sap/MY_SERVICE",
+        )
+        config.validate_for_extraction()  # must not raise
+
+
+class TestOAuthValidation:
+    """Tests for OAuth-specific validation errors raised in model_post_init."""
+
+    _BASE_CONN = {"base_url": "https://example.com"}
+    _FULL_OAUTH = {
+        "auth_type": "oauth",
+        "token_url": "https://auth.example.com/token",
+        "client_id": "my-client-id",
+        "#client_secret": "my-client-secret",
+    }
+
+    def test_oauth_missing_token_url_raises(self) -> None:
+        """OAuth auth without token_url should raise ValueError."""
+        auth = dict(self._FULL_OAUTH)
+        del auth["token_url"]
+        with pytest.raises(ValueError, match="Token URL is required for OAuth authentication"):
+            Configuration(
+                connection=self._BASE_CONN,
+                authentication=auth,
+            )
+
+    def test_oauth_missing_client_id_raises(self) -> None:
+        """OAuth auth without client_id should raise ValueError."""
+        auth = dict(self._FULL_OAUTH)
+        del auth["client_id"]
+        with pytest.raises(ValueError, match="Client ID is required for OAuth authentication"):
+            Configuration(
+                connection=self._BASE_CONN,
+                authentication=auth,
+            )
+
+    def test_oauth_missing_client_secret_raises(self) -> None:
+        """OAuth auth without client_secret should raise ValueError."""
+        auth = dict(self._FULL_OAUTH)
+        del auth["#client_secret"]
+        with pytest.raises(ValueError, match="Client Secret is required for OAuth authentication"):
+            Configuration(
+                connection=self._BASE_CONN,
+                authentication=auth,
+            )
+
+    def test_oauth_all_fields_present_passes(self) -> None:
+        """OAuth auth with all required fields should not raise."""
+        config = Configuration(
+            connection=self._BASE_CONN,
+            authentication=self._FULL_OAUTH,
+        )
+        assert config.auth_type == AuthType.OAUTH
+        assert config.token_url == "https://auth.example.com/token"
+        assert config.client_id == "my-client-id"
+        assert config.client_secret == "my-client-secret"
+
+    def test_oauth_empty_token_url_raises(self) -> None:
+        """OAuth auth with empty string token_url should raise ValueError."""
+        auth = dict(self._FULL_OAUTH)
+        auth["token_url"] = ""
+        with pytest.raises(ValueError, match="Token URL is required for OAuth authentication"):
+            Configuration(
+                connection=self._BASE_CONN,
+                authentication=auth,
+            )
+
+    def test_oauth_empty_client_id_raises(self) -> None:
+        """OAuth auth with empty string client_id should raise ValueError."""
+        auth = dict(self._FULL_OAUTH)
+        auth["client_id"] = ""
+        with pytest.raises(ValueError, match="Client ID is required for OAuth authentication"):
+            Configuration(
+                connection=self._BASE_CONN,
+                authentication=auth,
+            )
+
+    def test_oauth_empty_client_secret_raises(self) -> None:
+        """OAuth auth with empty string client_secret should raise ValueError."""
+        auth = dict(self._FULL_OAUTH)
+        auth["#client_secret"] = ""
+        with pytest.raises(ValueError, match="Client Secret is required for OAuth authentication"):
+            Configuration(
+                connection=self._BASE_CONN,
+                authentication=auth,
+            )

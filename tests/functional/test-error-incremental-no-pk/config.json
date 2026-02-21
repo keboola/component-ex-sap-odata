@@ -1,0 +1,17 @@
+{
+  "parameters": {
+    "connection": { "base_url": "https://sandbox.api.sap.com/s4hanacloud" },
+    "authentication": {
+      "auth_type": "apiKey",
+      "#api_key": "dummy_key_not_used",
+      "api_key_header_name": "APIKey"
+    },
+    "odata_version": "auto",
+    "service_path": "sap/opu/odata/sap/API_BUSINESS_PARTNER",
+    "entity_set": "A_BusinessPartner",
+    "fetching_options": { "fetch_type": "full" },
+    "destination": {
+      "load_type": "incremental"
+    }
+  }
+}
