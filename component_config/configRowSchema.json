@@ -14,9 +14,12 @@
     "service_path": {
       "type": "string",
       "title": "Service Path",
+      "format": "select",
+      "enum": [],
       "description": "Path to the OData service (appended to Base URL from root config).<br /><br />You can select from catalog (if configured in root) or enter manually.<br /><br />Examples:<ul><li>From catalog: <code>http/keboola/connector/sap/opu/odata/sap/API_BUSINESS_PARTNER</code></li><li>OData V2: <code>sap/opu/odata/sap/API_BUSINESS_PARTNER</code></li><li>OData V4: <code>sap/opu/odata4/sap/api_fixedassetacquisition/srvd_a2x/sap/fixedassetacquisition/0001</code></li></ul>",
       "propertyOrder": 2,
       "options": {
+        "tags": true,
         "async": {
           "label": "Load Available Services",
           "action": "loadServices"
@@ -26,9 +29,12 @@
     "entity_set": {
       "type": "string",
       "title": "Entity Set",
+      "format": "select",
+      "enum": [],
       "description": "OData entity set to extract data from.<br /><br />You can select from available entity sets or enter manually.<br /><br />Entity sets are collections of entities (like database tables).<br />Examples: A_BusinessPartner, SalesOrderSet, ProductSet",
       "propertyOrder": 3,
       "options": {
+        "tags": true,
         "async": {
           "label": "Load Entity Sets",
           "action": "loadEntities",
@@ -118,9 +124,12 @@
         "incremental_field": {
           "type": "string",
           "title": "Incremental Field",
+          "format": "select",
+          "enum": [],
           "description": "Timestamp field for incremental fetch (required for Incremental Fetch).<br /><br />Used to filter records: $filter={field} gt {last_run_timestamp}<br /><br />Common SAP field names:<ul><li>LastChangedAt / LastChangeDateTime</li><li>ModifiedOn / ChangedOn</li><li>CreatedAt / CreationDateTime</li><li>SystemModstamp</li></ul>The field must contain timestamps, be indexed for performance, and update reliably on record changes.",
           "propertyOrder": 2,
           "options": {
+            "tags": true,
             "dependencies": {
               "fetch_type": "incremental"
             },

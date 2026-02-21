@@ -377,15 +377,40 @@ class Component(ComponentBase):
         return records_count, last_incremental_value
 
     def _track_incremental_value(self, record: JsonDict, current_max: str | None) -> str | None:
-        """Track the maximum incremental value from records."""
+        """Track the maximum incremental value from records.
+
+        Normalizes OData V2 /Date(millis)/ timestamps to ISO format so they
+        can be used safely in $filter expressions on the next run.
+        """
         if not self._config.incremental_field or self._config.incremental_field not in record:
             return current_max
 
         value = record[self._config.incremental_field]
-        if value and (current_max is None or str(value) > current_max):
-            return str(value)
+        if not value:
+            return current_max
+
+        normalized = self._normalize_odata_datetime(str(value))
+        if current_max is None or normalized > current_max:
+            return normalized
 
         return current_max
+
+    @staticmethod
+    def _normalize_odata_datetime(value: str) -> str:
+        """Convert OData V2 /Date(milliseconds)/ to ISO datetime string.
+
+        OData V2 JSON format returns DateTime as /Date(1704067200000)/.
+        We normalize this to 2024-01-01T00:00:00 so it can be used in
+        $filter expressions like: LastChangeDate gt datetime'2024-01-01T00:00:00'
+        """
+        import re
+        match = re.match(r"^/Date\((\d+)(?:[+-]\d+)?\)/$", value)
+        if match:
+            from datetime import datetime, timezone
+            millis = int(match.group(1))
+            dt = datetime.fromtimestamp(millis / 1000, tz=timezone.utc)
+            return dt.strftime("%Y-%m-%dT%H:%M:%S")
+        return value
 
     def _update_extraction_state(
         self, state: ComponentState, records_count: int, last_incremental_value: str | None
