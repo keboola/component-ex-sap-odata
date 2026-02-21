@@ -16,36 +16,35 @@ Keboola component for extracting data from SAP OData services. Supports both ODa
 
 ### Main Configuration
 
-#### URL Configuration (choose one method):
-
-**Option 1: Full Service URL (Legacy)**
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `service_url` | Yes* | Full OData service URL (e.g., `https://sap.com/sap/opu/odata/sap/API_BUSINESS_PARTNER`) |
-
-**Option 2: Split URL (Recommended)**
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_url` | Yes* | Base URL of SAP system (e.g., `https://my-sap-server.com`) |
-| `service_path` | Yes* | Service path (e.g., `API_BUSINESS_PARTNER` for V2, or `api_name/srvd_a2x/sap/service/0001` for V4) |
-
-*Either provide `service_url` OR both `base_url` + `service_path`
-
-#### Other Parameters
+#### Connection (`connection` block)
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `odata_version` | No | OData version: `auto`, `v2`, or `v4` (default: `auto`) |
-| `auth_type` | Yes | Authentication type: `basic`, `oauth`, or `apiKey` |
-| `username` | For basic | Username for basic authentication |
-| `#password` | For basic | Password for basic authentication |
-| `#api_key` | For apiKey | API key for API key authentication |
-| `api_key_header_name` | For apiKey | HTTP header name for API key (default: `APIKey`) |
-| `timeout` | No | Request timeout in seconds (default: 60) |
-| `max_retries` | No | Maximum retries for failed requests (default: 3) |
-| `verify_ssl` | No | Verify SSL certificates (default: `true`) |
-| `page_size` | No | Default page size for all entities (default: 1000) |
-| `max_records` | No | Default max records for all entities (0 = unlimited) |
+| `connection.base_url` | Yes | Base URL of SAP system (e.g., `https://my-sap-server.com`) |
+| `connection.catalog_path` | No | Path to SAP Service Catalog for browsing available services |
+
+#### Authentication (`authentication` block)
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `authentication.auth_type` | Yes | Authentication type: `basic`, `oauth`, or `apiKey` |
+| `authentication.username` | For basic | Username for basic authentication |
+| `authentication.#password` | For basic | Password for basic authentication |
+| `authentication.#api_key` | For apiKey | API key for API key authentication |
+| `authentication.api_key_header_name` | For apiKey | HTTP header name for API key (default: `APIKey`) |
+| `authentication.token_url` | For oauth | OAuth 2.0 token endpoint URL |
+| `authentication.client_id` | For oauth | OAuth 2.0 client ID |
+| `authentication.#client_secret` | For oauth | OAuth 2.0 client secret |
+
+#### Advanced Options (`advanced_options` block)
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `advanced_options.connection_options[].timeout` | No | Request timeout in seconds (default: 60) |
+| `advanced_options.connection_options[].max_retries` | No | Maximum retries for failed requests (default: 3) |
+| `advanced_options.connection_options[].verify_ssl` | No | Verify SSL certificates (default: `true`) |
+| `advanced_options.pagination_defaults[].page_size` | No | Default page size for all entities (default: 1000) |
+| `advanced_options.pagination_defaults[].max_records` | No | Default max records for all entities (0 = unlimited) |
 
 ### Row Configuration
 
@@ -54,16 +53,18 @@ Each row extracts one entity set. Multiple rows can be configured for different 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
 | `entity_set` | Yes | Name of the OData EntitySet to extract |
-| `output_table_name` | No | Output table name (default: entity set name) |
-| `select_fields` | No | Fields to select ($select) - multiselect array |
-| `filter_expression` | No | OData $filter expression |
-| `expand_properties` | No | Navigation properties to expand ($expand) - multiselect array |
-| `order_by` | No | Field for ordering ($orderby) |
-| `sync_type` | No | Sync type: `full` or `incremental` (default: `full`) |
-| `incremental_field` | For incremental | Field for incremental sync (shows when sync_type=incremental) |
-| `primary_key` | For incremental | Primary key fields - multiselect array (shows when sync_type=incremental) |
-| `page_size` | No | Override default page size for this entity |
-| `max_records` | No | Override default max records for this entity |
+| `odata_version` | No | Override OData version: `auto`, `v2`, or `v4` (default: `auto`) |
+| `service_path` | No | Override service path for this row |
+| `query_options.select_fields` | No | Fields to select ($select) - multiselect array |
+| `query_options.filter_expression` | No | OData $filter expression |
+| `query_options.expand_properties` | No | Navigation properties to expand ($expand) - multiselect array |
+| `fetching_options.fetch_type` | No | Fetch type: `full` or `incremental` (default: `full`) |
+| `fetching_options.incremental_field` | For incremental | Field used for incremental fetch |
+| `destination.output_table_name` | No | Output table name (default: entity set name) |
+| `destination.load_type` | No | Load type: `full` or `incremental` (default: `full`) |
+| `destination.primary_key` | For incremental | Primary key fields - multiselect array |
+| `advanced_options.page_size` | No | Override page size for this entity |
+| `advanced_options.max_records` | No | Override max records for this entity |
 
 ## SAP Service Catalog Support
 
@@ -77,33 +78,37 @@ Instead of directly connecting to an OData service, you can browse the catalog t
 
 #### Step 1: Configure Catalog Endpoint
 
-Set `catalog_path` instead of `service_path`:
+Set `connection.catalog_path` instead of `service_path`:
 
 ```json
 {
   "parameters": {
-    "base_url": "https://your-sap-system.com",
-    "catalog_path": "sap/opu/odata/IWFND/CATALOGSERVICE;v=2/ServiceCollection",
-    "auth_type": "oauth",
-    "token_url": "https://your-auth.com/oauth/token",
-    "client_id": "your-client-id",
-    "#client_secret": "your-secret"
+    "connection": {
+      "base_url": "https://your-sap-system.com",
+      "catalog_path": "sap/opu/odata/IWFND/CATALOGSERVICE;v=2"
+    },
+    "authentication": {
+      "auth_type": "oauth",
+      "token_url": "https://your-auth.com/oauth/token",
+      "client_id": "your-client-id",
+      "#client_secret": "your-secret"
+    }
   }
 }
 ```
 
 #### Step 2: Browse Available Services
 
-Run the **loadEntities** sync action. Instead of entity sets, you'll get a list of available OData services:
+Run the **loadServices** sync action to get a list of available OData services. Each result contains the service path as `value`:
 
 ```json
 [
   {
-    "value": "ZAPI_BUSINESS_PARTNER_0001",
+    "value": "/sap/opu/odata/sap/API_BUSINESS_PARTNER",
     "label": "API_BUSINESS_PARTNER - Business Partner API"
   },
   {
-    "value": "ZFCLM_CASH_BANKTRANSFER_SRV_0001",
+    "value": "/sap/opu/odata/sap/FCLM_CASH_BANKTRANSFER_SRV",
     "label": "FCLM_CASH_BANKTRANSFER_SRV - Bank Transfer"
   }
 ]
@@ -111,15 +116,19 @@ Run the **loadEntities** sync action. Instead of entity sets, you'll get a list 
 
 #### Step 3: Use Service Path
 
-From the catalog results, copy the service name (without the `Z...._0001` prefix) and use it as `service_path`:
+From the catalog results, copy the `value` (the service path) and use it as `service_path` in your configuration:
 
 ```json
 {
   "parameters": {
-    "base_url": "https://your-sap-system.com",
-    "service_path": "sap/opu/odata/sap/FCLM_CASH_BANKTRANSFER_SRV",
-    "auth_type": "oauth",
-    ...
+    "connection": {
+      "base_url": "https://your-sap-system.com"
+    },
+    "authentication": {
+      "auth_type": "oauth",
+      ...
+    },
+    "service_path": "sap/opu/odata/sap/FCLM_CASH_BANKTRANSFER_SRV"
   }
 }
 ```
@@ -166,7 +175,7 @@ Now **loadEntities** will return entity sets from that service, and you can proc
 
 ### Prerequisites
 
-- Python 3.13+
+- Python 3.12+
 - uv (recommended) or pip
 
 ### Setup
@@ -190,23 +199,15 @@ Create a `data/config.json` file with your configuration:
 ```json
 {
   "parameters": {
-    "base_url": "https://sandbox.api.sap.com/s4hanacloud",
-    "service_path": "API_BUSINESS_PARTNER",
+    "connection": {
+      "base_url": "https://sandbox.api.sap.com/s4hanacloud"
+    },
+    "authentication": {
+      "auth_type": "apiKey",
+      "#api_key": "your-api-key"
+    },
     "odata_version": "auto",
-    "auth_type": "apiKey",
-    "#api_key": "your-api-key",
-    "page_size": 1000,
-    "max_records": 0
-  },
-  "storage": {
-    "output": {
-      "tables": [
-        {
-          "source": "A_BusinessPartner.csv",
-          "destination": "out.c-sap.business-partners"
-        }
-      ]
-    }
+    "service_path": "API_BUSINESS_PARTNER"
   }
 }
 ```
@@ -217,11 +218,20 @@ Create `data/config_row.json` for entity configuration:
 {
   "parameters": {
     "entity_set": "A_BusinessPartner",
-    "output_table_name": "A_BusinessPartner",
-    "select_fields": ["BusinessPartner", "BusinessPartnerName", "CreatedByUser"],
-    "filter_expression": "BusinessPartnerCategory eq '1'",
-    "sync_type": "full",
-    "page_size": 100
+    "query_options": {
+      "select_fields": ["BusinessPartner", "BusinessPartnerName", "CreatedByUser"],
+      "filter_expression": "BusinessPartnerCategory eq '1'"
+    },
+    "fetching_options": {
+      "fetch_type": "full"
+    },
+    "destination": {
+      "output_table_name": "A_BusinessPartner",
+      "load_type": "full"
+    },
+    "advanced_options": {
+      "page_size": 100
+    }
   }
 }
 ```
@@ -277,7 +287,6 @@ For UI development help, use the Claude plugin:
 - **[Configuration Patterns](docs/CONFIGURATION_PATTERNS.md)** - Recommended patterns for load_type & fetch_type combinations
 - [URL Structure Analysis](docs/URL_STRUCTURE_ANALYSIS.md) - Detailed analysis of SAP OData URL patterns
 - [Development Guide](docs/DEVELOPMENT.md) - Complete development and testing guide
-- [Sample Configurations](data/README.md) - Example configurations for different scenarios
 
 ## License
 
