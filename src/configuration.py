@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class AuthType(str, Enum):
@@ -69,6 +69,7 @@ class PaginationDefaults(BaseModel):
 
 class RootAdvancedOptions(BaseModel):
     """Advanced options from root config."""
+    model_config = ConfigDict(extra="forbid")
     connection_options: list[ConnectionOptions] = Field(default_factory=list, description="Connection options")
     pagination_defaults: list[PaginationDefaults] = Field(default_factory=list, description="Pagination defaults")
 
@@ -112,6 +113,7 @@ class Destination(BaseModel):
 
 class RowAdvancedOptions(BaseModel):
     """Advanced entity options from row config."""
+    model_config = ConfigDict(extra="forbid")
     page_size: int | None = Field(default=None, description="Override page size for this entity")
     max_records: int | None = Field(default=None, description="Override max records for this entity")
 
@@ -144,9 +146,9 @@ class Configuration(BaseModel):
     fetching_options: FetchingOptions | None = Field(default=None, description="Fetching options")
     destination: Destination | None = Field(default=None, description="Destination configuration")
 
-    # Advanced options - can be root (object) or row (array)
-    # We'll handle both and convert arrays to single objects
-    advanced_options: RootAdvancedOptions | list[RowAdvancedOptions] | None = Field(
+    # Advanced options - can be root (dict) or row (array → converted to single dict by validator)
+    # RootAdvancedOptions and RowAdvancedOptions use extra="forbid" so Pydantic can distinguish them
+    advanced_options: RootAdvancedOptions | RowAdvancedOptions | None = Field(
         default=None, description="Advanced options"
     )
 
