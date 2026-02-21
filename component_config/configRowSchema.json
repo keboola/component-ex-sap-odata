@@ -119,8 +119,6 @@
           "type": "string",
           "title": "Incremental Field",
           "description": "Timestamp field for incremental fetch (required for Incremental Fetch).<br /><br />Used to filter records: $filter={field} gt {last_run_timestamp}<br /><br />Common SAP field names:<ul><li>LastChangedAt / LastChangeDateTime</li><li>ModifiedOn / ChangedOn</li><li>CreatedAt / CreationDateTime</li><li>SystemModstamp</li></ul>The field must contain timestamps, be indexed for performance, and update reliably on record changes.",
-          "format": "select",
-          "enum": [],
           "propertyOrder": 2,
           "options": {
             "dependencies": {
