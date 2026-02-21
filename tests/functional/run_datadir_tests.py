@@ -15,9 +15,15 @@ import os
 import re
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
+
+# Delay between tests that call the SAP sandbox API to avoid QuotaViolation (HTTP 500).
+# Configurable via SAP_TEST_DELAY env var (seconds, float). Default: 2.0s.
+# Set to 0 to disable (e.g. when running a single test manually).
+_SAP_TEST_DELAY = float(os.environ.get("SAP_TEST_DELAY", "2.0"))
 
 
 def find_test_cases(base_dir: Path) -> list[Path]:
@@ -143,6 +149,13 @@ class TestDatadirFunctional:
         # Skip SCI tests - SAP Cloud Integration is not always available
         if test_case.name.startswith("test-sci-"):
             pytest.skip("SCI (SAP Cloud Integration) tests require a running SCI instance")
+
+        # Throttle tests that call the SAP sandbox API to avoid QuotaViolation.
+        # Only applies when SAP_API_KEY is set and this test actually uses it.
+        config_file = test_case / "config.json"
+        if _SAP_TEST_DELAY > 0 and os.environ.get("SAP_API_KEY") and config_file.exists():
+            if "SAP_API_KEY" in config_file.read_text():
+                time.sleep(_SAP_TEST_DELAY)
 
         # Prepare test data directory (will skip automatically if required env vars are missing)
         datadir = prepare_test_datadir(test_case, tmp_path)
