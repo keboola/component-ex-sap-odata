@@ -1,0 +1,9 @@
+{
+  "entity_states": {
+    "A_BusinessPartner": {
+      "last_sync_timestamp": "2020-01-01T00:00:00",
+      "last_incremental_value": "2020-01-01T00:00:00",
+      "records_synced": 100
+    }
+  }
+}
