@@ -225,24 +225,19 @@ class AsyncODataV4Client(AsyncODataClientBase):
             params["$filter"] = filter_expr
 
         try:
-            response_text = await self._get_raw(endpoint_path=endpoint_path, params=params if params else None)
-            return int(response_text.strip())
-        except UserException as e:
-            # Authentication or permission errors should propagate
-            error_msg = str(e)
-            if "Authentication failed" in error_msg or "Access forbidden" in error_msg:
-                logging.error(f"Cannot get record count due to auth/permission error: {e}")
-                raise
-            # 404 or other errors - count endpoint may not be supported
-            logging.info(f"Record count not available ($count not supported or failed): {e}")
-            return None
-        except ValueError as e:
-            # Invalid response format
-            logging.warning(f"Failed to parse record count response: {e}")
-            return None
+            response = await self._probe_client.get_raw(endpoint_path=endpoint_path, params=params if params else None)
+            response.raise_for_status()
+            return int(response.text.strip())
         except Exception as e:
-            # Unexpected error - log but continue without count
-            logging.warning(f"Unexpected error getting record count: {e}")
+            error_msg = str(e)
+            if "401" in error_msg:
+                logging.error(f"Cannot get record count due to auth error: {e}")
+                raise UserException(f"Authentication failed: {e}") from e
+            if "403" in error_msg:
+                logging.error(f"Cannot get record count due to permission error: {e}")
+                raise UserException(f"Access forbidden: {e}") from e
+            # Any other error (404, 500, parse error) — $count not supported, fall back silently
+            logging.info(f"Record count not available ($count not supported or failed): {e}")
             return None
 
     def _clean_record(self, record: JsonDict, _depth: int = 0) -> JsonDict:
