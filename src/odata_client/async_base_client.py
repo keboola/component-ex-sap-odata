@@ -47,6 +47,17 @@ class AsyncODataClientBase(ABC):
             backoff_factor=0.3,
             max_requests_per_second=max_requests_per_second,
         )
+        # No-retry client for optional probing requests (e.g. $count).
+        # $count is used only to enable parallel fetching — retrying a failed
+        # count wastes time on endpoints that never support it (e.g. SCI).
+        self._probe_client = AsyncHttpClient(
+            base_url=self.base_url + "/",
+            retries=0,
+            timeout=float(timeout),
+            verify_ssl=verify_ssl,
+            retry_status_codes=[],
+            auth_header=auth_handler.get_auth_headers(),
+        )
 
     @classmethod
     def from_basic_auth(
@@ -100,13 +111,16 @@ class AsyncODataClientBase(ABC):
 
     async def __aenter__(self):
         await self._client.__aenter__()
+        await self._probe_client.__aenter__()
         return self
 
     async def __aexit__(self, *args):
         await self._client.__aexit__(*args)
+        await self._probe_client.__aexit__(*args)
 
     async def close(self):
         await self._client.close()
+        await self._probe_client.close()
 
     async def _get_json(
         self,
