@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+import re
+from datetime import UTC, datetime, timezone
 from typing import Any
+from urllib.parse import urlparse
 
+import requests as req
 from keboola.component.base import ComponentBase, sync_action
 from keboola.component.exceptions import UserException
 from keboola.csvwriter import ElasticDictWriter
+from keboola.http_client import HttpClient
 from pydantic import ValidationError
 
 from configuration import (
@@ -18,6 +22,7 @@ from configuration import (
     ODataVersionChoice,
     StateEntry,
 )
+from odata_client.auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler, OAuthHandler
 from odata_client.metadata import MetadataParser, ODataVersion
 from odata_client.sync_wrapper import SyncODataV2Client, SyncODataV4Client
 
@@ -25,6 +30,8 @@ from odata_client.sync_wrapper import SyncODataV2Client, SyncODataV4Client
 JsonDict = dict[str, Any]
 # Type alias for client types
 ODataClient = SyncODataV4Client | SyncODataV2Client
+
+_PROGRESS_LOG_INTERVAL = 10_000
 
 
 def _simplify_error_message(error: Exception, base_url: str | None = None) -> str:
@@ -37,8 +44,6 @@ def _simplify_error_message(error: Exception, base_url: str | None = None) -> st
     Returns:
         User-friendly error message
     """
-    import requests as req
-
     error_str = str(error)
 
     # Handle requests connection errors
@@ -105,6 +110,18 @@ class Component(ComponentBase):
         self._client: ODataClient | None = None
         self._detected_version: ODataVersion | None = None
 
+    def _build_auth_handler(self) -> AuthHandler:
+        config = self._config
+        if config.auth_type == AuthType.OAUTH:
+            return OAuthHandler(
+                token_url=config.token_url or "",
+                client_id=config.client_id or "",
+                client_secret=config.client_secret or "",
+            )
+        if config.auth_type == AuthType.API_KEY:
+            return ApiKeyAuthHandler(config.api_key or "", config.api_key_header_name)
+        return BasicAuthHandler(config.username or "", config.password or "")
+
     def _build_client(self) -> ODataClient:
         if self._client is not None:
             return self._client
@@ -130,23 +147,10 @@ class Component(ComponentBase):
             "max_requests_per_second": config.max_requests_per_second,
         }
 
+        auth_handler = self._build_auth_handler()
+
         if config.auth_type == AuthType.OAUTH:
-            from odata_client.auth import OAuthHandler
-            auth_handler = OAuthHandler(
-                token_url=config.token_url or "",
-                client_id=config.client_id or "",
-                client_secret=config.client_secret or "",
-            )
-            self._client = client_class(
-                base_url=service_url,
-                auth_handler=auth_handler,
-                timeout=config.timeout,
-                max_retries=config.max_retries,
-                verify_ssl=config.verify_ssl,
-                enable_parallel=config.enable_parallel,
-                parallel_pages=config.parallel_pages,
-                max_requests_per_second=config.max_requests_per_second,
-            )
+            self._client = client_class(auth_handler=auth_handler, **client_params)
         elif config.auth_type == AuthType.API_KEY:
             self._client = client_class.from_api_key(
                 api_key=config.api_key or "",
@@ -176,21 +180,7 @@ class Component(ComponentBase):
         return self._detected_version
 
     def _detect_version_from_metadata(self, config: Configuration) -> ODataVersion:
-        from keboola.http_client import HttpClient
-
-        from odata_client.auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler, OAuthHandler
-
-        auth_handler: AuthHandler
-        if config.auth_type == AuthType.OAUTH:
-            auth_handler = OAuthHandler(
-                token_url=config.token_url or "",
-                client_id=config.client_id or "",
-                client_secret=config.client_secret or "",
-            )
-        elif config.auth_type == AuthType.API_KEY:
-            auth_handler = ApiKeyAuthHandler(config.api_key or "", config.api_key_header_name)
-        else:
-            auth_handler = BasicAuthHandler(config.username or "", config.password or "")
+        auth_handler = self._build_auth_handler()
 
         # Get service URL - for AUTO detection with base_url+service_path, this will infer from path structure
         base_url = config.get_service_url().rstrip("/") + "/"
@@ -215,10 +205,6 @@ class Component(ComponentBase):
 
     def run(self) -> None:
         logging.info("Starting SAP OData extraction")
-
-        if not self._config.entity_set:
-            logging.warning("No entity_set configured, nothing to extract")
-            return
 
         try:
             self._config.validate_for_extraction()
@@ -248,7 +234,7 @@ class Component(ComponentBase):
         logging.info(f"Extracting entity: {self._config.entity_set}")
 
         client = self._build_client()
-        entity_state = state.get_entity_state(self._config.entity_set or "")
+        entity_state = state.get_entity_state(self._config.entity_set)
 
         filter_expr = self._build_filter_expression(entity_state)
         table_def = self._create_output_table()
@@ -349,7 +335,7 @@ class Component(ComponentBase):
             max_records = self._config.max_records if self._config.max_records > 0 else None
 
             for record in client.fetch_with_pagination(
-                entity_set=self._config.entity_set or "",
+                entity_set=self._config.entity_set,
                 select=self._config.select_fields if self._config.select_fields else None,
                 filter_expr=filter_expr,
                 expand=self._config.expand_properties if self._config.expand_properties else None,
@@ -367,7 +353,7 @@ class Component(ComponentBase):
 
                 last_incremental_value = self._track_incremental_value(flat_record, last_incremental_value)
 
-                if records_count % 10000 == 0:
+                if records_count % _PROGRESS_LOG_INTERVAL == 0:
                     logging.info(f"Extracted {records_count} records from {self._config.entity_set}")
 
         finally:
@@ -403,10 +389,8 @@ class Component(ComponentBase):
         We normalize this to 2024-01-01T00:00:00 so it can be used in
         $filter expressions like: LastChangeDate gt datetime'2024-01-01T00:00:00'
         """
-        import re
         match = re.match(r"^/Date\((\d+)(?:[+-]\d+)?\)/$", value)
         if match:
-            from datetime import datetime, timezone
             millis = int(match.group(1))
             dt = datetime.fromtimestamp(millis / 1000, tz=timezone.utc)
             return dt.strftime("%Y-%m-%dT%H:%M:%S")
@@ -417,7 +401,7 @@ class Component(ComponentBase):
     ) -> None:
         """Update component state with extraction results."""
         state.update_entity_state(
-            entity_set=self._config.entity_set or "",
+            entity_set=self._config.entity_set,
             last_sync_timestamp=datetime.now(UTC).isoformat(),
             last_incremental_value=last_incremental_value,
             records_synced=records_count,
@@ -435,7 +419,7 @@ class Component(ComponentBase):
             elif isinstance(value, list):
                 flat[full_key] = str(value)
             else:
-                flat[full_key] = value  # type: ignore[assignment]
+                flat[full_key] = value
         return flat
 
     def _load_state(self) -> ComponentState:
@@ -461,8 +445,6 @@ class Component(ComponentBase):
         to the service URL with authentication headers. Does not fetch $metadata
         because some SAP CPI iFlows don't expose a $metadata sub-path.
         """
-        import requests as req
-
         try:
             config = self._config
 
@@ -470,25 +452,7 @@ class Component(ComponentBase):
             if not config.base_url:
                 return {"status": "error", "message": "base_url is required"}
 
-            from odata_client.auth import ApiKeyAuthHandler, BasicAuthHandler, OAuthHandler
-
-            if config.auth_type == AuthType.OAUTH:
-                auth_handler = OAuthHandler(
-                    token_url=config.token_url or "",
-                    client_id=config.client_id or "",
-                    client_secret=config.client_secret or "",
-                )
-            elif config.auth_type == AuthType.API_KEY:
-                auth_handler = ApiKeyAuthHandler(
-                    api_key=config.api_key or "",
-                    header_name=config.api_key_header_name,
-                )
-            else:
-                auth_handler = BasicAuthHandler(
-                    username=config.username or "",
-                    password=config.password or "",
-                )
-
+            auth_handler = self._build_auth_handler()
             headers = auth_handler.get_auth_headers()
             headers["Accept"] = "application/xml"
 
@@ -585,29 +549,9 @@ class Component(ComponentBase):
             )
 
             # First test catalog URL to get meaningful error messages
-            import requests as req
             catalog_url = self._config.get_catalog_url()
 
-            # Build auth handler
-            from odata_client.auth import ApiKeyAuthHandler, BasicAuthHandler, OAuthHandler
-            auth_handler: ApiKeyAuthHandler | BasicAuthHandler | OAuthHandler
-            if self._config.auth_type == AuthType.API_KEY:
-                auth_handler = ApiKeyAuthHandler(
-                    api_key=self._config.api_key or "",
-                    header_name=self._config.api_key_header_name,
-                )
-            elif self._config.auth_type == AuthType.OAUTH:
-                auth_handler = OAuthHandler(
-                    token_url=self._config.token_url or "",
-                    client_id=self._config.client_id or "",
-                    client_secret=self._config.client_secret or "",
-                )
-            else:
-                auth_handler = BasicAuthHandler(
-                    username=self._config.username or "",
-                    password=self._config.password or "",
-                )
-
+            auth_handler = self._build_auth_handler()
             headers = auth_handler.get_auth_headers()
             headers["Accept"] = "application/atom+xml, application/xml, application/json, */*"
 
@@ -660,8 +604,6 @@ class Component(ComponentBase):
             logging.info(f"loadServices: found {len(catalog_services)} services in SAP catalog")
 
             # Convert internal service URLs to proxy-compatible service paths
-            from urllib.parse import urlparse
-
             result = []
             for service in catalog_services:
                 # Parse internal URL: http://20.113.120.45:50000/sap/opu/odata/sap/SERVICE_NAME
@@ -807,7 +749,7 @@ class Component(ComponentBase):
             return result
         except Exception as e:
             logging.error(f"Failed to load fields for entity_set '{self._config.entity_set}': {e}", exc_info=True)
-            return []
+            return [{"value": "", "label": f"⚠️ Error loading fields: {e}"}]
 
     @sync_action("loadPossiblePrimaryKeys")
     def load_possible_primary_keys(self) -> list[dict[str, str]]:
@@ -839,7 +781,7 @@ class Component(ComponentBase):
             client = self._build_client()
             fields = client.list_fields(self._config.entity_set)
 
-            datetime_types = {"Edm.DateTime", "Edm.DateTimeOffset"}
+            datetime_types = {"Edm.DateTime", "Edm.DateTimeOffset", "Edm.Date"}
             incremental_patterns = [
                 "lastchanged",
                 "lastupdated",

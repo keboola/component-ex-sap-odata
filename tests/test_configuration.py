@@ -419,7 +419,8 @@ class TestURLConfiguration:
                 "auth_type": "basic",
                 "username": "user",
                 "#password": "pass"
-            }
+            },
+            entity_set="TestEntity",
         )
         with pytest.raises(ValueError, match="Either base_url or service_path is required"):
             config.validate_for_extraction()
@@ -565,12 +566,22 @@ class TestValidateForExtraction:
     }
 
     def _base_config(self, **kwargs) -> Configuration:
-        """Return a minimal valid config with base_url set."""
+        """Return a minimal valid config with base_url and entity_set set."""
         return Configuration(
             connection={"base_url": "https://example.com"},
             authentication=self._BASIC_AUTH,
+            entity_set="TestEntity",
             **kwargs,
         )
+
+    def test_missing_entity_set_raises(self) -> None:
+        """entity_set not configured should raise ValueError."""
+        config = Configuration(
+            connection={"base_url": "https://example.com"},
+            authentication=self._BASIC_AUTH,
+        )
+        with pytest.raises(ValueError, match="'entity_set' is required for data extraction"):
+            config.validate_for_extraction()
 
     def test_incremental_fetch_without_incremental_field_raises(self) -> None:
         """fetch_type=incremental without incremental_field should raise ValueError."""
@@ -621,6 +632,7 @@ class TestValidateForExtraction:
         config = Configuration(
             connection={},
             authentication=self._BASIC_AUTH,
+            entity_set="TestEntity",
         )
         with pytest.raises(ValueError, match="Either base_url or service_path is required"):
             config.validate_for_extraction()
@@ -630,6 +642,7 @@ class TestValidateForExtraction:
         config = Configuration(
             connection={},
             authentication=self._BASIC_AUTH,
+            entity_set="TestEntity",
             service_path="sap/opu/odata/sap/MY_SERVICE",
         )
         config.validate_for_extraction()  # must not raise
