@@ -390,7 +390,9 @@ class Configuration(BaseModel):
 
     def validate_for_extraction(self) -> None:
         """Validate configuration before data extraction."""
-        # URL validation
+        if not self.entity_set:
+            raise ValueError("'entity_set' is required for data extraction")
+
         if not self.base_url and not self.service_path:
             raise ValueError("Either base_url or service_path is required for data extraction")
 

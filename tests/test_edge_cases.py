@@ -286,27 +286,24 @@ class TestFilterAutoFix:
 
 
 # ===========================================================================
-# Scenario 2: Empty entity_set → silent no-op
+# Scenario 2: Missing entity_set → UserException
 # ===========================================================================
 
 
 class TestEmptyEntitySet:
-    """When entity_set is None/empty the component logs a warning and returns
-    without raising an exception and without creating any CSV output.
-    (component.py:219-221)
+    """When entity_set is None/empty the component raises UserException.
+    (configuration.py validate_for_extraction)
     """
 
     @respx.mock
-    def test_no_entity_set_no_output(
+    def test_no_entity_set_raises(
         self,
         respx_mock,
         datadir_factory,
         run_component_with_datadir,
     ):
-        """Component must complete successfully (exit 0) and produce no CSV files
-        when entity_set is not configured."""
-        # We do NOT need HTTP mocks because the component should return before
-        # making any network requests.
+        """Component must raise UserException when entity_set is not configured."""
+        from keboola.component.exceptions import UserException
 
         config = {
             "connection": {"base_url": BASE_URL_V4},
@@ -317,23 +314,19 @@ class TestEmptyEntitySet:
         }
         datadir = datadir_factory(config)
 
-        # Must not raise – component exits cleanly
-        run_component_with_datadir(datadir)
-
-        # No CSV files should have been written
-        csv_files = list((datadir / "out" / "tables").glob("*.csv"))
-        assert csv_files == [], (
-            f"Expected no CSV output when entity_set is missing, got: {csv_files}"
-        )
+        with pytest.raises(UserException, match="entity_set"):
+            run_component_with_datadir(datadir)
 
     @respx.mock
-    def test_empty_string_entity_set_no_output(
+    def test_empty_string_entity_set_raises(
         self,
         respx_mock,
         datadir_factory,
         run_component_with_datadir,
     ):
-        """An empty-string entity_set should be treated the same as absent."""
+        """An empty-string entity_set (converted to None) must also raise UserException."""
+        from keboola.component.exceptions import UserException
+
         config = {
             "connection": {"base_url": BASE_URL_V4},
             "authentication": BASIC_AUTH,
@@ -343,12 +336,8 @@ class TestEmptyEntitySet:
         }
         datadir = datadir_factory(config)
 
-        run_component_with_datadir(datadir)
-
-        csv_files = list((datadir / "out" / "tables").glob("*.csv"))
-        assert csv_files == [], (
-            f"Expected no CSV output for empty entity_set, got: {csv_files}"
-        )
+        with pytest.raises(UserException, match="entity_set"):
+            run_component_with_datadir(datadir)
 
 
 # ===========================================================================

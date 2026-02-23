@@ -666,17 +666,13 @@ class TestErrorScenarios:
             },
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
-
         }
         datadir = datadir_factory(config)
 
-        # Should complete without error (logs warning and returns)
-        run_component_with_datadir(datadir)
-
-        # No output table should be created
-        out_tables_dir = datadir / "out" / "tables"
-        csv_files = list(out_tables_dir.glob("*.csv"))
-        assert len(csv_files) == 0
+        # Should raise UserException - entity_set is required
+        from keboola.component.exceptions import UserException
+        with pytest.raises(UserException, match="entity_set"):
+            run_component_with_datadir(datadir)
 
     def test_invalid_configuration(self, datadir_factory, run_component_with_datadir):
         """Test error with invalid configuration."""
