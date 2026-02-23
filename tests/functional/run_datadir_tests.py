@@ -146,9 +146,9 @@ class TestDatadirFunctional:
     @pytest.mark.parametrize("test_case", find_test_cases(Path(__file__).parent))
     def test_datadir_case(self, test_case: Path, tmp_path: Path) -> None:
         """Run a single datadir test case."""
-        # Skip SCI tests - SAP Cloud Integration is not always available
-        if test_case.name.startswith("test-sci-"):
-            pytest.skip("SCI (SAP Cloud Integration) tests require a running SCI instance")
+        # Skip SCI tests unless SCI_ENABLED is set
+        if test_case.name.startswith("test-sci-") and not os.environ.get("SCI_ENABLED"):
+            pytest.skip("SCI tests skipped — set SCI_ENABLED=1 to run")
 
         # Throttle tests that call the SAP sandbox API to avoid QuotaViolation.
         # Only applies when SAP_API_KEY is set and this test actually uses it.
