@@ -19,7 +19,6 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 import respx
-import responses as responses_lib
 
 
 class TestConnectionAction:
@@ -112,24 +111,18 @@ class TestConnectionAction:
 class TestLoadServicesAction:
     """Test loadServices sync action."""
 
-    @responses_lib.activate
     @respx.mock
     def test_load_services_from_catalog(
         self, respx_mock, mock_catalog_server, datadir_factory, run_sync_action_with_datadir, capsys
     ):
         """Test loadServices returns correct direct service paths from catalog.
 
-        loadServices uses requests.get() for initial availability check,
-        then httpx (via OData client) to fetch the catalog ATOM feed.
-        This test verifies both layers and that returned service_path values
-        are in the direct format (no proxy prefix) for non-keboola catalogs.
+        loadServices uses httpx (via OData client) to fetch the catalog ATOM feed.
+        This test verifies returned service_path values are in the direct format
+        (no proxy prefix) for non-keboola catalogs.
         """
         base_url = "https://api.example.com"
         catalog_path = "sap/opu/odata/IWFND/CATALOGSERVICE;v=2"
-        catalog_url = f"{base_url}/{catalog_path}"
-
-        # Mock requests.get() used by loadServices for initial catalog check
-        responses_lib.add(responses_lib.GET, catalog_url, status=200, body="OK")
 
         # Mock httpx catalog fetch (what list_catalog_services() actually calls)
         mock_catalog_server.setup(respx_mock)
@@ -158,7 +151,6 @@ class TestLoadServicesAction:
         labels = [item["label"] for item in result if item.get("value")]
         assert any("Business Partner" in lbl for lbl in labels)
 
-    @responses_lib.activate
     @respx.mock
     def test_load_services_returns_keboola_proxy_path(
         self, respx_mock, datadir_factory, run_sync_action_with_datadir, capsys
@@ -172,9 +164,6 @@ class TestLoadServicesAction:
         base_url = "https://sap-proxy.example.com"
         catalog_path = "http/keboola/catalog"
         catalog_url = f"{base_url}/{catalog_path}"
-
-        # Mock requests.get() for initial catalog check
-        responses_lib.add(responses_lib.GET, catalog_url, status=200, body="OK")
 
         # Create catalog server at the keboola catalog URL and mock it
         from tests.fixtures.mock_odata_server_respx import MockSAPCatalogServer
@@ -237,12 +226,14 @@ class TestLoadEntitiesAction:
         assert comp is not None
 
     @respx.mock
-    def test_load_entities_empty_metadata(self, respx_mock, datadir_factory, run_sync_action_with_datadir):
-        """Test loading entities when metadata has no entity sets."""
-        base_url = "https://api.example.com/odata"
+    def test_load_entities_empty_metadata(self, respx_mock, datadir_factory, run_sync_action_with_datadir, capsys):
+        """Test loading entities when metadata has no entity sets returns guidance item."""
+        base_url = "https://api.example.com"
+        service_path = "odata"
+        service_url = f"{base_url}/{service_path}"
 
         # Empty metadata
-        respx_mock.get(f"{base_url}/$metadata").mock(
+        respx_mock.get(f"{service_url}/$metadata").mock(
             return_value=httpx.Response(
                 200,
                 content="""<?xml version="1.0" encoding="utf-8"?>
@@ -262,11 +253,18 @@ class TestLoadEntitiesAction:
             "connection": {"base_url": base_url},
             "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v4",
+            "service_path": "odata",
         }
         datadir = datadir_factory(config)
 
-        comp = run_sync_action_with_datadir(datadir, "loadEntities")
-        assert comp is not None
+        run_sync_action_with_datadir(datadir, "loadEntities")
+
+        captured = capsys.readouterr()
+        result = json.loads(captured.out)
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["value"] == ""
+        assert "No entity sets found" in result[0]["label"]
 
 
 class TestLoadFieldsAction:

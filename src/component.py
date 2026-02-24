@@ -532,42 +532,9 @@ class Component(ComponentBase):
             f"loadServices called - base_url: {self._config.base_url}, catalog_path: {self._config.catalog_path}"
         )
 
-        # First test catalog URL to get meaningful error messages
         catalog_url = self._config.get_catalog_url()
 
-        auth_handler = self._build_auth_handler()
-        headers = auth_handler.get_auth_headers()
-        headers["Accept"] = "application/atom+xml, application/xml, application/json, */*"
-
-        try:
-            catalog_response = req.get(
-                catalog_url,
-                headers=headers,
-                timeout=self._config.timeout,
-                verify=self._config.verify_ssl,
-            )
-        except req.exceptions.ConnectionError as e:
-            raise UserException(f"Failed to load services: {_simplify_error_message(e, catalog_url)}") from e
-        except req.exceptions.Timeout as e:
-            raise UserException(f"Failed to load services from {catalog_url}: Connection timed out") from e
-
-        if catalog_response.status_code == 404:
-            raise UserException(f"Failed to load services from {catalog_url}: HTTP 404 Not Found")
-        if catalog_response.status_code == 401:
-            raise UserException(
-                f"Failed to load services from {catalog_url}: HTTP 401 Unauthorized - Check credentials"
-            )
-        if catalog_response.status_code == 403:
-            raise UserException(
-                f"Failed to load services from {catalog_url}: HTTP 403 Forbidden - Check permissions"
-            )
-        if catalog_response.status_code >= 500:
-            raise UserException(
-                f"Failed to load services from {catalog_url}: HTTP {catalog_response.status_code} Server Error"
-            )
-
-        # Now get catalog services with client (pass catalog_url explicitly so the
-        # client's base_url does not need to point at the catalog endpoint)
+        # list_catalog_services now properly propagates UserException for HTTP/auth errors
         client = self._build_client()
         catalog_services = client.list_catalog_services(url=catalog_url)
         if not catalog_services:
@@ -636,10 +603,7 @@ class Component(ComponentBase):
         logging.info(f"loadEntities: found {len(entities)} entity sets")
 
         if not entities:
-            raise UserException(
-                "No entity sets found in service metadata. "
-                "Please verify the Service Path is correct and the service exposes entity sets."
-            )
+            return [{"value": "", "label": "No entity sets found in service metadata. Verify the Service Path is correct."}]
 
         return [{"value": e.name, "label": e.name} for e in entities]
 
@@ -664,6 +628,11 @@ class Component(ComponentBase):
 
         fields = client.list_fields(self._config.entity_set)
         logging.info(f"loadFields: found {len(fields)} fields")
+        if not fields:
+            raise UserException(
+                f"No fields found for entity set '{self._config.entity_set}'. "
+                "Please verify the entity set name is correct."
+            )
 
         result = []
         for field in fields:
@@ -769,6 +738,11 @@ class Component(ComponentBase):
                 )
 
         candidates.sort(key=lambda x: x["score"], reverse=True)
+        if not candidates:
+            raise UserException(
+                f"No datetime/timestamp fields found for entity set '{self._config.entity_set}'. "
+                "Incremental fetching requires a date or timestamp field."
+            )
         return [{"value": c["value"], "label": c["label"]} for c in candidates]
 
     @sync_action("loadNavigationProperties")
