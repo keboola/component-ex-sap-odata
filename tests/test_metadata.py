@@ -26,6 +26,11 @@ def v4_metadata_xml(fixtures_path: Path) -> str:
     return (fixtures_path / "metadata_v4.xml").read_text()
 
 
+@pytest.fixture
+def v4_multischema_metadata_xml(fixtures_path: Path) -> str:
+    return (fixtures_path / "metadata_v4_multischema.xml").read_text()
+
+
 class TestMetadataParser:
     def test_detect_version_v2(self, v2_metadata_xml: str) -> None:
         version = MetadataParser.detect_version(v2_metadata_xml)
@@ -115,6 +120,32 @@ class TestMetadataParser:
         nav_names = [np.name for np in entity_set.navigation_properties]
         assert "Category" in nav_names
         assert "Suppliers" in nav_names
+
+    def test_parse_v4_multi_schema_entity_sets(self, v4_multischema_metadata_xml: str) -> None:
+        """Regression test: EntityContainer in a different Schema element than EntityTypes.
+
+        Northwind V4 uses two schemas: EntityTypes in 'NorthwindModel' and
+        EntityContainer in 'ODataWebV4.Northwind.Model'. The parser must search
+        all schemas so that it finds entity sets even when they are in a different
+        schema than the EntityType definitions.
+        """
+        metadata = MetadataParser.parse(v4_multischema_metadata_xml, ODataVersion.V4)
+
+        assert metadata.version == ODataVersion.V4
+        assert len(metadata.entity_sets) == 2
+        assert "Categories" in metadata.entity_sets
+        assert "Products" in metadata.entity_sets
+
+        # Properties must be resolved cross-schema (EntityType in schema 1, EntitySet in schema 2)
+        categories = metadata.get_entity_set("Categories")
+        assert categories is not None
+        assert len(categories.properties) == 3
+        assert categories.key_properties == ["CategoryID"]
+
+        products = metadata.get_entity_set("Products")
+        assert products is not None
+        assert len(products.properties) == 3
+        assert products.key_properties == ["ProductID"]
 
     def test_parse_auto_detection_v2(self, v2_metadata_xml: str) -> None:
         metadata = MetadataParser.parse(v2_metadata_xml, ODataVersion.AUTO)

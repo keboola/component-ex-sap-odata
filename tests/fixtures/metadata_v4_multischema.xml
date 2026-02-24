@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+  <edmx:DataServices>
+    <!-- Schema 1: contains EntityType definitions (no EntityContainer) -->
+    <Schema Namespace="NorthwindModel" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+      <EntityType Name="Category">
+        <Key>
+          <PropertyRef Name="CategoryID"/>
+        </Key>
+        <Property Name="CategoryID" Type="Edm.Int32" Nullable="false"/>
+        <Property Name="CategoryName" Type="Edm.String" MaxLength="15" Nullable="false"/>
+        <Property Name="Description" Type="Edm.String"/>
+        <NavigationProperty Name="Products" Type="Collection(NorthwindModel.Product)"/>
+      </EntityType>
+      <EntityType Name="Product">
+        <Key>
+          <PropertyRef Name="ProductID"/>
+        </Key>
+        <Property Name="ProductID" Type="Edm.Int32" Nullable="false"/>
+        <Property Name="ProductName" Type="Edm.String" MaxLength="40" Nullable="false"/>
+        <Property Name="UnitPrice" Type="Edm.Decimal" Precision="19" Scale="4"/>
+        <NavigationProperty Name="Category" Type="NorthwindModel.Category"/>
+      </EntityType>
+    </Schema>
+    <!-- Schema 2: contains EntityContainer (no EntityType definitions) -->
+    <Schema Namespace="ODataWebV4.Northwind.Model" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+      <EntityContainer Name="NorthwindEntities">
+        <EntitySet Name="Categories" EntityType="NorthwindModel.Category">
+          <NavigationPropertyBinding Path="Products" Target="Products"/>
+        </EntitySet>
+        <EntitySet Name="Products" EntityType="NorthwindModel.Product">
+          <NavigationPropertyBinding Path="Category" Target="Categories"/>
+        </EntitySet>
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>
