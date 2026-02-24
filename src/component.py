@@ -571,8 +571,7 @@ class Component(ComponentBase):
         client = self._build_client()
         catalog_services = client.list_catalog_services(url=catalog_url)
         if not catalog_services:
-            logging.warning("loadServices: no services found in SAP catalog")
-            return [{"value": "", "label": f"No services found in catalog at {catalog_url}"}]
+            raise UserException(f"No services found in catalog at {catalog_url}")
 
         logging.info(f"loadServices: found {len(catalog_services)} services in SAP catalog")
 
@@ -637,7 +636,10 @@ class Component(ComponentBase):
         logging.info(f"loadEntities: found {len(entities)} entity sets")
 
         if not entities:
-            return [{"value": "", "label": "No entity sets found in service metadata"}]
+            raise UserException(
+                "No entity sets found in service metadata. "
+                "Please verify the Service Path is correct and the service exposes entity sets."
+            )
 
         return [{"value": e.name, "label": e.name} for e in entities]
 
