@@ -76,31 +76,34 @@ class TestConfiguration:
         assert config.api_key_header_name == "X-API-Key"
 
     def test_api_key_auth_requires_api_key(self) -> None:
+        config = Configuration(
+            connection={"base_url": "https://example.com/odata"},
+            authentication={"auth_type": "apiKey"}
+        )
         with pytest.raises(ValueError, match="API key is required"):
-            Configuration(
-                connection={"base_url": "https://example.com/odata"},
-                authentication={"auth_type": "apiKey"}
-            )
+            config.validate_authentication()
 
     def test_basic_auth_requires_username(self) -> None:
+        config = Configuration(
+            connection={"base_url": "https://example.com/odata"},
+            authentication={
+                "auth_type": "basic",
+                "#password": "pass"
+            }
+        )
         with pytest.raises(ValueError, match="Username is required"):
-            Configuration(
-                connection={"base_url": "https://example.com/odata"},
-                authentication={
-                    "auth_type": "basic",
-                    "#password": "pass"
-                }
-            )
+            config.validate_authentication()
 
     def test_basic_auth_requires_password(self) -> None:
+        config = Configuration(
+            connection={"base_url": "https://example.com/odata"},
+            authentication={
+                "auth_type": "basic",
+                "username": "user"
+            }
+        )
         with pytest.raises(ValueError, match="Password is required"):
-            Configuration(
-                connection={"base_url": "https://example.com/odata"},
-                authentication={
-                    "auth_type": "basic",
-                    "username": "user"
-                }
-            )
+            config.validate_authentication()
 
     def test_custom_timeout_and_retries(self) -> None:
         config = Configuration(
@@ -660,34 +663,37 @@ class TestOAuthValidation:
     }
 
     def test_oauth_missing_token_url_raises(self) -> None:
-        """OAuth auth without token_url should raise ValueError."""
+        """OAuth auth without token_url should raise ValueError on validate_authentication."""
         auth = dict(self._FULL_OAUTH)
         del auth["token_url"]
+        config = Configuration(
+            connection=self._BASE_CONN,
+            authentication=auth,
+        )
         with pytest.raises(ValueError, match="Token URL is required for OAuth authentication"):
-            Configuration(
-                connection=self._BASE_CONN,
-                authentication=auth,
-            )
+            config.validate_authentication()
 
     def test_oauth_missing_client_id_raises(self) -> None:
-        """OAuth auth without client_id should raise ValueError."""
+        """OAuth auth without client_id should raise ValueError on validate_authentication."""
         auth = dict(self._FULL_OAUTH)
         del auth["client_id"]
+        config = Configuration(
+            connection=self._BASE_CONN,
+            authentication=auth,
+        )
         with pytest.raises(ValueError, match="Client ID is required for OAuth authentication"):
-            Configuration(
-                connection=self._BASE_CONN,
-                authentication=auth,
-            )
+            config.validate_authentication()
 
     def test_oauth_missing_client_secret_raises(self) -> None:
-        """OAuth auth without client_secret should raise ValueError."""
+        """OAuth auth without client_secret should raise ValueError on validate_authentication."""
         auth = dict(self._FULL_OAUTH)
         del auth["#client_secret"]
+        config = Configuration(
+            connection=self._BASE_CONN,
+            authentication=auth,
+        )
         with pytest.raises(ValueError, match="Client Secret is required for OAuth authentication"):
-            Configuration(
-                connection=self._BASE_CONN,
-                authentication=auth,
-            )
+            config.validate_authentication()
 
     def test_oauth_all_fields_present_passes(self) -> None:
         """OAuth auth with all required fields should not raise."""
@@ -701,31 +707,34 @@ class TestOAuthValidation:
         assert config.client_secret == "my-client-secret"
 
     def test_oauth_empty_token_url_raises(self) -> None:
-        """OAuth auth with empty string token_url should raise ValueError."""
+        """OAuth auth with empty string token_url should raise ValueError on validate_authentication."""
         auth = dict(self._FULL_OAUTH)
         auth["token_url"] = ""
+        config = Configuration(
+            connection=self._BASE_CONN,
+            authentication=auth,
+        )
         with pytest.raises(ValueError, match="Token URL is required for OAuth authentication"):
-            Configuration(
-                connection=self._BASE_CONN,
-                authentication=auth,
-            )
+            config.validate_authentication()
 
     def test_oauth_empty_client_id_raises(self) -> None:
-        """OAuth auth with empty string client_id should raise ValueError."""
+        """OAuth auth with empty string client_id should raise ValueError on validate_authentication."""
         auth = dict(self._FULL_OAUTH)
         auth["client_id"] = ""
+        config = Configuration(
+            connection=self._BASE_CONN,
+            authentication=auth,
+        )
         with pytest.raises(ValueError, match="Client ID is required for OAuth authentication"):
-            Configuration(
-                connection=self._BASE_CONN,
-                authentication=auth,
-            )
+            config.validate_authentication()
 
     def test_oauth_empty_client_secret_raises(self) -> None:
-        """OAuth auth with empty string client_secret should raise ValueError."""
+        """OAuth auth with empty string client_secret should raise ValueError on validate_authentication."""
         auth = dict(self._FULL_OAUTH)
         auth["#client_secret"] = ""
+        config = Configuration(
+            connection=self._BASE_CONN,
+            authentication=auth,
+        )
         with pytest.raises(ValueError, match="Client Secret is required for OAuth authentication"):
-            Configuration(
-                connection=self._BASE_CONN,
-                authentication=auth,
-            )
+            config.validate_authentication()

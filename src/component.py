@@ -110,6 +110,7 @@ class Component(ComponentBase):
 
     def _build_auth_handler(self) -> AuthHandler:
         config = self._config
+        config.validate_authentication()
         if config.auth_type == AuthType.OAUTH:
             return OAuthHandler(
                 token_url=config.token_url or "",
@@ -506,122 +507,97 @@ class Component(ComponentBase):
 
         Returns:
             List of services with value (service_path) and label (title + description)
+
+        Raises:
+            UserException: When API returns an error (decorator writes to stderr, UI shows notification)
         """
-        try:
-            # Validate configuration
-            if not self._config.base_url:
-                logging.error("loadServices: base_url is not set")
-                return [
-                    {
-                        "value": "",
-                        "label": "⚠️ Error: Base URL not configured. Please check root configuration.",
-                    }
-                ]
-
-            if not self._config.catalog_path:
-                logging.error("loadServices: catalog_path is not set")
-                return [
-                    {
-                        "value": "",
-                        "label": "⚠️ Error: Catalog Path is required to load services. Please configure it in root settings.",
-                    }
-                ]
-
-            logging.info(
-                f"loadServices called - base_url: {self._config.base_url}, catalog_path: {self._config.catalog_path}"
-            )
-
-            # First test catalog URL to get meaningful error messages
-            catalog_url = self._config.get_catalog_url()
-
-            auth_handler = self._build_auth_handler()
-            headers = auth_handler.get_auth_headers()
-            headers["Accept"] = "application/atom+xml, application/xml, application/json, */*"
-
-            try:
-                catalog_response = req.get(
-                    catalog_url,
-                    headers=headers,
-                    timeout=self._config.timeout,
-                    verify=self._config.verify_ssl,
-                )
-
-                if catalog_response.status_code == 404:
-                    return [{
-                        "value": "",
-                        "label": f"⚠️ Error loading services from {catalog_url}: HTTP 404 Not Found"
-                    }]
-                elif catalog_response.status_code == 401:
-                    return [{
-                        "value": "",
-                        "label": f"⚠️ Error loading services from {catalog_url}: HTTP 401 Unauthorized - Check credentials"
-                    }]
-                elif catalog_response.status_code == 403:
-                    return [{
-                        "value": "",
-                        "label": f"⚠️ Error loading services from {catalog_url}: HTTP 403 Forbidden - Check permissions"
-                    }]
-                elif catalog_response.status_code >= 500:
-                    return [{
-                        "value": "",
-                        "label": f"⚠️ Error loading services from {catalog_url}: HTTP {catalog_response.status_code} Server Error"
-                    }]
-            except req.exceptions.ConnectionError as e:
-                return [{
-                    "value": "",
-                    "label": f"⚠️ Error loading services: {_simplify_error_message(e, catalog_url)}"
-                }]
-            except req.exceptions.Timeout:
-                return [{
-                    "value": "",
-                    "label": f"⚠️ Error loading services from {catalog_url}: Connection timed out"
-                }]
-
-            # Now get catalog services with client (pass catalog_url explicitly so the
-            # client's base_url does not need to point at the catalog endpoint)
-            client = self._build_client()
-            catalog_services = client.list_catalog_services(url=catalog_url)
-            if not catalog_services:
-                logging.warning("loadServices: no services found in SAP catalog")
-                return [{"value": "", "label": f"No services found in catalog at {catalog_url}"}]
-
-            logging.info(f"loadServices: found {len(catalog_services)} services in SAP catalog")
-
-            # Convert internal service URLs to proxy-compatible service paths
-            result = []
-            for service in catalog_services:
-                # Parse internal URL: http://20.113.120.45:50000/sap/opu/odata/sap/SERVICE_NAME
-                parsed = urlparse(service.service_url)
-                internal_path = parsed.path.lstrip('/')  # sap/opu/odata/sap/SERVICE_NAME
-
-                # Detect proxy prefix from catalog_path
-                # If catalog_path is "http/keboola/catalog", prefix is "http/keboola/connector/"
-                if self._config.catalog_path and "keboola" in self._config.catalog_path:
-                    service_path = f"http/keboola/connector/{internal_path}"
-                else:
-                    # For other proxies, use internal path as-is
-                    service_path = internal_path
-
-                result.append({
-                    "value": service_path,
-                    "label": f"{service.title} - {service.description}" if service.description
-                    else service.title,
-                })
-
-            return result
-        except UserException as e:
-            # User-facing errors (auth, connection, etc.)
-            logging.error(f"Failed to load services from catalog: {e}")
-            return [{"value": "", "label": f"⚠️ Error: {e}"}]
-        except Exception as e:
-            # Unexpected errors
-            logging.error(f"Failed to load services from catalog: {e}", exc_info=True)
+        # Validate configuration - return guidance items for missing config
+        if not self._config.base_url:
             return [
                 {
                     "value": "",
-                    "label": f"⚠️ Error loading services. Check logs for details.",
+                    "label": "⚠️ Base URL not configured. Please check root configuration.",
                 }
             ]
+
+        if not self._config.catalog_path:
+            return [
+                {
+                    "value": "",
+                    "label": "⚠️ Catalog Path is required to load services. Please configure it in root settings.",
+                }
+            ]
+
+        logging.info(
+            f"loadServices called - base_url: {self._config.base_url}, catalog_path: {self._config.catalog_path}"
+        )
+
+        # First test catalog URL to get meaningful error messages
+        catalog_url = self._config.get_catalog_url()
+
+        auth_handler = self._build_auth_handler()
+        headers = auth_handler.get_auth_headers()
+        headers["Accept"] = "application/atom+xml, application/xml, application/json, */*"
+
+        try:
+            catalog_response = req.get(
+                catalog_url,
+                headers=headers,
+                timeout=self._config.timeout,
+                verify=self._config.verify_ssl,
+            )
+        except req.exceptions.ConnectionError as e:
+            raise UserException(f"Failed to load services: {_simplify_error_message(e, catalog_url)}") from e
+        except req.exceptions.Timeout as e:
+            raise UserException(f"Failed to load services from {catalog_url}: Connection timed out") from e
+
+        if catalog_response.status_code == 404:
+            raise UserException(f"Failed to load services from {catalog_url}: HTTP 404 Not Found")
+        if catalog_response.status_code == 401:
+            raise UserException(
+                f"Failed to load services from {catalog_url}: HTTP 401 Unauthorized - Check credentials"
+            )
+        if catalog_response.status_code == 403:
+            raise UserException(
+                f"Failed to load services from {catalog_url}: HTTP 403 Forbidden - Check permissions"
+            )
+        if catalog_response.status_code >= 500:
+            raise UserException(
+                f"Failed to load services from {catalog_url}: HTTP {catalog_response.status_code} Server Error"
+            )
+
+        # Now get catalog services with client (pass catalog_url explicitly so the
+        # client's base_url does not need to point at the catalog endpoint)
+        client = self._build_client()
+        catalog_services = client.list_catalog_services(url=catalog_url)
+        if not catalog_services:
+            logging.warning("loadServices: no services found in SAP catalog")
+            return [{"value": "", "label": f"No services found in catalog at {catalog_url}"}]
+
+        logging.info(f"loadServices: found {len(catalog_services)} services in SAP catalog")
+
+        # Convert internal service URLs to proxy-compatible service paths
+        result = []
+        for service in catalog_services:
+            # Parse internal URL: http://20.113.120.45:50000/sap/opu/odata/sap/SERVICE_NAME
+            parsed = urlparse(service.service_url)
+            internal_path = parsed.path.lstrip('/')  # sap/opu/odata/sap/SERVICE_NAME
+
+            # Detect proxy prefix from catalog_path
+            # If catalog_path is "http/keboola/catalog", prefix is "http/keboola/connector/"
+            if self._config.catalog_path and "keboola" in self._config.catalog_path:
+                service_path = f"http/keboola/connector/{internal_path}"
+            else:
+                # For other proxies, use internal path as-is
+                service_path = internal_path
+
+            result.append({
+                "value": service_path,
+                "label": f"{service.title} - {service.description}" if service.description
+                else service.title,
+            })
+
+        return result
 
     @sync_action("loadEntities")
     def load_entities(self) -> list[dict[str, str]]:
@@ -629,305 +605,294 @@ class Component(ComponentBase):
 
         Returns:
             List of entity sets with value and label (entity set name)
+
+        Raises:
+            UserException: When API returns an error (decorator writes to stderr, UI shows notification)
         """
-        try:
-            # Validate configuration
-            if not self._config.base_url:
-                logging.error("loadEntities: base_url is not set")
-                return [
-                    {
-                        "value": "",
-                        "label": "⚠️ Error: Base URL not configured. Please check root configuration.",
-                    }
-                ]
-
-            if not self._config.service_path:
-                logging.error("loadEntities: service_path is not set")
-                return [
-                    {
-                        "value": "",
-                        "label": "⚠️ Error: Service Path is required. Please fill it in above.",
-                    }
-                ]
-
-            logging.info(
-                f"loadEntities called - "
-                f"base_url: {self._config.base_url}, service_path: {self._config.service_path}"
-            )
-            client = self._build_client()
-
-            # Get entity sets from service metadata
-            entities = client.list_entity_sets()
-            logging.info(f"loadEntities: found {len(entities)} entity sets")
-
-            if not entities:
-                return [{"value": "", "label": "No entity sets found in service metadata"}]
-
-            return [{"value": e.name, "label": e.name} for e in entities]
-        except UserException as e:
-            # User-facing errors (auth, connection, etc.)
-            logging.error(f"Failed to load entity sets: {e}")
-            return [{"value": "", "label": f"⚠️ Error: {e}"}]
-        except Exception as e:
-            # Unexpected errors
-            logging.error(f"Failed to load entity sets: {e}", exc_info=True)
+        # Validate configuration - return guidance items for missing config
+        if not self._config.base_url:
             return [
                 {
                     "value": "",
-                    "label": f"⚠️ Error loading entity sets. Check logs for details.",
+                    "label": "⚠️ Base URL not configured. Please check root configuration.",
                 }
             ]
 
+        if not self._config.service_path:
+            return [
+                {
+                    "value": "",
+                    "label": "⚠️ Service Path is required. Please fill it in above.",
+                }
+            ]
+
+        logging.info(
+            f"loadEntities called - "
+            f"base_url: {self._config.base_url}, service_path: {self._config.service_path}"
+        )
+        client = self._build_client()
+
+        # Get entity sets from service metadata
+        entities = client.list_entity_sets()
+        logging.info(f"loadEntities: found {len(entities)} entity sets")
+
+        if not entities:
+            return [{"value": "", "label": "No entity sets found in service metadata"}]
+
+        return [{"value": e.name, "label": e.name} for e in entities]
+
     @sync_action("loadFields")
     def load_fields(self) -> list[dict[str, str]]:
-        try:
-            logging.info(f"loadFields called with entity_set: {self._config.entity_set}")
-            if not self._config.entity_set:
-                logging.warning("loadFields: entity_set is not set")
-                return [{"value": "", "label": "⚠️ Error: Entity Set is required to load fields. Please select an entity above."}]
+        """Load available fields for the selected entity set.
 
-            client = self._build_client()
-            logging.info(f"loadFields: fetching fields for {self._config.entity_set}")
+        Raises:
+            UserException: When API returns an error (decorator writes to stderr, UI shows notification)
+        """
+        logging.info(f"loadFields called with entity_set: {self._config.entity_set}")
+        if not self._config.entity_set:
+            return [{"value": "", "label": "⚠️ Entity Set is required to load fields. Please select an entity above."}]
 
-            # Get metadata to check for key fields
-            metadata = client.get_metadata()
-            entity = metadata.get_entity_set(self._config.entity_set)
-            key_fields = set(entity.key_properties) if entity else set()
+        client = self._build_client()
+        logging.info(f"loadFields: fetching fields for {self._config.entity_set}")
 
-            fields = client.list_fields(self._config.entity_set)
-            logging.info(f"loadFields: found {len(fields)} fields")
+        # Get metadata to check for key fields
+        metadata = client.get_metadata()
+        entity = metadata.get_entity_set(self._config.entity_set)
+        key_fields = set(entity.key_properties) if entity else set()
 
-            result = []
-            for field in fields:
-                # Build label: FieldName (SAP Label) - Type [KEY, filterable] - QuickInfo
-                label_parts = []
+        fields = client.list_fields(self._config.entity_set)
+        logging.info(f"loadFields: found {len(fields)} fields")
 
-                # Field name with SAP label
-                if field.sap_label:
-                    label_parts.append(f"{field.name} ({field.sap_label})")
-                else:
-                    label_parts.append(field.name)
+        result = []
+        for field in fields:
+            # Build label: FieldName (SAP Label) - Type [KEY, filterable] - QuickInfo
+            label_parts = []
 
-                # EDM type
-                label_parts.append(field.edm_type)
+            # Field name with SAP label
+            if field.sap_label:
+                label_parts.append(f"{field.name} ({field.sap_label})")
+            else:
+                label_parts.append(field.name)
 
-                # Capabilities [KEY, filterable]
-                caps = []
-                if field.name in key_fields:
-                    caps.append("KEY")
-                if field.sap_filterable:
-                    caps.append("filterable")
+            # EDM type
+            label_parts.append(field.edm_type)
 
-                if caps:
-                    label_parts.append(f"[{', '.join(caps)}]")
+            # Capabilities [KEY, filterable]
+            caps = []
+            if field.name in key_fields:
+                caps.append("KEY")
+            if field.sap_filterable:
+                caps.append("filterable")
 
-                # QuickInfo (only if different from label)
-                if field.sap_quickinfo and field.sap_quickinfo != field.sap_label:
-                    label_parts.append(field.sap_quickinfo)
+            if caps:
+                label_parts.append(f"[{', '.join(caps)}]")
 
-                result.append({
-                    "value": field.name,
-                    "label": " - ".join(label_parts)
-                })
+            # QuickInfo (only if different from label)
+            if field.sap_quickinfo and field.sap_quickinfo != field.sap_label:
+                label_parts.append(field.sap_quickinfo)
 
-            return result
-        except Exception as e:
-            logging.error(f"Failed to load fields for entity_set '{self._config.entity_set}': {e}", exc_info=True)
-            return [{"value": "", "label": f"⚠️ Error loading fields: {e}"}]
+            result.append({
+                "value": field.name,
+                "label": " - ".join(label_parts)
+            })
+
+        return result
 
     @sync_action("loadPossiblePrimaryKeys")
     def load_possible_primary_keys(self) -> list[dict[str, str]]:
-        try:
-            logging.info(f"loadPossiblePrimaryKeys called with entity_set: {self._config.entity_set}")
-            if not self._config.entity_set:
-                logging.warning("loadPossiblePrimaryKeys: entity_set is not set")
-                return [{"value": "", "label": "⚠️ Error: Entity Set is required to load primary keys. Please select an entity above."}]
+        """Load possible primary key fields for the selected entity set.
 
-            client = self._build_client()
-            metadata = client.get_metadata()
-            entity = metadata.get_entity_set(self._config.entity_set)
-            if entity is None:
-                logging.warning(f"loadPossiblePrimaryKeys: entity set '{self._config.entity_set}' not found in metadata")
-                return []
+        Raises:
+            UserException: When API returns an error (decorator writes to stderr, UI shows notification)
+        """
+        logging.info(f"loadPossiblePrimaryKeys called with entity_set: {self._config.entity_set}")
+        if not self._config.entity_set:
+            return [{"value": "", "label": "⚠️ Entity Set is required to load primary keys. Please select an entity above."}]
 
-            logging.info(f"loadPossiblePrimaryKeys: found {len(entity.key_properties)} key properties")
-            return [{"value": k, "label": f"{k} (Key)"} for k in entity.key_properties]
-        except Exception as e:
-            logging.error(f"Failed to load primary keys for entity_set '{self._config.entity_set}': {e}", exc_info=True)
-            return []
+        client = self._build_client()
+        metadata = client.get_metadata()
+        entity = metadata.get_entity_set(self._config.entity_set)
+        if entity is None:
+            raise UserException(f"Entity set '{self._config.entity_set}' not found in service metadata")
+
+        logging.info(f"loadPossiblePrimaryKeys: found {len(entity.key_properties)} key properties")
+        return [{"value": k, "label": f"{k} (Key)"} for k in entity.key_properties]
 
     @sync_action("loadIncrementalFields")
     def load_incremental_fields(self) -> list[dict[str, str]]:
-        try:
-            if not self._config.entity_set:
-                return [{"value": "", "label": "⚠️ Error: Entity Set is required to load incremental fields. Please select an entity above."}]
+        """Load candidate fields for incremental fetching.
 
-            client = self._build_client()
-            fields = client.list_fields(self._config.entity_set)
+        Raises:
+            UserException: When API returns an error (decorator writes to stderr, UI shows notification)
+        """
+        if not self._config.entity_set:
+            return [{"value": "", "label": "⚠️ Entity Set is required to load incremental fields. Please select an entity above."}]
 
-            datetime_types = {"Edm.DateTime", "Edm.DateTimeOffset", "Edm.Date"}
-            incremental_patterns = [
-                "lastchanged",
-                "lastupdated",
-                "modifiedat",
-                "updatedat",
-                "changedat",
-                "createdat",
-                "timestamp",
-                "modified",
-                "changed",
-            ]
+        client = self._build_client()
+        fields = client.list_fields(self._config.entity_set)
 
-            candidates = []
-            for field in fields:
-                score = 0
-                name_lower = field.name.lower()
+        datetime_types = {"Edm.DateTime", "Edm.DateTimeOffset", "Edm.Date"}
+        incremental_patterns = [
+            "lastchanged",
+            "lastupdated",
+            "modifiedat",
+            "updatedat",
+            "changedat",
+            "createdat",
+            "timestamp",
+            "modified",
+            "changed",
+        ]
 
-                if field.edm_type in datetime_types:
-                    score += 10
+        candidates = []
+        for field in fields:
+            score = 0
+            name_lower = field.name.lower()
 
-                for pattern in incremental_patterns:
-                    if pattern in name_lower:
-                        score += 5
-                        break
+            if field.edm_type in datetime_types:
+                score += 10
 
-                if score > 0:
-                    candidates.append(
-                        {
-                            "value": field.name,
-                            "label": f"{field.name} ({field.edm_type})",
-                            "score": score,
-                        }
-                    )
+            for pattern in incremental_patterns:
+                if pattern in name_lower:
+                    score += 5
+                    break
 
-            candidates.sort(key=lambda x: x["score"], reverse=True)
-            return [{"value": c["value"], "label": c["label"]} for c in candidates]
-        except Exception as e:
-            logging.error(f"Failed to load incremental fields: {e}")
-            return []
+            if score > 0:
+                candidates.append(
+                    {
+                        "value": field.name,
+                        "label": f"{field.name} ({field.edm_type})",
+                        "score": score,
+                    }
+                )
+
+        candidates.sort(key=lambda x: x["score"], reverse=True)
+        return [{"value": c["value"], "label": c["label"]} for c in candidates]
 
     @sync_action("loadNavigationProperties")
     def load_navigation_properties(self) -> list[dict[str, str]]:
-        try:
-            logging.info(f"loadNavigationProperties called with entity_set: {self._config.entity_set}")
-            if not self._config.entity_set:
-                logging.warning("loadNavigationProperties: entity_set is not set")
-                return [{"value": "", "label": "⚠️ Error: Entity Set is required to load navigation properties. Please select an entity above."}]
+        """Load navigation properties for the selected entity set.
 
-            client = self._build_client()
-            metadata = client.get_metadata()
-            logging.info(f"loadNavigationProperties: fetching entity set {self._config.entity_set}")
-            entity = metadata.get_entity_set(self._config.entity_set)
-            if entity is None:
-                logging.warning(f"loadNavigationProperties: entity set '{self._config.entity_set}' not found in metadata")
-                return []
+        Raises:
+            UserException: When API returns an error (decorator writes to stderr, UI shows notification)
+        """
+        logging.info(f"loadNavigationProperties called with entity_set: {self._config.entity_set}")
+        if not self._config.entity_set:
+            return [{"value": "", "label": "⚠️ Entity Set is required to load navigation properties. Please select an entity above."}]
 
-            logging.info(f"loadNavigationProperties: found {len(entity.navigation_properties)} navigation properties")
-            return [
-                {"value": np.name, "label": f"{np.name} -> {np.target_entity}"} for np in entity.navigation_properties
-            ]
-        except Exception as e:
-            logging.error(f"Failed to load navigation properties for entity_set '{self._config.entity_set}': {e}", exc_info=True)
-            return []
+        client = self._build_client()
+        metadata = client.get_metadata()
+        logging.info(f"loadNavigationProperties: fetching entity set {self._config.entity_set}")
+        entity = metadata.get_entity_set(self._config.entity_set)
+        if entity is None:
+            raise UserException(f"Entity set '{self._config.entity_set}' not found in service metadata")
+
+        logging.info(f"loadNavigationProperties: found {len(entity.navigation_properties)} navigation properties")
+        return [
+            {"value": np.name, "label": f"{np.name} -> {np.target_entity}"} for np in entity.navigation_properties
+        ]
 
     @sync_action("previewData")
     def preview_data(self) -> JsonDict:
-        """Preview first 10 records from entity set."""
-        try:
-            if not self._config.entity_set:
-                return {"status": "error", "message": "No entity set selected"}
+        """Preview first 10 records from entity set.
 
-            client = self._build_client()
+        Raises:
+            UserException: When API returns an error (decorator writes to stderr, UI shows notification)
+        """
+        if not self._config.entity_set:
+            raise UserException("No entity set selected for preview")
 
-            data = list(
-                client.fetch_entity_set(
-                    entity_set=self._config.entity_set,
-                    select=self._config.select_fields if self._config.select_fields else None,
-                    filter_expr=self._config.filter_expression,
-                    expand=self._config.expand_properties if self._config.expand_properties else None,
-                    top=10,
-                )
+        client = self._build_client()
+
+        data = list(
+            client.fetch_entity_set(
+                entity_set=self._config.entity_set,
+                select=self._config.select_fields if self._config.select_fields else None,
+                filter_expr=self._config.filter_expression,
+                expand=self._config.expand_properties if self._config.expand_properties else None,
+                top=10,
             )
+        )
 
-            message = f"Loaded {len(data)} records"
+        message = f"Loaded {len(data)} records"
 
-            if data:
-                # Format data as markdown table
-                columns = list(data[0].keys())
+        if data:
+            # Format data as markdown table
+            columns = list(data[0].keys())
 
-                # Create table header
-                header = "| " + " | ".join(columns) + " |"
-                separator = "|" + "|".join([" --- " for _ in columns]) + "|"
+            # Create table header
+            header = "| " + " | ".join(columns) + " |"
+            separator = "|" + "|".join([" --- " for _ in columns]) + "|"
 
-                # Create table rows
-                rows = []
-                for record in data:
-                    row_values = []
-                    for col in columns:
-                        value = record.get(col)
-                        # Convert value to string and escape pipe characters
-                        str_value = str(value) if value is not None else ""
-                        str_value = str_value.replace("|", "\\|")
-                        # Truncate long values
-                        if len(str_value) > 50:
-                            str_value = str_value[:47] + "..."
-                        row_values.append(str_value)
-                    rows.append("| " + " | ".join(row_values) + " |")
+            # Create table rows
+            rows = []
+            for record in data:
+                row_values = []
+                for col in columns:
+                    value = record.get(col)
+                    # Convert value to string and escape pipe characters
+                    str_value = str(value) if value is not None else ""
+                    str_value = str_value.replace("|", "\\|")
+                    # Truncate long values
+                    if len(str_value) > 50:
+                        str_value = str_value[:47] + "..."
+                    row_values.append(str_value)
+                rows.append("| " + " | ".join(row_values) + " |")
 
-                # Build the table with message
-                table = "\n".join([header, separator] + rows)
-                message = f"Preview of {self._config.entity_set} ({len(data)} records):\n\n{table}"
+            # Build the table with message
+            table = "\n".join([header, separator] + rows)
+            message = f"Preview of {self._config.entity_set} ({len(data)} records):\n\n{table}"
 
-            return {
-                "status": "success",
-                "message": message,
-                "data": data,
-            }
-        except Exception as e:
-            return {"status": "error", "message": f"Preview failed: {e}"}
+        return {
+            "status": "success",
+            "message": message,
+            "data": data,
+        }
 
     @sync_action("validateFilter")
     def validate_filter(self) -> dict[str, str]:
-        """Validate OData filter expression."""
-        try:
-            if not self._config.entity_set:
-                return {"status": "error", "message": "No entity set selected"}
-            if not self._config.filter_expression:
-                return {"status": "success", "message": "No filter to validate"}
+        """Validate OData filter expression.
 
-            client = self._build_client()
-            list(
-                client.fetch_entity_set(
-                    entity_set=self._config.entity_set,
-                    filter_expr=self._config.filter_expression,
-                    top=1,
-                )
+        Raises:
+            UserException: When API returns an error (decorator writes to stderr, UI shows notification)
+        """
+        if not self._config.entity_set:
+            raise UserException("No entity set selected for filter validation")
+        if not self._config.filter_expression:
+            return {"status": "success", "message": "No filter to validate"}
+
+        client = self._build_client()
+        list(
+            client.fetch_entity_set(
+                entity_set=self._config.entity_set,
+                filter_expr=self._config.filter_expression,
+                top=1,
             )
+        )
 
-            return {"status": "success", "message": "Filter expression is valid"}
-        except Exception as e:
-            return {"status": "error", "message": f"Invalid filter: {e}"}
+        return {"status": "success", "message": "Filter expression is valid"}
 
     @sync_action("loadMetadataSummary")
     def load_metadata_summary(
         self,
     ) -> JsonDict:
-        """Load metadata summary for the OData service."""
-        try:
-            client = self._build_client()
-            metadata = client.get_metadata()
-            entities = client.list_entity_sets()
+        """Load metadata summary for the OData service.
 
-            return {
-                "status": "success",
-                "data": {
-                    "odata_version": metadata.version.value.upper(),
-                    "entity_count": len(entities),
-                    "entities": [{"name": e.name, "field_count": len(e.properties)} for e in entities],
-                },
-            }
-        except Exception as e:
-            return {"status": "error", "message": f"Failed to load metadata: {e}"}
+        Raises:
+            UserException: When API returns an error (decorator writes to stderr, UI shows notification)
+        """
+        client = self._build_client()
+        metadata = client.get_metadata()
+        entities = client.list_entity_sets()
+
+        return {
+            "status": "success",
+            "data": {
+                "odata_version": metadata.version.value.upper(),
+                "entity_count": len(entities),
+                "entities": [{"name": e.name, "field_count": len(e.properties)} for e in entities],
+            },
+        }
 
 
 if __name__ == "__main__":
