@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from typing import Any, cast
 
+import httpx
 from keboola.component.exceptions import UserException
 from keboola.http_client import AsyncHttpClient
 
@@ -138,16 +139,12 @@ class AsyncODataClientBase(ABC):
                     is_absolute_path=is_absolute_path,
                 ),
             )
-        except Exception as e:
-            # Handle httpx exceptions more specifically
-            # Note: AsyncHttpClient may wrap httpx exceptions, so we check the error message
-            error_msg = str(e)
-
-            # Check for HTTP status codes
-            if "400" in error_msg or "Bad Request" in error_msg:
-                # 400 often indicates a problem with the query (filter, select, expand, etc.)
+        except httpx.HTTPStatusError as e:
+            status = e.response.status_code
+            if status == 400:
                 hint = ""
-                if "$filter" in error_msg or "filter" in error_msg.lower():
+                body = e.response.text
+                if "$filter" in body or "filter" in body.lower():
                     hint = (
                         "\n\nFilter syntax error detected. Common issues:\n"
                         "• Date fields (Edm.Date): Use YYYY-MM-DD without quotes (e.g., DocumentDate gt 2024-01-01)\n"
@@ -156,18 +153,19 @@ class AsyncODataClientBase(ABC):
                         "• OData V2: Use datetime'YYYY-MM-DDTHH:MM:SS' format for dates"
                     )
                 raise UserException(f"Invalid request - check your filter/query syntax: {e}{hint}") from e
-            if "401" in error_msg or "Unauthorized" in error_msg:
+            if status == 401:
                 raise UserException(f"Authentication failed: {e}") from e
-            if "403" in error_msg or "Forbidden" in error_msg:
+            if status == 403:
                 raise UserException(f"Access forbidden: {e}") from e
-            if "404" in error_msg or "Not Found" in error_msg:
+            if status == 404:
                 raise UserException(f"Resource not found: {e}") from e
-            if "429" in error_msg or "Too Many Requests" in error_msg:
+            if status == 429:
                 raise UserException(f"Rate limit exceeded: {e}") from e
+            raise UserException(f"HTTP {status} error: {e}") from e
+        except Exception as e:
+            error_msg = str(e)
             if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
                 raise UserException(f"Request timeout after {self.timeout}s: {e}") from e
-
-            # Generic HTTP error
             raise UserException(f"HTTP request failed: {e}") from e
 
     async def _get_raw(
