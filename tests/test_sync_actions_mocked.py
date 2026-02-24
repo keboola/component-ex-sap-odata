@@ -200,6 +200,87 @@ class TestLoadServicesAction:
         )
         assert "http/keboola/connector/sap/opu/odata/sap/API_BUSINESS_PARTNER" in values
 
+    @responses_lib.activate
+    @respx.mock
+    def test_load_services_auth_error_propagates(
+        self, respx_mock, datadir_factory, run_sync_action_with_datadir, capsys
+    ):
+        """HTTP auth errors from catalog must propagate as UserException, not become 'No services found'.
+
+        When the catalog endpoint returns 401, the error must surface to the UI
+        with a meaningful message ('Authentication failed'), not be swallowed and
+        replaced with the misleading 'No services found in catalog' message.
+        """
+        base_url = "https://api.example.com"
+        catalog_path = "sap/opu/odata/IWFND/CATALOGSERVICE;v=2"
+        catalog_url = f"{base_url}/{catalog_path}"
+
+        # Pre-flight check passes (200 OK)
+        responses_lib.add(responses_lib.GET, catalog_url, status=200, body="OK")
+
+        # But the actual httpx catalog fetch returns 401
+        respx_mock.get(catalog_url).mock(
+            return_value=httpx.Response(401, text="Unauthorized")
+        )
+
+        config = {
+            "connection": {"base_url": base_url, "catalog_path": catalog_path},
+            "authentication": {"auth_type": "basic", "username": "user", "#password": "wrong"},
+        }
+        datadir = datadir_factory(config)
+
+        # @sync_action decorator writes UserException to stderr and calls exit(1)
+        with pytest.raises(SystemExit) as exc_info:
+            run_sync_action_with_datadir(datadir, "loadServices")
+
+        assert exc_info.value.code == 1
+
+        # Stderr must contain auth error, not the misleading "No services found"
+        stderr = capsys.readouterr().err
+        assert "no services found" not in stderr.lower(), (
+            "Auth error must not be swallowed and replaced with 'No services found'"
+        )
+        assert "401" in stderr or "authentication failed" in stderr.lower() or "unauthorized" in stderr.lower()
+
+    @responses_lib.activate
+    @respx.mock
+    def test_load_services_empty_catalog_returns_guidance(
+        self, respx_mock, datadir_factory, run_sync_action_with_datadir, capsys
+    ):
+        """Empty catalog (valid response, 0 services) should return a guidance item, not raise exception."""
+        base_url = "https://api.example.com"
+        catalog_path = "sap/opu/odata/IWFND/CATALOGSERVICE;v=2"
+        catalog_url = f"{base_url}/{catalog_path}"
+
+        responses_lib.add(responses_lib.GET, catalog_url, status=200, body="OK")
+
+        # Catalog returns valid XML but with no services
+        empty_atom = """<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>SAP Service Catalog</title>
+</feed>"""
+        respx_mock.get(catalog_url).mock(
+            return_value=httpx.Response(200, text=empty_atom,
+                                        headers={"content-type": "application/atom+xml"})
+        )
+
+        config = {
+            "connection": {"base_url": base_url, "catalog_path": catalog_path},
+            "authentication": {"auth_type": "basic", "username": "user", "#password": "pass"},
+        }
+        datadir = datadir_factory(config)
+
+        run_sync_action_with_datadir(datadir, "loadServices")
+
+        captured = capsys.readouterr()
+        result = json.loads(captured.out)
+
+        # Empty catalog → guidance item (not an exception)
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["value"] == ""
+        assert "No services found" in result[0]["label"]
+
 
 class TestLoadEntitiesAction:
     """Test loadEntities sync action."""
