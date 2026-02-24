@@ -1,1 +1,1 @@
-[{"value": "", "label": "\u26a0\ufe0f Error: Catalog Path is required to load services. Please configure it in root settings."}]
+[{"value": "", "label": "\u26a0\ufe0f Catalog Path is required to load services. Please configure it in root settings."}]

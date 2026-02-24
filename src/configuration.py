@@ -367,8 +367,13 @@ class Configuration(BaseModel):
     def primary_key(self) -> list[str]:
         return self.destination.primary_key if self.destination else []
 
-    def model_post_init(self, __context: Any) -> None:
-        """Validate authentication after initialization."""
+    def validate_authentication(self) -> None:
+        """Validate authentication configuration.
+
+        Called explicitly before API calls rather than in model_post_init,
+        so that sync actions can still initialize with incomplete config
+        (e.g., when the user is still filling the form).
+        """
         if not self.authentication:
             raise ValueError("Authentication configuration is required")
 
@@ -390,6 +395,8 @@ class Configuration(BaseModel):
 
     def validate_for_extraction(self) -> None:
         """Validate configuration before data extraction."""
+        self.validate_authentication()
+
         if not self.entity_set:
             raise ValueError("'entity_set' is required for data extraction")
 
