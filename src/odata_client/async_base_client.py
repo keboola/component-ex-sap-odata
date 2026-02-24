@@ -364,8 +364,10 @@ class AsyncODataClientBase(ABC):
             # Not a catalog, return empty list
             logging.debug("Response is not a SAP catalog format")
             return []
+        except UserException:
+            raise  # HTTP/auth errors must propagate to the caller so the UI sees them
         except Exception as e:
-            logging.warning(f"Failed to get catalog services: {e}")
+            logging.warning(f"Failed to parse catalog response: {e}")
             return []
 
     async def test_connection(self) -> tuple[bool, str]:
