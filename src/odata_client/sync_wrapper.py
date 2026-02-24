@@ -21,7 +21,7 @@ import asyncio
 import queue
 import threading
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, Self
 
 from .async_base_client import AsyncODataClientBase
 from .async_v2_client import AsyncODataV2Client
@@ -106,7 +106,7 @@ class SyncODataClientWrapper:
         enable_parallel: bool = True,
         parallel_pages: int = 5,
         max_requests_per_second: float | None = None,
-    ) -> SyncODataClientWrapper:
+    ) -> Self:
         return cls(
             base_url=base_url,
             auth_handler=BasicAuthHandler(username, password),
@@ -130,7 +130,7 @@ class SyncODataClientWrapper:
         enable_parallel: bool = True,
         parallel_pages: int = 5,
         max_requests_per_second: float | None = None,
-    ) -> SyncODataClientWrapper:
+    ) -> Self:
         return cls(
             base_url=base_url,
             auth_handler=ApiKeyAuthHandler(api_key, header_name),
@@ -146,7 +146,7 @@ class SyncODataClientWrapper:
     # Context manager
     # ------------------------------------------------------------------
 
-    def __enter__(self) -> SyncODataClientWrapper:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
@@ -178,13 +178,19 @@ class SyncODataClientWrapper:
         q: queue.Queue = queue.Queue(maxsize=200)
 
         async def _producer() -> None:
+            loop = asyncio.get_running_loop()
+            exc_to_put: Exception | None = None
             try:
                 async for item in async_gen_thunk():
-                    q.put(item)
+                    # run_in_executor offloads the blocking q.put() to a thread-pool
+                    # worker so the event loop thread stays free for I/O while the
+                    # consumer is slow (e.g. writing CSV).
+                    await loop.run_in_executor(None, q.put, item)
             except Exception as exc:
-                q.put(exc)
-            finally:
-                q.put(_SENTINEL)
+                exc_to_put = exc
+            if exc_to_put is not None:
+                await loop.run_in_executor(None, q.put, exc_to_put)
+            await loop.run_in_executor(None, q.put, _SENTINEL)
 
         asyncio.run_coroutine_threadsafe(_producer(), self._loop)
 
@@ -279,10 +285,17 @@ class SyncODataClientWrapper:
         """Close HTTP connections and stop the background event loop."""
         if self._closed:
             return
-        self._run_sync(self._async_client.close())
-        self._loop.call_soon_threadsafe(self._loop.stop)
+        self._closed = True  # set early to prevent re-entry
+        try:
+            future = asyncio.run_coroutine_threadsafe(self._async_client.close(), self._loop)
+            future.result(timeout=10)
+        except Exception:
+            pass  # best-effort cleanup
+        try:
+            self._loop.call_soon_threadsafe(self._loop.stop)
+        except RuntimeError:
+            pass  # loop already closed/stopped
         self._loop_thread.join(timeout=5)
-        self._closed = True
 
 
 # ---------------------------------------------------------------------------
