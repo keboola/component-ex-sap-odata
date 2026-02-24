@@ -312,29 +312,34 @@ class AsyncODataClientBase(ABC):
             raise UserException(f"Entity set '{entity_set_name}' not found")
         return entity_set.properties
 
-    async def list_catalog_services(self) -> list[ServiceInfo]:
+    async def list_catalog_services(self, url: str | None = None) -> list[ServiceInfo]:
         """List available OData services from SAP Service Catalog.
 
         This method is specifically for SAP catalog endpoints that return a list
         of available OData services instead of entity sets.
 
+        Args:
+            url: Explicit catalog URL to fetch. If not provided, falls back to self.base_url.
+                 Callers should always pass the catalog URL explicitly so the client's base_url
+                 does not need to point at the catalog endpoint.
+
         Returns:
             List of ServiceInfo objects (empty if not a catalog endpoint)
         """
+        target_url = url if url else self.base_url
         try:
-            # Try to get the service root
             # Use absolute path to avoid trailing slash (SAP endpoints are sensitive to it)
             # SAP catalog endpoints typically return XML (application/atom+xml) by default
-            logging.debug(f"list_catalog_services: fetching {self.base_url}")
+            logging.debug(f"list_catalog_services: fetching {target_url}")
 
             # Try to get XML response (SAP catalog returns ATOM/XML by default)
             xml_text = await self._get_raw(
-                endpoint_path=self.base_url,
+                endpoint_path=target_url,
                 headers={"Accept": "application/atom+xml, application/xml, */*"},
                 is_absolute_path=True
             )
 
-            logging.debug(f"list_catalog_services: got response, length={len(xml_text)}")
+            logging.debug(f"list_catalog_services: got response, length={len(xml_text)} from {target_url}")
 
             # Check if this is XML (starts with <)
             if xml_text.strip().startswith('<'):

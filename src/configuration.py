@@ -424,17 +424,9 @@ class Configuration(BaseModel):
         if self.service_path:
             return f"{base}/{self.service_path.lstrip('/')}"
 
-        # Priority 2: catalog_path
-        # NOTE: This fallback exists so that list_catalog_services() works when
-        # only catalog_path is set (no service_path yet). It is semantically
-        # wrong for data extraction — validate_for_extraction() must ensure
-        # service_path is set before a job runs. Fixing this properly requires
-        # refactoring the client construction so catalog and service operations
-        # use different base URLs (tracked in task #8).
-        if self.catalog_path:
-            return f"{base}/{self.catalog_path.lstrip('/')}"
-
-        # Priority 3: just base_url (for setups where base_url is the full service URL)
+        # Priority 2: just base_url (for setups where base_url IS the full service URL,
+        # or when only catalog_path is set — catalog operations pass the URL explicitly
+        # via list_catalog_services(url=...) so base_url alone is sufficient here)
         return base
 
     def get_output_table_name(self) -> str:

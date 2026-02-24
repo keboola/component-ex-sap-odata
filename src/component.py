@@ -577,9 +577,10 @@ class Component(ComponentBase):
                     "label": f"⚠️ Error loading services from {catalog_url}: Connection timed out"
                 }]
 
-            # Now get catalog services with client
+            # Now get catalog services with client (pass catalog_url explicitly so the
+            # client's base_url does not need to point at the catalog endpoint)
             client = self._build_client()
-            catalog_services = client.list_catalog_services()
+            catalog_services = client.list_catalog_services(url=catalog_url)
             if not catalog_services:
                 logging.warning("loadServices: no services found in SAP catalog")
                 return [{"value": "", "label": f"No services found in catalog at {catalog_url}"}]
