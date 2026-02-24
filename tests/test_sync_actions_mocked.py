@@ -244,10 +244,15 @@ class TestLoadServicesAction:
 
     @responses_lib.activate
     @respx.mock
-    def test_load_services_empty_catalog_returns_guidance(
+    def test_load_services_empty_catalog_raises(
         self, respx_mock, datadir_factory, run_sync_action_with_datadir, capsys
     ):
-        """Empty catalog (valid response, 0 services) should return a guidance item, not raise exception."""
+        """Empty catalog (valid response, 0 services) must raise UserException so UI shows error.
+
+        If catalog responds OK but lists no services, the user would see an empty
+        dropdown with no explanation. Raising UserException surfaces the message via
+        the @sync_action decorator stderr → UI error notification.
+        """
         base_url = "https://api.example.com"
         catalog_path = "sap/opu/odata/IWFND/CATALOGSERVICE;v=2"
         catalog_url = f"{base_url}/{catalog_path}"
@@ -270,16 +275,13 @@ class TestLoadServicesAction:
         }
         datadir = datadir_factory(config)
 
-        run_sync_action_with_datadir(datadir, "loadServices")
+        # Empty catalog → UserException → decorator writes to stderr, exit(1)
+        with pytest.raises(SystemExit) as exc_info:
+            run_sync_action_with_datadir(datadir, "loadServices")
 
-        captured = capsys.readouterr()
-        result = json.loads(captured.out)
-
-        # Empty catalog → guidance item (not an exception)
-        assert isinstance(result, list)
-        assert len(result) == 1
-        assert result[0]["value"] == ""
-        assert "No services found" in result[0]["label"]
+        assert exc_info.value.code == 1
+        stderr = capsys.readouterr().err
+        assert "No services found" in stderr
 
 
 class TestLoadEntitiesAction:
@@ -318,12 +320,19 @@ class TestLoadEntitiesAction:
         assert comp is not None
 
     @respx.mock
-    def test_load_entities_empty_metadata(self, respx_mock, datadir_factory, run_sync_action_with_datadir):
-        """Test loading entities when metadata has no entity sets."""
-        base_url = "https://api.example.com/odata"
+    def test_load_entities_empty_metadata(
+        self, respx_mock, datadir_factory, run_sync_action_with_datadir, capsys
+    ):
+        """Service responds OK but exposes no entity sets → UserException so UI shows error.
 
-        # Empty metadata
-        respx_mock.get(f"{base_url}/$metadata").mock(
+        If the service returns empty metadata, the user would see an empty dropdown
+        with no explanation. Raising UserException surfaces the message via the
+        @sync_action decorator stderr → UI error notification.
+        """
+        base_url = "https://api.example.com"
+        service_path = "/odata/v4"
+
+        respx_mock.get(f"{base_url}{service_path}/$metadata").mock(
             return_value=httpx.Response(
                 200,
                 content="""<?xml version="1.0" encoding="utf-8"?>
@@ -343,11 +352,17 @@ class TestLoadEntitiesAction:
             "connection": {"base_url": base_url},
             "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "odata_version": "v4",
+            "service_path": service_path,  # must be set so we get past the missing-config guard
         }
         datadir = datadir_factory(config)
 
-        comp = run_sync_action_with_datadir(datadir, "loadEntities")
-        assert comp is not None
+        # Empty entity sets → UserException → decorator writes to stderr, exit(1)
+        with pytest.raises(SystemExit) as exc_info:
+            run_sync_action_with_datadir(datadir, "loadEntities")
+
+        assert exc_info.value.code == 1
+        stderr = capsys.readouterr().err
+        assert "No entity sets found" in stderr
 
 
 class TestLoadFieldsAction:
