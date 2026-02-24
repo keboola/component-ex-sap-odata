@@ -323,23 +323,33 @@ class MetadataParser:
     def _parse_v4(cls, metadata_xml: str) -> ODataMetadata:
         root = etree.fromstring(metadata_xml.encode("utf-8"))
         ns = cls.V4_NAMESPACES
+        edm_ns = "http://docs.oasis-open.org/odata/ns/edm"
 
-        schema = root.find(".//edm:Schema", namespaces=ns)
-        if schema is None:
-            edm_ns = "http://docs.oasis-open.org/odata/ns/edm"
-            schema = root.find(f".//{{{edm_ns}}}Schema")
+        schemas = root.findall(".//edm:Schema", namespaces=ns)
+        if not schemas:
+            schemas = root.findall(f".//{{{edm_ns}}}Schema")
 
-        if schema is None:
+        if not schemas:
             return ODataMetadata(version=ODataVersion.V4)
 
-        schema_namespace = schema.get("Namespace", "")
-        entity_types = cls._parse_entity_types_v4(schema, schema_namespace)
-        entity_sets = cls._parse_entity_sets_v4(schema, entity_types, schema_namespace)
+        # Collect entity types from ALL schemas (handles multi-schema EDMX like Northwind V4)
+        all_entity_types: dict[str, dict] = {}
+        for schema in schemas:
+            schema_namespace = schema.get("Namespace", "")
+            all_entity_types.update(cls._parse_entity_types_v4(schema, schema_namespace))
+
+        # Find EntityContainer across ALL schemas (may be in a different schema than EntityTypes)
+        all_entity_sets: dict[str, EntitySet] = {}
+        for schema in schemas:
+            schema_namespace = schema.get("Namespace", "")
+            schema_entity_sets = cls._parse_entity_sets_v4(schema, all_entity_types, schema_namespace)
+            if schema_entity_sets:
+                all_entity_sets.update(schema_entity_sets)
 
         return ODataMetadata(
             version=ODataVersion.V4,
-            entity_sets=entity_sets,
-            entity_types=entity_types,
+            entity_sets=all_entity_sets,
+            entity_types=all_entity_types,
         )
 
     @classmethod
