@@ -52,7 +52,6 @@ def _simplify_error_message(error: Exception, base_url: str | None = None) -> st
         if base_url:
             return f"Cannot reach server at {base_url}: Connection failed"
         # Try to extract URL from error message
-        import re
         match = re.search(r"host='([^']+)'", error_str)
         if match:
             host = match.group(1)
@@ -84,7 +83,6 @@ def _simplify_error_message(error: Exception, base_url: str | None = None) -> st
     if "HTTPSConnectionPool" in error_str or "HTTPConnectionPool" in error_str:
         if base_url:
             return f"Cannot reach server at {base_url}: Connection failed"
-        import re
         match = re.search(r"host='([^']+)'", error_str)
         if match:
             host = match.group(1)
@@ -148,22 +146,7 @@ class Component(ComponentBase):
         }
 
         auth_handler = self._build_auth_handler()
-
-        if config.auth_type == AuthType.OAUTH:
-            self._client = client_class(auth_handler=auth_handler, **client_params)
-        elif config.auth_type == AuthType.API_KEY:
-            self._client = client_class.from_api_key(
-                api_key=config.api_key or "",
-                header_name=config.api_key_header_name,
-                **client_params,
-            )
-        else:
-            self._client = client_class.from_basic_auth(
-                username=config.username or "",
-                password=config.password or "",
-                **client_params,
-            )
-
+        self._client = client_class(auth_handler=auth_handler, **client_params)
         return self._client
 
     def _detect_or_get_version(self, config: Configuration) -> ODataVersion:

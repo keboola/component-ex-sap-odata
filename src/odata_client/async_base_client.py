@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from typing import Any, cast
@@ -184,16 +186,20 @@ class AsyncODataClientBase(ABC):
             )
             response.raise_for_status()
             return response.text
-        except Exception as e:
-            error_msg = str(e)
-            if "401" in error_msg:
+        except httpx.HTTPStatusError as e:
+            status = e.response.status_code
+            if status == 401:
                 raise UserException(f"Authentication failed: {e}") from e
-            if "403" in error_msg:
+            if status == 403:
                 raise UserException(f"Access forbidden: {e}") from e
-            if "404" in error_msg:
+            if status == 404:
                 raise UserException(f"Resource not found: {e}") from e
-            if "timeout" in error_msg.lower():
-                raise UserException(f"Request timeout after {self.timeout}s") from e
+            raise UserException(f"HTTP {status} error: {e}") from e
+        except httpx.TimeoutException as e:
+            raise UserException(f"Request timeout after {self.timeout}s: {e}") from e
+        except httpx.ConnectError as e:
+            raise UserException(f"Connection failed: {e}") from e
+        except Exception as e:
             raise UserException(f"Request failed: {e}") from e
 
     async def get_metadata(self, force_refresh: bool = False) -> ODataMetadata:
@@ -233,7 +239,6 @@ class AsyncODataClientBase(ABC):
             except UserException as e:
                 # Check if it's a 404 (metadata not available)
                 if "404" in str(e) or "not found" in str(e).lower():
-                    import logging
                     logging.warning(f"$metadata endpoint not available: {e}")
                     logging.info("Attempting to get entity sets from service document")
 
@@ -242,7 +247,8 @@ class AsyncODataClientBase(ABC):
                     if fallback_metadata and fallback_metadata.entity_sets:
                         self._metadata = fallback_metadata
                         logging.info(
-                            f"Successfully extracted {len(fallback_metadata.entity_sets)} entity sets from service document"
+                            f"Successfully extracted {len(fallback_metadata.entity_sets)} entity sets "
+                            f"from service document"
                         )
                         return self._metadata
 
@@ -269,7 +275,6 @@ class AsyncODataClientBase(ABC):
             data = await self._get_json(endpoint_path=self.base_url, is_absolute_path=True)
             return CatalogParser.try_parse_from_response(data, self._get_odata_version())
         except Exception as e:
-            import logging
             logging.debug(f"Failed to get service document: {e}")
             return None
 
@@ -299,7 +304,6 @@ class AsyncODataClientBase(ABC):
         if entity_set is None:
             # If metadata is empty (fallback scenario), return empty list instead of error
             if not metadata.entity_sets:
-                import logging
                 logging.warning(
                     f"Cannot list fields for '{entity_set_name}' - metadata not available. "
                     f"Fields will be discovered from actual data."
@@ -317,7 +321,6 @@ class AsyncODataClientBase(ABC):
         Returns:
             List of ServiceInfo objects (empty if not a catalog endpoint)
         """
-        import logging
         try:
             # Try to get the service root
             # Use absolute path to avoid trailing slash (SAP endpoints are sensitive to it)
@@ -342,7 +345,6 @@ class AsyncODataClientBase(ABC):
 
             # If not XML, try parsing as JSON
             logging.debug("Response is not XML, trying JSON")
-            import json
             data = json.loads(xml_text)
 
             # Check if this is a SAP catalog response
