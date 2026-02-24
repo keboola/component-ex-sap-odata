@@ -215,8 +215,8 @@ class SyncODataClientWrapper:
     def list_fields(self, entity_set_name: str) -> list:
         return self._run_sync(self._async_client.list_fields(entity_set_name))
 
-    def list_catalog_services(self) -> list[ServiceInfo]:
-        return self._run_sync(self._async_client.list_catalog_services())
+    def list_catalog_services(self, url: str | None = None) -> list[ServiceInfo]:
+        return self._run_sync(self._async_client.list_catalog_services(url))
 
     def test_connection(self) -> tuple[bool, str]:
         return self._run_sync(self._async_client.test_connection())
