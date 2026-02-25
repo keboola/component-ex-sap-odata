@@ -508,11 +508,13 @@ class Component(ComponentBase):
                 "status": "success",
                 "message": f"Connection successful! Server responded with HTTP {response.status_code}.",
             }
+        except UserException as e:
+            return {"status": "error", "message": str(e)}
+        except req.exceptions.SSLError as e:
+            return {"status": "error", "message": _simplify_error_message(e, config.base_url)}
         except req.exceptions.ConnectionError as e:
             return {"status": "error", "message": _simplify_error_message(e, config.base_url)}
         except req.exceptions.Timeout as e:
-            return {"status": "error", "message": _simplify_error_message(e, config.base_url)}
-        except req.exceptions.SSLError as e:
             return {"status": "error", "message": _simplify_error_message(e, config.base_url)}
         except ValueError as e:
             return {"status": "error", "message": f"Configuration error: {e}"}
