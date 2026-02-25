@@ -134,8 +134,16 @@ class AsyncODataV4Client(AsyncODataClientBase):
         )
 
         total_fetched = 0
+        max_pages = 100_000
+        page_count = 0
 
         while endpoint_path:
+            if page_count >= max_pages:
+                logging.warning(
+                    f"Reached page safety limit ({max_pages}) for {entity_set}, stopping."
+                )
+                break
+            page_count += 1
             if max_records and total_fetched >= max_records:
                 break
 

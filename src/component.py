@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import json
 import logging
 import re
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlparse
 
@@ -110,7 +111,10 @@ class Component(ComponentBase):
 
     def _build_auth_handler(self) -> AuthHandler:
         config = self._config
-        config.validate_authentication()
+        try:
+            config.validate_authentication()
+        except ValueError as e:
+            raise UserException(str(e)) from e
         if config.auth_type == AuthType.OAUTH:
             return OAuthHandler(
                 token_url=config.token_url or "",
@@ -183,8 +187,20 @@ class Component(ComponentBase):
             )
             response.raise_for_status()
             return MetadataParser.detect_version(response.text)
+        except req.exceptions.HTTPError as e:
+            resp = getattr(e, "response", None)
+            if resp is not None and resp.status_code in (401, 403):
+                raise UserException(
+                    f"Authentication failed during OData version detection: {e}"
+                ) from e
+            logging.warning(f"Failed to detect OData version from $metadata, defaulting to V2: {e}")
+            return ODataVersion.V2
+        except req.exceptions.SSLError as e:
+            raise UserException(
+                f"SSL certificate verification failed during OData version detection: {e}"
+            ) from e
         except Exception as e:
-            logging.warning(f"Failed to detect OData version, defaulting to V2: {e}")
+            logging.warning(f"Failed to detect OData version from $metadata, defaulting to V2: {e}")
             return ODataVersion.V2
 
     def run(self) -> None:
@@ -199,6 +215,8 @@ class Component(ComponentBase):
 
         try:
             self._extract_entity(state)
+        except UserException:
+            raise
         except Exception as e:
             logging.error(f"Failed to extract entity {self._config.entity_set}: {e}")
             raise UserException(f"Failed to extract entity {self._config.entity_set}: {e}") from e
@@ -376,7 +394,7 @@ class Component(ComponentBase):
         match = re.match(r"^/Date\((\d+)(?:[+-]\d+)?\)/$", value)
         if match:
             millis = int(match.group(1))
-            dt = datetime.fromtimestamp(millis / 1000, tz=timezone.utc)
+            dt = datetime.fromtimestamp(millis / 1000, tz=UTC)
             return dt.strftime("%Y-%m-%dT%H:%M:%S")
         return value
 
@@ -401,7 +419,7 @@ class Component(ComponentBase):
             if isinstance(value, dict):
                 flat.update(self._flatten_record(value, full_key))
             elif isinstance(value, list):
-                flat[full_key] = str(value)
+                flat[full_key] = json.dumps(value)
             else:
                 flat[full_key] = value
         return flat
