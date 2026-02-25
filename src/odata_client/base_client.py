@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from typing import Any, cast
@@ -8,9 +10,9 @@ from keboola.component.exceptions import UserException
 from keboola.http_client import HttpClient
 from requests import HTTPError, RequestException, Timeout
 
-from .auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler, OAuthHandler
+from .auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler
 from .catalog_parser import CatalogParser, ServiceInfo
-from .metadata import EntitySet, MetadataParser, ODataMetadata, ODataVersion
+from .metadata import EntitySet, EntityProperty, MetadataParser, ODataMetadata, ODataVersion
 
 # Type alias for JSON-serializable data
 JsonDict = dict[str, Any]
@@ -171,7 +173,6 @@ class ODataClientBase(ABC):
         except UserException as e:
             # Check if it's a 404 (metadata not available)
             if "404" in str(e) or "not found" in str(e).lower():
-                import logging
                 logging.warning(f"$metadata endpoint not available: {e}")
                 logging.info("Attempting to get entity sets from service document")
 
@@ -207,7 +208,6 @@ class ODataClientBase(ABC):
             data = self._get_json(endpoint_path=self.base_url, is_absolute_path=True)
             return CatalogParser.try_parse_from_response(data, self._get_odata_version())
         except Exception as e:
-            import logging
             logging.debug(f"Failed to get service document: {e}")
             return None
 
@@ -220,7 +220,7 @@ class ODataClientBase(ABC):
         metadata = self.get_metadata()
         return metadata.list_entity_sets()
 
-    def list_fields(self, entity_set_name: str) -> list:
+    def list_fields(self, entity_set_name: str) -> list[EntityProperty]:
         """List fields for a specific entity set.
 
         Args:
@@ -237,7 +237,6 @@ class ODataClientBase(ABC):
         if entity_set is None:
             # If metadata is empty (fallback scenario), return empty list instead of error
             if not metadata.entity_sets:
-                import logging
                 logging.warning(
                     f"Cannot list fields for '{entity_set_name}' - metadata not available. "
                     f"Fields will be discovered from actual data."
@@ -255,7 +254,6 @@ class ODataClientBase(ABC):
         Returns:
             List of ServiceInfo objects (empty if not a catalog endpoint)
         """
-        import logging
         try:
             # Try to get the service root
             # Use absolute path to avoid trailing slash (SAP endpoints are sensitive to it)
@@ -280,7 +278,6 @@ class ODataClientBase(ABC):
 
             # If not XML, try parsing as JSON
             logging.debug("Response is not XML, trying JSON")
-            import json
             data = json.loads(xml_text)
 
             # Check if this is a SAP catalog response
