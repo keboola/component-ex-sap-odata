@@ -136,8 +136,16 @@ class AsyncODataV2Client(AsyncODataClientBase):
         )
 
         total_fetched = 0
+        max_pages = 100_000
+        page_count = 0
 
         while endpoint_path:
+            if page_count >= max_pages:
+                logging.warning(
+                    f"Reached page safety limit ({max_pages}) for {entity_set}, stopping."
+                )
+                break
+            page_count += 1
             if max_records and total_fetched >= max_records:
                 break
 
@@ -248,8 +256,12 @@ class AsyncODataV2Client(AsyncODataClientBase):
             logging.info(f"Record count not available ($count not supported or failed): {e}")
             return None
 
-    def _clean_record(self, record: JsonDict) -> JsonDict:
-        cleaned = {}
+    def _clean_record(self, record: JsonDict, _depth: int = 0) -> JsonDict:
+        max_depth = 50  # Prevent stack overflow on deeply nested data
+        if _depth > max_depth:
+            logging.warning(f"Maximum recursion depth ({max_depth}) reached while cleaning record")
+            return {}
+        cleaned: JsonDict = {}
         for key, value in record.items():
             if key.startswith("__"):
                 continue
@@ -259,7 +271,7 @@ class AsyncODataV2Client(AsyncODataClientBase):
                 if "results" in value:
                     cleaned[key] = value["results"]
                 else:
-                    cleaned[key] = self._clean_record(value)
+                    cleaned[key] = self._clean_record(value, _depth + 1)
             else:
                 cleaned[key] = value
         return cleaned

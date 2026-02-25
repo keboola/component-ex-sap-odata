@@ -13,7 +13,7 @@ from keboola.http_client import AsyncHttpClient
 
 from .auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler, OAuthHandler
 from .catalog_parser import CatalogParser, ServiceInfo
-from .metadata import EntitySet, MetadataParser, ODataMetadata, ODataVersion
+from .metadata import EntitySet, EntityProperty, MetadataParser, ODataMetadata, ODataVersion
 
 # Type alias for JSON-serializable data
 JsonDict = dict[str, Any]
@@ -287,7 +287,7 @@ class AsyncODataClientBase(ABC):
         metadata = await self.get_metadata()
         return metadata.list_entity_sets()
 
-    async def list_fields(self, entity_set_name: str) -> list:
+    async def list_fields(self, entity_set_name: str) -> list[EntityProperty]:
         """List fields for a specific entity set.
 
         Args:
