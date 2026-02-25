@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import re
 from enum import Enum
 from typing import Any
 
@@ -87,12 +89,10 @@ class QueryOptions(BaseModel):
         if not v:
             return v
 
-        import re
         pattern = r"(?<!datetime)'(\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z)?)?)'"
         fixed = re.sub(pattern, r'\1', v)
 
         if fixed != v:
-            import logging
             logging.warning(f"Filter expression auto-fixed: {v} -> {fixed}")
 
         return fixed
