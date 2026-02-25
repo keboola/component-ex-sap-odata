@@ -6,21 +6,23 @@
     "odata_version": {
       "type": "string",
       "title": "OData Version",
+      "description": "OData protocol version to use.",
       "enum": ["auto", "v2", "v4"],
       "default": "auto",
       "propertyOrder": 1,
       "options": {
-        "tooltip": "OData protocol version. `auto` detects from `$metadata` (recommended); `v2` for legacy SAP services, `v4` for modern SAP services."
+        "tooltip": "**OData protocol version** for this service.\n\n| Value | Description |\n|---|---|\n| `auto` | Detects from `$metadata` **(recommended)** |\n| `v2` | Legacy SAP services |\n| `v4` | Modern SAP services |"
       }
     },
     "service_path": {
       "type": "string",
       "title": "Service Path",
+      "description": "Path to the OData service, appended to Base URL.",
       "format": "select",
       "enum": [],
       "propertyOrder": 2,
       "options": {
-        "tooltip": "Path to the OData service, appended to Base URL. Select from catalog or enter manually. Example: `sap/opu/odata/sap/API_BUSINESS_PARTNER` (V2) or `sap/opu/odata4/sap/api_fixedassetacquisition/srvd_a2x/sap/fixedassetacquisition/0001` (V4).",
+        "tooltip": "**Path to the OData service**, appended to the Base URL. Select from catalog or type manually.\n\n**Examples:**\n- V2: `sap/opu/odata/sap/API_BUSINESS_PARTNER`\n- V4: `sap/opu/odata4/sap/api_fixedassetacquisition/srvd_a2x/sap/fixedassetacquisition/0001`",
         "creatable": true,
         "async": {
           "label": "Load Available Services",
@@ -31,11 +33,12 @@
     "entity_set": {
       "type": "string",
       "title": "Entity Set",
+      "description": "OData entity set to extract (like a database table).",
       "format": "select",
       "enum": [],
       "propertyOrder": 3,
       "options": {
-        "tooltip": "OData entity set to extract data from (like a database table). Select from the list or enter manually. Examples: `A_BusinessPartner`, `SalesOrderSet`, `ProductSet`.",
+        "tooltip": "**OData entity set** to extract data from (similar to a database table).\n\nSelect from the list or type manually.\n\n**Examples:** `A_BusinessPartner`, `SalesOrderSet`, `ProductSet`",
         "creatable": true,
         "async": {
           "label": "Load Entity Sets",
@@ -48,14 +51,16 @@
     "query_options": {
       "type": "object",
       "title": "Query Options (Optional)",
+      "description": "Configure field selection, filters, and expansion.",
       "propertyOrder": 10,
       "options": {
-        "tooltip": "Configure field selection, filters, expansion, and ordering."
+        "tooltip": "Optional **query parameters** to filter, select, and expand the data.\n\nLeave empty to extract all fields and records."
       },
       "properties": {
         "select_fields": {
           "type": "array",
           "title": "Select Fields",
+          "description": "Specific fields to extract (leave empty for all).",
           "format": "select",
           "uniqueItems": true,
           "propertyOrder": 1,
@@ -63,7 +68,7 @@
             "type": "string"
           },
           "options": {
-            "tooltip": "Specific fields to extract (`$select`). Leave empty to extract all fields. Reduces data transfer and API costs. [OData $select docs](https://www.odata.org/getting-started/basic-tutorial/#select)",
+            "tooltip": "Specific fields to extract using OData `$select`.\n\n- **Leave empty** to extract all fields\n- Selecting specific fields **reduces data transfer** and API costs\n\n[OData $select docs](https://www.odata.org/getting-started/basic-tutorial/#select)",
             "tags": true,
             "async": {
               "label": "Load Fields",
@@ -74,10 +79,11 @@
         "filter_expression": {
           "type": "string",
           "title": "Filter Expression",
+          "description": "Filter records using OData $filter syntax.",
           "format": "textarea",
           "propertyOrder": 2,
           "options": {
-            "tooltip": "Filter records using OData `$filter` syntax. Examples: `Status eq 'Active'`, `CreatedAt gt 2024-01-01T00:00:00Z`, `Price le 100 and Category eq 'Electronics'`. [OData $filter docs](https://www.odata.org/getting-started/basic-tutorial/#filter)"
+            "tooltip": "Filter records using OData `$filter` syntax.\n\n**Examples:**\n- `Status eq 'Active'`\n- `CreatedAt gt 2024-01-01T00:00:00Z`\n- `Price le 100 and Category eq 'Electronics'`\n\n[OData $filter docs](https://www.odata.org/getting-started/basic-tutorial/#filter)"
           }
         },
         "validate_filter": {
@@ -95,6 +101,7 @@
         "expand_properties": {
           "type": "array",
           "title": "Expand Navigation Properties",
+          "description": "Related entities to include in the response.",
           "format": "select",
           "uniqueItems": true,
           "propertyOrder": 4,
@@ -102,7 +109,7 @@
             "type": "string"
           },
           "options": {
-            "tooltip": "Related entities to include in the response (`$expand`). Examples: `Addresses`, `Items`, `Category`. Expanded data is flattened into columns. [OData $expand docs](https://www.odata.org/getting-started/basic-tutorial/#expand)",
+            "tooltip": "Related entities to include using OData `$expand`. Expanded data is **flattened into columns**.\n\n**Examples:** `Addresses`, `Items`, `Category`\n\n[OData $expand docs](https://www.odata.org/getting-started/basic-tutorial/#expand)",
             "tags": true,
             "async": {
               "label": "Load Navigation Properties",
@@ -115,30 +122,33 @@
     "fetching_options": {
       "type": "object",
       "title": "Fetching Options",
+      "description": "Configure how data is fetched from the API.",
       "propertyOrder": 15,
       "options": {
-        "tooltip": "Configure how data is fetched from SAP OData API."
+        "tooltip": "Configure **how data is fetched** from the SAP OData API — full or incremental."
       },
       "properties": {
         "fetch_type": {
           "type": "string",
           "title": "Fetch Type",
+          "description": "Full fetch or incremental (changes only).",
           "enum": ["full", "incremental"],
           "enum_titles": ["Full Fetch (All Records)", "Incremental Fetch (Changes Only)"],
           "default": "full",
           "propertyOrder": 1,
           "options": {
-            "tooltip": "Full: extract all records on every run. Incremental: extract only new/changed records since the last run using a timestamp field filter. [OData filter docs](https://www.odata.org/getting-started/basic-tutorial/#filter)"
+            "tooltip": "**Fetch strategy** for extracting data.\n\n| Type | Description |\n|---|---|\n| **Full** | Extract **all records** on every run |\n| **Incremental** | Extract only **new/changed** records since the last run |\n\nIncremental fetch uses a timestamp field as a filter.\n\n[OData filter docs](https://www.odata.org/getting-started/basic-tutorial/#filter)"
           }
         },
         "incremental_field": {
           "type": "string",
           "title": "Incremental Field",
+          "description": "Timestamp field for filtering new/changed records.",
           "format": "select",
           "enum": [],
           "propertyOrder": 2,
           "options": {
-            "tooltip": "Timestamp field used to filter new/changed records (`$filter={field} gt {last_run}`). Common SAP fields: `LastChangedAt`, `ModifiedOn`, `CreatedAt`, `SystemModstamp`.",
+            "tooltip": "**Timestamp field** used to filter new/changed records.\n\nThe filter applied: `$filter={field} gt {last_run_timestamp}`\n\n**Common SAP fields:**\n- `LastChangedAt`\n- `ModifiedOn`\n- `CreatedAt`\n- `SystemModstamp`",
             "creatable": true,
             "dependencies": {
               "fetch_type": "incremental"
@@ -154,33 +164,37 @@
     "destination": {
       "type": "object",
       "title": "Destination",
+      "description": "Configure output table and loading strategy.",
       "propertyOrder": 20,
       "options": {
-        "tooltip": "Configure output table and how data is loaded to Keboola Storage."
+        "tooltip": "Configure the **output table** name and how data is loaded into Keboola Storage."
       },
       "properties": {
         "output_table_name": {
           "type": "string",
           "title": "Output Table Name",
+          "description": "Custom name for the output table (defaults to entity set name).",
           "propertyOrder": 1,
           "options": {
-            "tooltip": "Custom name for the output table in Keboola Storage. Defaults to the entity set name if left empty. Example: `business_partners`, `sales_orders`."
+            "tooltip": "Custom name for the **output table** in Keboola Storage.\n\nDefaults to the entity set name if left empty.\n\n**Examples:** `business_partners`, `sales_orders`"
           }
         },
         "load_type": {
           "type": "string",
           "title": "Load Type",
+          "description": "Full load (replace) or incremental load (append/upsert).",
           "enum": ["full", "incremental"],
           "enum_titles": ["Full Load (Replace)", "Incremental Load (Append)"],
           "default": "full",
           "propertyOrder": 2,
           "options": {
-            "tooltip": "Full Load: replace the entire table on each run. Incremental Load: append/upsert new data using the primary key — requires a primary key for deduplication. [Keboola incremental loading docs](https://help.keboola.com/storage/tables/#incremental-loading)"
+            "tooltip": "**Loading strategy** for data in Keboola Storage.\n\n| Type | Description |\n|---|---|\n| **Full Load** | **Replace** the entire table on each run |\n| **Incremental Load** | **Append/upsert** new data using the primary key |\n\nIncremental load requires a **primary key** for deduplication.\n\n[Keboola incremental loading docs](https://help.keboola.com/storage/tables/#incremental-loading)"
           }
         },
         "primary_key": {
           "type": "array",
           "title": "Primary Key",
+          "description": "Fields that uniquely identify each record.",
           "format": "select",
           "uniqueItems": true,
           "propertyOrder": 3,
@@ -188,7 +202,7 @@
             "type": "string"
           },
           "options": {
-            "tooltip": "Field(s) that uniquely identify each record — required for Incremental Load (used for upsert). Common SAP keys: `BusinessPartnerID`, `SalesOrderID`, `ProductID`. [Keboola primary keys docs](https://help.keboola.com/storage/tables/#primary-keys)",
+            "tooltip": "Field(s) that **uniquely identify** each record — required for Incremental Load (used for upsert/deduplication).\n\n**Common SAP keys:**\n- `BusinessPartnerID`\n- `SalesOrderID`\n- `ProductID`\n\n[Keboola primary keys docs](https://help.keboola.com/storage/tables/#primary-keys)",
             "tags": true,
             "dependencies": {
               "load_type": "incremental"
@@ -204,10 +218,11 @@
     "advanced_options": {
       "type": "array",
       "title": "Advanced Entity Options (Optional)",
+      "description": "Override pagination settings for this entity.",
       "maxItems": 1,
       "propertyOrder": 30,
       "options": {
-        "tooltip": "Override pagination settings for this entity. Leave empty to use global defaults."
+        "tooltip": "Override **pagination settings** for this specific entity.\n\nLeave empty to use the global defaults from the main configuration."
       },
       "items": {
         "type": "object",
@@ -216,17 +231,19 @@
           "page_size": {
             "type": "integer",
             "title": "Page Size",
+            "description": "Override global page size for this entity.",
             "propertyOrder": 1,
             "options": {
-              "tooltip": "Override the global default page size for this entity. Leave empty to use the global default."
+              "tooltip": "Override the **global default page size** for this entity.\n\nLeave empty to use the global default."
             }
           },
           "max_records": {
             "type": "integer",
             "title": "Max Records",
+            "description": "Override global max records for this entity (0 = unlimited).",
             "propertyOrder": 2,
             "options": {
-              "tooltip": "Override the global max records limit for this entity (0 = unlimited). Leave empty to use the global default."
+              "tooltip": "Override the **global max records** limit for this entity.\n\n- `0` = **unlimited** (default)\n- Leave empty to use the global default"
             }
           }
         }
