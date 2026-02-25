@@ -63,11 +63,7 @@
             "type": "string"
           },
           "options": {
-            "tooltip": "Specific fields to extract (`$select`). Leave empty to extract all fields. Reduces data transfer and API costs.",
-            "documentation": {
-              "link": "https://www.odata.org/getting-started/basic-tutorial/#select",
-              "tooltip": "OData $select docs"
-            },
+            "tooltip": "Specific fields to extract (`$select`). Leave empty to extract all fields. Reduces data transfer and API costs. [OData $select docs](https://www.odata.org/getting-started/basic-tutorial/#select)",
             "tags": true,
             "async": {
               "label": "Load Fields",
@@ -81,11 +77,7 @@
           "format": "textarea",
           "propertyOrder": 2,
           "options": {
-            "tooltip": "Filter records using OData `$filter` syntax. Examples: `Status eq 'Active'`, `CreatedAt gt 2024-01-01T00:00:00Z`, `Price le 100 and Category eq 'Electronics'`.",
-            "documentation": {
-              "link": "https://www.odata.org/getting-started/basic-tutorial/#filter",
-              "tooltip": "OData $filter docs"
-            }
+            "tooltip": "Filter records using OData `$filter` syntax. Examples: `Status eq 'Active'`, `CreatedAt gt 2024-01-01T00:00:00Z`, `Price le 100 and Category eq 'Electronics'`. [OData $filter docs](https://www.odata.org/getting-started/basic-tutorial/#filter)"
           }
         },
         "validate_filter": {
@@ -110,11 +102,7 @@
             "type": "string"
           },
           "options": {
-            "tooltip": "Related entities to include in the response (`$expand`). Examples: `Addresses`, `Items`, `Category`. Expanded data is flattened into columns.",
-            "documentation": {
-              "link": "https://www.odata.org/getting-started/basic-tutorial/#expand",
-              "tooltip": "OData $expand docs"
-            },
+            "tooltip": "Related entities to include in the response (`$expand`). Examples: `Addresses`, `Items`, `Category`. Expanded data is flattened into columns. [OData $expand docs](https://www.odata.org/getting-started/basic-tutorial/#expand)",
             "tags": true,
             "async": {
               "label": "Load Navigation Properties",
@@ -140,11 +128,7 @@
           "default": "full",
           "propertyOrder": 1,
           "options": {
-            "tooltip": "Full: extract all records on every run. Incremental: extract only new/changed records since the last run using a timestamp field filter.",
-            "documentation": {
-              "link": "https://www.odata.org/getting-started/basic-tutorial/#filter",
-              "tooltip": "OData filter docs"
-            }
+            "tooltip": "Full: extract all records on every run. Incremental: extract only new/changed records since the last run using a timestamp field filter. [OData filter docs](https://www.odata.org/getting-started/basic-tutorial/#filter)"
           }
         },
         "incremental_field": {
@@ -191,11 +175,7 @@
           "default": "full",
           "propertyOrder": 2,
           "options": {
-            "tooltip": "Full Load: replace the entire table on each run. Incremental Load: append/upsert new data using the primary key — requires a primary key for deduplication.",
-            "documentation": {
-              "link": "https://help.keboola.com/storage/tables/#incremental-loading",
-              "tooltip": "Keboola incremental loading docs"
-            }
+            "tooltip": "Full Load: replace the entire table on each run. Incremental Load: append/upsert new data using the primary key — requires a primary key for deduplication. [Keboola incremental loading docs](https://help.keboola.com/storage/tables/#incremental-loading)"
           }
         },
         "primary_key": {
@@ -208,11 +188,7 @@
             "type": "string"
           },
           "options": {
-            "tooltip": "Field(s) that uniquely identify each record — required for Incremental Load (used for upsert). Common SAP keys: `BusinessPartnerID`, `SalesOrderID`, `ProductID`.",
-            "documentation": {
-              "link": "https://help.keboola.com/storage/tables/#primary-keys",
-              "tooltip": "Keboola primary keys docs"
-            },
+            "tooltip": "Field(s) that uniquely identify each record — required for Incremental Load (used for upsert). Common SAP keys: `BusinessPartnerID`, `SalesOrderID`, `ProductID`. [Keboola primary keys docs](https://help.keboola.com/storage/tables/#primary-keys)",
             "tags": true,
             "dependencies": {
               "load_type": "incremental"

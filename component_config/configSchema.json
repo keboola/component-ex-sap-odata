@@ -15,11 +15,7 @@
           "propertyOrder": 1,
           "format": "url",
           "options": {
-            "tooltip": "Base URL of your SAP system, without the service path. Example: `https://my-sap-server.com` or `https://sandbox.api.sap.com/s4hanacloud`.",
-            "documentation": {
-              "link": "https://api.sap.com/",
-              "tooltip": "SAP API Hub"
-            }
+            "tooltip": "Base URL of your SAP system, without the service path. Example: `https://my-sap-server.com` or `https://sandbox.api.sap.com/s4hanacloud`. [SAP API Hub](https://api.sap.com/)"
           }
         },
         "catalog_path": {
@@ -46,11 +42,7 @@
           "default": "basic",
           "propertyOrder": 1,
           "options": {
-            "tooltip": "Authentication method for your SAP system. Basic (username/password) is the most common.",
-            "documentation": {
-              "link": "https://help.sap.com/docs/SAP_NETWEAVER_AS_ABAP_FOR_SOH_740/68bf513362174d54b58cddec28794093/e6f7c2fad4bd453eb5ee75b5d2685885.html",
-              "tooltip": "SAP authentication docs"
-            }
+            "tooltip": "Authentication method for your SAP system. Basic (username/password) is the most common. [SAP authentication docs](https://help.sap.com/docs/SAP_NETWEAVER_AS_ABAP_FOR_SOH_740/68bf513362174d54b58cddec28794093/e6f7c2fad4bd453eb5ee75b5d2685885.html)"
           }
         },
         "username": {
@@ -82,11 +74,7 @@
           "format": "password",
           "propertyOrder": 4,
           "options": {
-            "tooltip": "API key for authentication (encrypted and stored securely).",
-            "documentation": {
-              "link": "https://api.sap.com/",
-              "tooltip": "Get your key at api.sap.com"
-            },
+            "tooltip": "API key for authentication (encrypted and stored securely). [Get your key at api.sap.com](https://api.sap.com/)",
             "dependencies": {
               "auth_type": "apiKey"
             }
@@ -217,11 +205,7 @@
                 "default": 1000,
                 "propertyOrder": 1,
                 "options": {
-                  "tooltip": "Records per page for all entities (can be overridden per entity in row config). Recommended: 1000.",
-                  "documentation": {
-                    "link": "https://www.odata.org/getting-started/basic-tutorial/#queryData",
-                    "tooltip": "OData query docs"
-                  }
+                  "tooltip": "Records per page for all entities (can be overridden per entity in row config). Recommended: 1000. [OData query docs](https://www.odata.org/getting-started/basic-tutorial/#queryData)"
                 }
               },
               "max_records": {
