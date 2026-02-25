@@ -285,6 +285,7 @@ For UI development help, use the Claude plugin:
 ## Documentation
 
 - **[Configuration Patterns](docs/CONFIGURATION_PATTERNS.md)** - Recommended patterns for load_type & fetch_type combinations
+- **[Sync Actions](docs/SYNC_ACTIONS.md)** - How sync actions work, error handling strategy, and reference for all UI actions
 - [URL Structure Analysis](docs/URL_STRUCTURE_ANALYSIS.md) - Detailed analysis of SAP OData URL patterns
 - [Development Guide](docs/DEVELOPMENT.md) - Complete development and testing guide
 
