@@ -5,52 +5,46 @@
   "properties": {
     "connection": {
       "type": "object",
-      "title": "Connection",
+      "title": "🔗 Connection",
       "required": ["base_url"],
       "propertyOrder": 1,
       "properties": {
         "base_url": {
           "type": "string",
           "title": "Base URL",
+          "description": "Base URL of your SAP system (without service path).<br /><br />Examples:<ul><li>On-premise: https://my-sap-server.com</li><li>SAP API Business Hub: https://sandbox.api.sap.com/s4hanacloud</li><li>SAP BTP: https://my-tenant.s4hana.cloud.sap</li></ul>Learn more: <a href=\"https://api.sap.com/\" target=\"_blank\">https://api.sap.com/</a>",
           "propertyOrder": 1,
-          "format": "url",
-          "options": {
-            "infoText": "Base URL of your SAP system, without the service path. Example: https://my-sap-server.com or https://sandbox.api.sap.com/s4hanacloud"
-          }
+          "format": "url"
         },
         "catalog_path": {
           "type": "string",
           "title": "Catalog Path (Optional)",
-          "propertyOrder": 2,
-          "options": {
-            "infoText": "Path to SAP Service Catalog for browsing available services. Example: http/keboola/catalog"
-          }
+          "description": "Path to SAP Service Catalog for browsing available services.<br /><br />Example: <code>http/keboola/catalog</code><br /><br />If provided, you can browse and select services in the extraction configuration below.",
+          "propertyOrder": 2
         }
       }
     },
     "authentication": {
       "type": "object",
-      "title": "Authentication",
+      "title": "🔐 Authentication",
       "required": ["auth_type"],
       "propertyOrder": 2,
       "properties": {
         "auth_type": {
           "type": "string",
           "title": "Authentication Type",
+          "description": "Choose the authentication method supported by your SAP system.<br /><br /><ul><li>Basic: Username and password (most common)</li><li>OAuth 2.0: Token-based authentication</li><li>API Key: For SAP API Business Hub and similar services</li></ul>Learn more: <a href=\"https://help.sap.com/docs/SAP_NETWEAVER_AS_ABAP_FOR_SOH_740/68bf513362174d54b58cddec28794093/e6f7c2fad4bd453eb5ee75b5d2685885.html\" target=\"_blank\">SAP Authentication Documentation</a>",
           "enum": ["basic", "oauth", "apiKey"],
           "enum_titles": ["Username & Password", "OAuth 2.0", "API Key"],
           "default": "basic",
-          "propertyOrder": 1,
-          "options": {
-            "infoText": "Authentication method for your SAP system. Basic (username/password) is the most common."
-          }
+          "propertyOrder": 1
         },
         "username": {
           "type": "string",
           "title": "Username",
+          "description": "SAP system username for basic authentication.",
           "propertyOrder": 2,
           "options": {
-            "infoText": "Your SAP system username.",
             "dependencies": {
               "auth_type": "basic"
             }
@@ -59,10 +53,10 @@
         "#password": {
           "type": "string",
           "title": "Password",
+          "description": "SAP system password (encrypted and stored securely).",
           "format": "password",
           "propertyOrder": 3,
           "options": {
-            "infoText": "Your SAP system password (encrypted and stored securely).",
             "dependencies": {
               "auth_type": "basic"
             }
@@ -71,10 +65,10 @@
         "#api_key": {
           "type": "string",
           "title": "API Key",
+          "description": "API key for authentication (encrypted and stored securely).<br /><br />Used with SAP API Business Hub or custom API gateways.<br />Get your key at: <a href=\"https://api.sap.com/\" target=\"_blank\">https://api.sap.com/</a>",
           "format": "password",
           "propertyOrder": 4,
           "options": {
-            "infoText": "API key for authentication (encrypted and stored securely). Get your key at api.sap.com",
             "dependencies": {
               "auth_type": "apiKey"
             }
@@ -84,9 +78,9 @@
           "type": "string",
           "title": "API Key Header Name",
           "default": "APIKey",
+          "description": "HTTP header name for the API key.<br /><br />Common values:<ul><li>APIKey (SAP API Business Hub)</li><li>X-API-Key (custom gateways)</li><li>Authorization (with 'Bearer' prefix)</li></ul>",
           "propertyOrder": 5,
           "options": {
-            "infoText": "HTTP header name for the API key. Typically APIKey (SAP API Hub) or X-API-Key (custom gateways).",
             "dependencies": {
               "auth_type": "apiKey"
             }
@@ -95,10 +89,10 @@
         "token_url": {
           "type": "string",
           "title": "Token URL",
+          "description": "OAuth 2.0 token endpoint URL for client credentials flow.",
           "format": "url",
           "propertyOrder": 6,
           "options": {
-            "infoText": "OAuth 2.0 token endpoint URL for client credentials flow.",
             "dependencies": {
               "auth_type": "oauth"
             }
@@ -107,9 +101,9 @@
         "client_id": {
           "type": "string",
           "title": "Client ID",
+          "description": "OAuth 2.0 client ID.",
           "propertyOrder": 7,
           "options": {
-            "infoText": "OAuth 2.0 client ID.",
             "dependencies": {
               "auth_type": "oauth"
             }
@@ -118,10 +112,10 @@
         "#client_secret": {
           "type": "string",
           "title": "Client Secret",
+          "description": "OAuth 2.0 client secret (encrypted and stored securely).",
           "format": "password",
           "propertyOrder": 8,
           "options": {
-            "infoText": "OAuth 2.0 client secret (encrypted and stored securely).",
             "dependencies": {
               "auth_type": "oauth"
             }
@@ -142,17 +136,15 @@
     },
     "advanced_options": {
       "type": "object",
-      "title": "Advanced Options",
+      "title": "⚙️ Advanced Options",
       "propertyOrder": 3,
       "properties": {
         "connection_options": {
           "type": "array",
           "title": "Connection Options",
+          "description": "Configure timeout, retries, and SSL verification. Leave empty to use defaults.",
           "maxItems": 1,
           "propertyOrder": 1,
-          "options": {
-            "infoText": "Override timeout, retries, and SSL settings. Leave empty to use defaults."
-          },
           "items": {
             "type": "object",
             "title": "Connection Settings",
@@ -160,29 +152,23 @@
               "timeout": {
                 "type": "integer",
                 "title": "Request Timeout (seconds)",
+                "description": "Maximum time to wait for SAP server response.<br /><br />Recommended:<ul><li>60s for most scenarios</li><li>120s+ for large data extractions</li><li>30s for API Business Hub</li></ul>",
                 "default": 60,
-                "propertyOrder": 1,
-                "options": {
-                  "infoText": "Maximum wait time for a SAP server response. Recommended: 60 s, for large extractions 120 s+."
-                }
+                "propertyOrder": 1
               },
               "max_retries": {
                 "type": "integer",
                 "title": "Max Retries",
+                "description": "Number of automatic retry attempts on transient failures (network issues, timeouts).<br /><br />Recommended: 3 retries",
                 "default": 3,
-                "propertyOrder": 2,
-                "options": {
-                  "infoText": "Number of automatic retry attempts on transient failures (network issues, timeouts). Recommended: 3."
-                }
+                "propertyOrder": 2
               },
               "verify_ssl": {
                 "type": "boolean",
                 "title": "Verify SSL Certificates",
+                "description": "Verify SSL/TLS certificates for HTTPS connections.<br /><br /><strong>Warning:</strong> Only disable for development/testing with self-signed certificates.<br />Production systems should always use verified certificates.",
                 "default": true,
-                "propertyOrder": 3,
-                "options": {
-                  "infoText": "Verify SSL/TLS certificates for HTTPS connections. Disable only for development with self-signed certificates."
-                }
+                "propertyOrder": 3
               }
             }
           }
@@ -190,11 +176,9 @@
         "pagination_defaults": {
           "type": "array",
           "title": "Default Pagination Settings",
+          "description": "Override default page size and max records. Leave empty to use standard defaults (page_size: 1000, max_records: unlimited).",
           "maxItems": 1,
           "propertyOrder": 2,
-          "options": {
-            "infoText": "Override default page size and record limit for all entities. Leave empty to use defaults (page size: 1000, unlimited records)."
-          },
           "items": {
             "type": "object",
             "title": "Pagination Settings",
@@ -203,19 +187,15 @@
                 "type": "integer",
                 "title": "Default Page Size",
                 "default": 1000,
-                "propertyOrder": 1,
-                "options": {
-                  "infoText": "Records per page for all entities (can be overridden per entity in row config). Recommended: 1000."
-                }
+                "description": "Number of records per page for all entities (can be overridden per entity).<br /><br />OData uses server-side paging with $top and $skip parameters.<br /><br />Recommended:<ul><li>1000 for standard entities</li><li>500 for entities with many fields</li><li>100 for testing</li></ul>Learn more: <a href=\"https://www.odata.org/getting-started/basic-tutorial/#queryData\" target=\"_blank\">OData Query Tutorial</a>",
+                "propertyOrder": 1
               },
               "max_records": {
                 "type": "integer",
                 "title": "Default Max Records",
+                "description": "Maximum total records to fetch for all entities (can be overridden per entity).<br /><br />Set to 0 for unlimited extraction.<br />Useful for:<ul><li>Testing (e.g., 100 records)</li><li>Cost control on metered APIs</li><li>Development environments</li></ul>",
                 "default": 0,
-                "propertyOrder": 2,
-                "options": {
-                  "infoText": "Maximum records to fetch per entity (0 = unlimited). Useful for testing or cost control."
-                }
+                "propertyOrder": 2
               }
             }
           }
