@@ -213,7 +213,8 @@ class MetadataParser:
             return ODataMetadata(version=ODataVersion.V2)
 
         schema_namespace = schema.get("Namespace", "")
-        entity_types = cls._parse_entity_types_v2(schema, ns, schema_namespace)
+        association_map = cls._parse_associations_v2(schema, ns, schema_namespace)
+        entity_types = cls._parse_entity_types_v2(schema, ns, schema_namespace, association_map)
         entity_sets = cls._parse_entity_sets_v2(schema, ns, entity_types, schema_namespace)
 
         return ODataMetadata(
@@ -223,11 +224,65 @@ class MetadataParser:
         )
 
     @classmethod
-    def _parse_entity_types_v2(
+    def _parse_associations_v2(
         cls, schema: etree._Element, ns: dict[str, str], schema_namespace: str
+    ) -> dict[tuple[str, str], str]:
+        """Parse V2 Association elements to map (relationship, role) to entity type.
+
+        In OData V2 metadata, ``NavigationProperty`` references a ``Relationship``
+        (association name) and a ``ToRole``.  The actual target entity type is
+        declared inside the ``<Association>`` element's ``<End>`` children::
+
+            <Association Name="Assoc_BP_Address">
+              <End Type="NS.BusinessPartner" … Role="FromRole"/>
+              <End Type="NS.Address"         … Role="ToRole"/>
+            </Association>
+
+        Returns:
+            Mapping of ``(qualified_association_name, role_name)`` → short entity
+            type name (without namespace prefix).
+        """
+        association_map: dict[tuple[str, str], str] = {}
+        edm_ns = ns.get("edm", "")
+
+        associations = (
+            schema.findall(f".//{{{edm_ns}}}Association")
+            if edm_ns
+            else schema.findall(".//Association")
+        )
+        for assoc in associations:
+            assoc_name = assoc.get("Name", "")
+            qualified_name = f"{schema_namespace}.{assoc_name}" if schema_namespace else assoc_name
+
+            ends = (
+                assoc.findall(f"{{{edm_ns}}}End")
+                if edm_ns
+                else assoc.findall("End")
+            )
+            for end in ends:
+                role = end.get("Role", "")
+                entity_type = end.get("Type", "")
+                # Strip namespace prefix to get the short type name
+                short_type = entity_type.split(".")[-1] if entity_type else ""
+                if role and short_type:
+                    association_map[(qualified_name, role)] = short_type
+                    # Also store with short association name for fallback
+                    association_map[(assoc_name, role)] = short_type
+
+        return association_map
+
+    @classmethod
+    def _parse_entity_types_v2(
+        cls,
+        schema: etree._Element,
+        ns: dict[str, str],
+        schema_namespace: str,
+        association_map: dict[tuple[str, str], str] | None = None,
     ) -> dict[str, dict]:
         entity_types = {}
         edm_ns = ns.get("edm", "")
+        if association_map is None:
+            association_map = {}
 
         for entity_type in schema.findall(f".//{{{edm_ns}}}EntityType") if edm_ns else schema.findall(".//EntityType"):
             type_name = entity_type.get("Name", "")
@@ -280,10 +335,20 @@ class MetadataParser:
             ):
                 relationship = nav_prop.get("Relationship", "")
                 to_role = nav_prop.get("ToRole", "")
+
+                # Resolve the actual target entity type from Association End elements.
+                # Try qualified name first, then short name as fallback.
+                target_entity = (
+                    association_map.get((relationship, to_role))
+                    or association_map.get((relationship.split(".")[-1], to_role) if relationship else ("", ""))
+                    or to_role
+                    or (relationship.split(".")[-1] if relationship else "")
+                )
+
                 nav_properties.append(
                     NavigationProperty(
                         name=nav_prop.get("Name", ""),
-                        target_entity=to_role or relationship.split(".")[-1] if relationship else "",
+                        target_entity=target_entity,
                         is_collection=False,
                     )
                 )
