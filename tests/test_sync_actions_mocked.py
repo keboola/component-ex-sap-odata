@@ -402,9 +402,9 @@ class TestLoadFieldsAction:
 
     @respx.mock
     def test_load_fields_missing_entity_set(
-        self, respx_mock, mock_v4_server, datadir_factory, run_sync_action_with_datadir
+        self, respx_mock, mock_v4_server, datadir_factory, run_sync_action_with_datadir, capsys
     ):
-        """Test loadFields without entity_set configured."""
+        """Test loadFields without entity_set raises UserException shown as UI notification."""
         mock_v4_server.setup(respx_mock)
 
         config = {
@@ -415,9 +415,11 @@ class TestLoadFieldsAction:
         }
         datadir = datadir_factory(config)
 
-        comp = run_sync_action_with_datadir(datadir, "loadFields")
-        assert comp is not None
-        # Should return empty list
+        with pytest.raises(SystemExit) as exc_info:
+            run_sync_action_with_datadir(datadir, "loadFields")
+        assert exc_info.value.code == 1
+        stderr = capsys.readouterr().err
+        assert "Entity Set is required" in stderr
 
 
 class TestLoadPrimaryKeysAction:

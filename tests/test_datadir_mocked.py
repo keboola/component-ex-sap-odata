@@ -596,9 +596,13 @@ class TestSAPCatalog:
 
     @respx.mock
     def test_load_catalog_services(
-        self, respx_mock, mock_catalog_server, datadir_factory, run_sync_action_with_datadir
+        self, respx_mock, mock_catalog_server, datadir_factory, run_sync_action_with_datadir, capsys
     ):
-        """Test loading services from SAP catalog."""
+        """Test loadEntities without service_path shows error when metadata fetch fails.
+
+        Without service_path, loadEntities tries base_url/$metadata which doesn't exist
+        on a catalog-only URL → HTTP error → UI shows notification.
+        """
         mock_catalog_server.setup(respx_mock)
 
         config = {
@@ -618,10 +622,9 @@ class TestSAPCatalog:
         }
         datadir = datadir_factory(config)
 
-        comp = run_sync_action_with_datadir(datadir, "loadEntities")
-
-        # Should return list of services instead of entity sets
-        assert comp is not None
+        with pytest.raises(SystemExit) as exc_info:
+            run_sync_action_with_datadir(datadir, "loadEntities")
+        assert exc_info.value.code == 1
 
 
 class TestErrorScenarios:
@@ -1020,9 +1023,13 @@ class TestCatalogWorkflow:
 
     @respx.mock
     def test_catalog_only_for_browsing(
-        self, respx_mock, mock_catalog_server, datadir_factory, run_sync_action_with_datadir
+        self, respx_mock, mock_catalog_server, datadir_factory, run_sync_action_with_datadir, capsys
     ):
-        """Test catalog_path is used only when service_path is not set (browsing mode)."""
+        """Test loadEntities without service_path shows error when metadata fetch fails.
+
+        Without service_path, loadEntities tries base_url/$metadata which doesn't exist
+        on a catalog-only URL → HTTP error → UI shows notification.
+        """
         mock_catalog_server.setup(respx_mock)
 
         config = {
@@ -1039,13 +1046,13 @@ class TestCatalogWorkflow:
                 "connection_options": [],
                 "pagination_defaults": []
             }
-            # No service_path - browsing mode
+            # No service_path - metadata fetch will fail
         }
         datadir = datadir_factory(config)
 
-        # Should use catalog for loadEntities sync action
-        comp = run_sync_action_with_datadir(datadir, "loadEntities")
-        assert comp is not None
+        with pytest.raises(SystemExit) as exc_info:
+            run_sync_action_with_datadir(datadir, "loadEntities")
+        assert exc_info.value.code == 1
 
     @respx.mock
     def test_extraction_with_catalog_selected_service(
@@ -1095,12 +1102,12 @@ class TestCatalogWorkflow:
 
     @respx.mock
     def test_catalog_url_conversion_in_load_entities(
-        self, respx_mock, mock_catalog_server, datadir_factory, run_sync_action_with_datadir
+        self, respx_mock, mock_catalog_server, datadir_factory, run_sync_action_with_datadir, capsys
     ):
-        """Test that loadEntities converts internal catalog URLs to proxy-compatible paths.
+        """Test loadEntities without service_path shows error when metadata/auth fails.
 
-        SAP catalog returns internal URLs like http://20.113.120.45:50000/sap/opu/odata/sap/SERVICE
-        Component should convert these to proxy paths like http/keboola/connector/sap/opu/odata/sap/SERVICE
+        Without service_path, loadEntities tries base_url/$metadata. With OAuth auth
+        pointing to a non-existent token URL, auth fails → UI shows notification.
         """
         mock_catalog_server.setup(respx_mock)
 
@@ -1122,7 +1129,6 @@ class TestCatalogWorkflow:
         }
         datadir = datadir_factory(config)
 
-        # Should return services with converted paths
-        comp = run_sync_action_with_datadir(datadir, "loadEntities")
-        assert comp is not None
-        # Note: Actual validation of URL conversion would require inspecting sync action output
+        with pytest.raises(SystemExit) as exc_info:
+            run_sync_action_with_datadir(datadir, "loadEntities")
+        assert exc_info.value.code == 1
