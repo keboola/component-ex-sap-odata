@@ -531,23 +531,13 @@ class Component(ComponentBase):
         Raises:
             UserException: When API returns an error (decorator writes to stderr, UI shows notification)
         """
-        # Validate configuration - return guidance items for missing config
+        # Validate configuration - raise errors for missing config so UI shows notification
         if not self._config.base_url:
-            return [
-                {
-                    "value": "",
-                    "label": "⚠️ Base URL not configured. Please check root configuration.",
-                }
-            ]
-
+            raise UserException("Base URL is not configured. Please set it in the root configuration.")
         if not self._config.catalog_path:
-            return [
-                {
-                    "value": "",
-                    "label": "⚠️ Catalog Path is required to load services. Please configure it in root settings.",
-                }
-            ]
-
+            raise UserException(
+                "Catalog Path is required to load services. Please configure it in the root settings."
+            )
         logging.info(
             f"loadServices called - base_url: {self._config.base_url}, catalog_path: {self._config.catalog_path}"
         )
@@ -628,23 +618,8 @@ class Component(ComponentBase):
         Raises:
             UserException: When API returns an error (decorator writes to stderr, UI shows notification)
         """
-        # Validate configuration - return guidance items for missing config
         if not self._config.base_url:
-            return [
-                {
-                    "value": "",
-                    "label": "⚠️ Base URL not configured. Please check root configuration.",
-                }
-            ]
-
-        if not self._config.service_path:
-            return [
-                {
-                    "value": "",
-                    "label": "⚠️ Service Path is required. Please fill it in above.",
-                }
-            ]
-
+            raise UserException("Base URL is not configured. Please set it in the root configuration.")
         logging.info(
             f"loadEntities called - "
             f"base_url: {self._config.base_url}, service_path: {self._config.service_path}"
@@ -672,7 +647,7 @@ class Component(ComponentBase):
         """
         logging.info(f"loadFields called with entity_set: {self._config.entity_set}")
         if not self._config.entity_set:
-            return [{"value": "", "label": "⚠️ Entity Set is required to load fields. Please select an entity above."}]
+            raise UserException("Entity Set is required to load fields. Please select an entity above.")
 
         client = self._build_client()
         logging.info(f"loadFields: fetching fields for {self._config.entity_set}")
@@ -729,7 +704,7 @@ class Component(ComponentBase):
         """
         logging.info(f"loadPossiblePrimaryKeys called with entity_set: {self._config.entity_set}")
         if not self._config.entity_set:
-            return [{"value": "", "label": "⚠️ Entity Set is required to load primary keys. Please select an entity above."}]
+            raise UserException("Entity Set is required to load primary keys. Please select an entity above.")
 
         client = self._build_client()
         metadata = client.get_metadata()
@@ -748,7 +723,7 @@ class Component(ComponentBase):
             UserException: When API returns an error (decorator writes to stderr, UI shows notification)
         """
         if not self._config.entity_set:
-            return [{"value": "", "label": "⚠️ Entity Set is required to load incremental fields. Please select an entity above."}]
+            raise UserException("Entity Set is required to load incremental fields. Please select an entity above.")
 
         client = self._build_client()
         fields = client.list_fields(self._config.entity_set)
@@ -803,7 +778,7 @@ class Component(ComponentBase):
         """
         logging.info(f"loadNavigationProperties called with entity_set: {self._config.entity_set}")
         if not self._config.entity_set:
-            return [{"value": "", "label": "\u26a0\ufe0f Entity Set is required to load navigation properties. Please select an entity above."}]
+            raise UserException("Entity Set is required to load navigation properties. Please select an entity above.")
 
         client = self._build_client()
         metadata = client.get_metadata()
