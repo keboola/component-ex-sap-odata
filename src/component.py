@@ -24,7 +24,7 @@ from configuration import (
     StateEntry,
 )
 from odata_client.auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler, OAuthHandler
-from odata_client.metadata import MetadataParser, ODataVersion
+from odata_client.metadata import MetadataParser, ODataMetadata, ODataVersion
 from odata_client.sync_wrapper import SyncODataV2Client, SyncODataV4Client
 
 # Type alias for JSON-like dictionaries
@@ -795,12 +795,15 @@ class Component(ComponentBase):
     def load_navigation_properties(self) -> list[dict[str, str]]:
         """Load navigation properties for the selected entity set.
 
+        Recursively discovers navigation properties up to 3 levels deep,
+        generating multi-level paths like ``Items/Partner/Address``.
+
         Raises:
             UserException: When API returns an error (decorator writes to stderr, UI shows notification)
         """
         logging.info(f"loadNavigationProperties called with entity_set: {self._config.entity_set}")
         if not self._config.entity_set:
-            return [{"value": "", "label": "⚠️ Entity Set is required to load navigation properties. Please select an entity above."}]
+            return [{"value": "", "label": "\u26a0\ufe0f Entity Set is required to load navigation properties. Please select an entity above."}]
 
         client = self._build_client()
         metadata = client.get_metadata()
@@ -809,10 +812,68 @@ class Component(ComponentBase):
         if entity is None:
             raise UserException(f"Entity set '{self._config.entity_set}' not found in service metadata")
 
-        logging.info(f"loadNavigationProperties: found {len(entity.navigation_properties)} navigation properties")
-        return [
-            {"value": np.name, "label": f"{np.name} -> {np.target_entity}"} for np in entity.navigation_properties
-        ]
+        max_depth = 3
+        results: list[dict[str, str]] = []
+        self._collect_nav_properties_recursive(
+            metadata=metadata,
+            nav_properties=entity.navigation_properties,
+            prefix="",
+            label_prefix="",
+            depth=1,
+            max_depth=max_depth,
+            results=results,
+            visited_types=set(),
+        )
+
+        logging.info(
+            f"loadNavigationProperties: found {len(results)} navigation properties "
+            f"(up to {max_depth} levels deep)"
+        )
+        return results
+
+    def _collect_nav_properties_recursive(
+        self,
+        metadata: ODataMetadata,
+        nav_properties: list,
+        prefix: str,
+        label_prefix: str,
+        depth: int,
+        max_depth: int,
+        results: list[dict[str, str]],
+        visited_types: set[str],
+    ) -> None:
+        """Recursively collect navigation properties into a flat list of paths.
+
+        Args:
+            metadata: Parsed OData metadata containing entity type definitions.
+            nav_properties: Navigation properties to process at this level.
+            prefix: Path prefix for values (e.g. ``Items/`` for level 2).
+            label_prefix: Label prefix showing the expansion chain.
+            depth: Current depth level (1-based).
+            max_depth: Maximum depth to recurse into.
+            results: Accumulator list for the results.
+            visited_types: Set of already-visited entity type names to prevent cycles.
+        """
+        for np in nav_properties:
+            path = f"{prefix}{np.name}" if prefix else np.name
+            indent = "  " * (depth - 1)
+            label = f"{indent}{path} -> {np.target_entity}"
+            results.append({"value": path, "label": label})
+
+            # Recurse into sub-navigation properties if within depth limit
+            if depth < max_depth and np.target_entity and np.target_entity not in visited_types:
+                sub_nav_props = metadata.get_navigation_properties_for_type(np.target_entity)
+                if sub_nav_props:
+                    self._collect_nav_properties_recursive(
+                        metadata=metadata,
+                        nav_properties=sub_nav_props,
+                        prefix=f"{path}/",
+                        label_prefix=f"{label} / ",
+                        depth=depth + 1,
+                        max_depth=max_depth,
+                        results=results,
+                        visited_types=visited_types | {np.target_entity},
+                    )
 
     @sync_action("previewData")
     def preview_data(self) -> JsonDict:
