@@ -196,32 +196,70 @@ class MetadataParser:
         root = etree.fromstring(metadata_xml.encode("utf-8"))
 
         ns = cls.V2_NAMESPACES
-        schema = root.find(".//edm:Schema", namespaces=ns)
-        if schema is None:
+        schemas = root.findall(".//edm:Schema", namespaces=ns)
+        if not schemas:
             ns = cls.V2_NAMESPACES_ALT
-            schema = root.find(".//edm:Schema", namespaces=ns)
+            schemas = root.findall(".//edm:Schema", namespaces=ns)
 
-        if schema is None:
-            for _ns_prefix, ns_uri in root.nsmap.items():
-                if "edm" in ns_uri.lower() or "schemas.microsoft.com" in ns_uri.lower():
-                    ns = {"edm": ns_uri, "edmx": root.nsmap.get(None, cls.V2_NAMESPACES["edmx"])}
-                    schema = root.find(f".//{{{ns_uri}}}Schema")
-                    if schema is not None:
-                        break
+        if not schemas:
+            # Fallback: discover EDM namespace from any element in the tree.
+            # Some services (e.g. Northwind) declare the EDM namespace only on
+            # child <Schema> elements, so root.nsmap alone is not sufficient.
+            edm_ns_uri = cls._discover_edm_namespace(root)
+            if edm_ns_uri:
+                ns = {"edm": edm_ns_uri, "edmx": root.nsmap.get("edmx", cls.V2_NAMESPACES["edmx"])}
+                schemas = root.findall(f".//{{{edm_ns_uri}}}Schema")
 
-        if schema is None:
+        if not schemas:
             return ODataMetadata(version=ODataVersion.V2)
 
-        schema_namespace = schema.get("Namespace", "")
-        association_map = cls._parse_associations_v2(schema, ns, schema_namespace)
-        entity_types = cls._parse_entity_types_v2(schema, ns, schema_namespace, association_map)
-        entity_sets = cls._parse_entity_sets_v2(schema, ns, entity_types, schema_namespace)
+        # Collect entity types and associations from ALL schemas, then entity
+        # sets.  This mirrors the V4 parser approach and handles multi-schema
+        # EDMX documents (e.g. Northwind where EntityTypes and EntityContainer
+        # live in separate <Schema> elements).
+        all_entity_types: dict[str, dict] = {}
+        all_association_map: dict[tuple[str, str], str] = {}
+        for schema in schemas:
+            schema_namespace = schema.get("Namespace", "")
+            assoc_map = cls._parse_associations_v2(schema, ns, schema_namespace)
+            all_association_map.update(assoc_map)
+            entity_types = cls._parse_entity_types_v2(schema, ns, schema_namespace, assoc_map)
+            all_entity_types.update(entity_types)
+
+        all_entity_sets: dict[str, EntitySet] = {}
+        for schema in schemas:
+            schema_namespace = schema.get("Namespace", "")
+            entity_sets = cls._parse_entity_sets_v2(schema, ns, all_entity_types, schema_namespace)
+            if entity_sets:
+                all_entity_sets.update(entity_sets)
 
         return ODataMetadata(
             version=ODataVersion.V2,
-            entity_sets=entity_sets,
-            entity_types=entity_types,
+            entity_sets=all_entity_sets,
+            entity_types=all_entity_types,
         )
+
+    @classmethod
+    def _discover_edm_namespace(cls, root: etree._Element) -> str:
+        """Walk the element tree to find the EDM namespace URI.
+
+        OData V2 metadata uses varying EDM namespace versions (2006, 2008,
+        2009).  Some services declare the namespace on the root ``<edmx:Edmx>``
+        element, others only on child ``<Schema>`` elements.  This helper
+        inspects *all* elements' ``nsmap`` to find the first URI that looks
+        like an EDM namespace.
+        """
+        for elem in root.iter():
+            for _prefix, uri in elem.nsmap.items():
+                if uri and (
+                    "schemas.microsoft.com/ado" in uri
+                    and "/edm" in uri.lower()
+                    and "edmx" not in uri.lower()
+                    and "metadata" not in uri.lower()
+                    and "dataservices" not in uri.lower()
+                ):
+                    return uri
+        return ""
 
     @classmethod
     def _parse_associations_v2(
