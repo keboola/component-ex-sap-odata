@@ -112,6 +112,21 @@ class ODataMetadata:
     def list_entity_sets(self) -> list[EntitySet]:
         return list(self.entity_sets.values())
 
+    def get_navigation_properties_for_type(self, entity_type_name: str) -> list[NavigationProperty]:
+        """Get navigation properties for an entity type by name.
+
+        Looks up the entity type in the metadata (tries both short and qualified names)
+        and returns its navigation properties.
+        """
+        type_info = self.entity_types.get(entity_type_name)
+        if type_info is None:
+            # Try without namespace prefix
+            short_name = entity_type_name.split(".")[-1] if "." in entity_type_name else entity_type_name
+            type_info = self.entity_types.get(short_name)
+        if type_info is None:
+            return []
+        return type_info.get("navigation_properties", [])
+
 
 class MetadataParser:
     V2_NAMESPACES = {

@@ -30,7 +30,7 @@ class AsyncODataV4Client(AsyncODataClientBase):
         if filter_expr:
             params["$filter"] = filter_expr
         if expand:
-            params["$expand"] = ",".join(expand)
+            params["$expand"] = self._build_v4_expand(expand)
         if order_by:
             params["$orderby"] = order_by
         if top is not None:
@@ -247,6 +247,41 @@ class AsyncODataV4Client(AsyncODataClientBase):
             # Any other error (404, 500, parse error) — $count not supported, fall back silently
             logging.info(f"Record count not available ($count not supported or failed): {e}")
             return None
+
+    @staticmethod
+    def _build_v4_expand(expand: list[str]) -> str:
+        """Convert a list of expand paths to OData V4 nested ``$expand`` syntax.
+
+        OData V2 uses slash-separated paths directly (``Items,Items/Partner``),
+        but OData V4 requires nested syntax: ``Items($expand=Partner)``.
+
+        Paths that share a common root are merged into a single nested expression.
+        For example ``["Items/Partner", "Items/Partner/Address", "Items/Schedule"]``
+        becomes ``Items($expand=Partner($expand=Address),Schedule)``.
+
+        Simple (single-level) paths are left as-is.
+        """
+        # Build a tree from all expand paths
+        tree: dict = {}
+        for path in expand:
+            parts = path.split("/")
+            node = tree
+            for part in parts:
+                if part not in node:
+                    node[part] = {}
+                node = node[part]
+
+        def _render(subtree: dict) -> str:
+            segments: list[str] = []
+            for key, children in subtree.items():
+                if children:
+                    child_expand = _render(children)
+                    segments.append(f"{key}($expand={child_expand})")
+                else:
+                    segments.append(key)
+            return ",".join(segments)
+
+        return _render(tree)
 
     def _clean_record(self, record: JsonDict, _depth: int = 0) -> JsonDict:
         """Clean OData record by removing OData metadata fields.
