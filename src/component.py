@@ -801,6 +801,19 @@ class Component(ComponentBase):
         logging.info(
             f"loadNavigationProperties: found {len(results)} navigation properties"
         )
+
+        if not results:
+            logging.info(
+                f"No navigation properties found for entity set '{self._config.entity_set}'"
+            )
+            return [
+                {
+                    "value": "",
+                    "label": f"No navigation properties found for '{self._config.entity_set}' "
+                    f"— this entity set does not support $expand.",
+                }
+            ]
+
         return results
 
     def _collect_nav_properties_recursive(
