@@ -770,8 +770,9 @@ class Component(ComponentBase):
     def load_navigation_properties(self) -> list[dict[str, str]]:
         """Load navigation properties for the selected entity set.
 
-        Recursively discovers navigation properties up to 3 levels deep,
-        generating multi-level paths like ``Items/Partner/Address``.
+        Recursively discovers navigation properties following the entity type
+        graph.  Cycle detection (via ``visited_types``) prevents infinite
+        recursion — there is no hard depth limit.
 
         Raises:
             UserException: When API returns an error (decorator writes to stderr, UI shows notification)
@@ -787,22 +788,18 @@ class Component(ComponentBase):
         if entity is None:
             raise UserException(f"Entity set '{self._config.entity_set}' not found in service metadata")
 
-        max_depth = 3
         results: list[dict[str, str]] = []
         self._collect_nav_properties_recursive(
             metadata=metadata,
             nav_properties=entity.navigation_properties,
             prefix="",
-            label_prefix="",
             depth=1,
-            max_depth=max_depth,
             results=results,
             visited_types=set(),
         )
 
         logging.info(
-            f"loadNavigationProperties: found {len(results)} navigation properties "
-            f"(up to {max_depth} levels deep)"
+            f"loadNavigationProperties: found {len(results)} navigation properties"
         )
         return results
 
@@ -811,21 +808,21 @@ class Component(ComponentBase):
         metadata: ODataMetadata,
         nav_properties: list,
         prefix: str,
-        label_prefix: str,
         depth: int,
-        max_depth: int,
         results: list[dict[str, str]],
         visited_types: set[str],
     ) -> None:
         """Recursively collect navigation properties into a flat list of paths.
 
+        Traversal terminates when a cycle is detected (the target entity type
+        has already been visited on the current path).  There is no hard depth
+        limit — cycle detection alone prevents infinite recursion.
+
         Args:
             metadata: Parsed OData metadata containing entity type definitions.
             nav_properties: Navigation properties to process at this level.
             prefix: Path prefix for values (e.g. ``Items/`` for level 2).
-            label_prefix: Label prefix showing the expansion chain.
-            depth: Current depth level (1-based).
-            max_depth: Maximum depth to recurse into.
+            depth: Current depth level (1-based, used only for indentation).
             results: Accumulator list for the results.
             visited_types: Set of already-visited entity type names to prevent cycles.
         """
@@ -835,17 +832,15 @@ class Component(ComponentBase):
             label = f"{indent}{path} -> {np.target_entity}"
             results.append({"value": path, "label": label})
 
-            # Recurse into sub-navigation properties if within depth limit
-            if depth < max_depth and np.target_entity and np.target_entity not in visited_types:
+            # Recurse into sub-navigation properties (cycle detection stops recursion)
+            if np.target_entity and np.target_entity not in visited_types:
                 sub_nav_props = metadata.get_navigation_properties_for_type(np.target_entity)
                 if sub_nav_props:
                     self._collect_nav_properties_recursive(
                         metadata=metadata,
                         nav_properties=sub_nav_props,
                         prefix=f"{path}/",
-                        label_prefix=f"{label} / ",
                         depth=depth + 1,
-                        max_depth=max_depth,
                         results=results,
                         visited_types=visited_types | {np.target_entity},
                     )
