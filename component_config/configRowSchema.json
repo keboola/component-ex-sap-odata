@@ -109,12 +109,24 @@
             "type": "string"
           },
           "options": {
-            "tooltip": "Related entities to include using OData `$expand`. Expanded data is **flattened into columns**.\n\nSupports **multi-level expansion** — select nested navigation properties to expand related entities multiple levels deep.\n\n**Examples:**\n- `Addresses` — direct navigation property\n- `Items/Partner` — 2 levels deep\n- `Items/Partner/Address` — 3 levels deep\n\nThe \"Load\" button discovers navigation properties **recursively** (up to 3 levels).\n\n[OData $expand docs](https://www.odata.org/getting-started/basic-tutorial/#expand)",
+            "tooltip": "Related entities to include using OData `$expand`. Expanded data is **flattened into columns**.\n\nSupports **multi-level expansion** — select nested navigation properties to expand related entities multiple levels deep.\n\n**Examples:**\n- `Addresses` — direct navigation property\n- `Items/Partner` — 2 levels deep\n- `Items/Partner/Address` — 3 levels deep\n\nThe \"Load\" button discovers navigation properties **recursively** (up to the configured depth limit).\n\n[OData $expand docs](https://www.odata.org/getting-started/basic-tutorial/#expand)",
             "tags": true,
             "async": {
               "label": "Load Navigation Properties",
               "action": "loadNavigationProperties"
             }
+          }
+        },
+        "expand_max_depth": {
+          "type": "integer",
+          "title": "Expand Max Depth",
+          "description": "Maximum depth for navigation property discovery (default 5).",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 20,
+          "propertyOrder": 5,
+          "options": {
+            "tooltip": "Maximum depth for **recursive navigation property discovery**.\n\nControls how many levels deep the \"Load Navigation Properties\" button will traverse.\n\n- Default: **5**\n- Increase if your entity model has deeply nested relationships\n- Decrease to limit the number of discovered properties\n\nCycle detection prevents infinite loops regardless of this setting."
           }
         }
       }
