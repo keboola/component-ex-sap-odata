@@ -234,6 +234,22 @@ class AsyncODataClientBase(ABC):
                     endpoint_path="$metadata",
                     headers={"Accept": "application/xml"},
                 )
+
+                # Validate that we received XML content before parsing
+                stripped = metadata_text.strip() if metadata_text else ""
+                if not stripped:
+                    raise UserException(
+                        "Metadata endpoint returned an empty response. "
+                        "The OData service may be unavailable or misconfigured."
+                    )
+                if not stripped.startswith("<"):
+                    # Response is not XML — likely an error page, JSON, or the service is down
+                    preview = stripped[:200]
+                    raise UserException(
+                        f"Metadata endpoint returned a non-XML response (the service may be unavailable). "
+                        f"Response starts with: {preview}"
+                    )
+
                 self._metadata = MetadataParser.parse(metadata_text, self._get_odata_version())
                 return self._metadata
             except UserException as e:
@@ -257,7 +273,7 @@ class AsyncODataClientBase(ABC):
                     self._metadata = ODataMetadata(version=self._get_odata_version())
                     return self._metadata
 
-                # For other errors (auth, network, etc.), raise
+                # For other errors (auth, network, non-XML response, etc.), raise
                 raise
             except Exception as e:
                 raise UserException(f"Failed to parse metadata: {e}") from e
