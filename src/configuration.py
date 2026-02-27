@@ -81,6 +81,7 @@ class QueryOptions(BaseModel):
     select_fields: list[str] = Field(default_factory=list, description="Fields to select ($select)")
     filter_expression: str | None = Field(default=None, description="OData $filter expression")
     expand_properties: list[str] = Field(default_factory=list, description="Navigation properties to expand")
+    expand_max_depth: int = Field(default=5, description="Maximum depth for navigation property discovery")
 
     @field_validator("filter_expression")
     @classmethod
@@ -346,6 +347,10 @@ class Configuration(BaseModel):
     @property
     def expand_properties(self) -> list[str]:
         return self.query_options.expand_properties if self.query_options else []
+
+    @property
+    def expand_max_depth(self) -> int:
+        return self.query_options.expand_max_depth if self.query_options else 5
 
     @property
     def fetch_type(self) -> FetchType:
