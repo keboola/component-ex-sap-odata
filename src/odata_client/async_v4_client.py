@@ -139,9 +139,7 @@ class AsyncODataV4Client(AsyncODataClientBase):
 
         while endpoint_path:
             if page_count >= max_pages:
-                logging.warning(
-                    f"Reached page safety limit ({max_pages}) for {entity_set}, stopping."
-                )
+                logging.warning(f"Reached page safety limit ({max_pages}) for {entity_set}, stopping.")
                 break
             page_count += 1
             if max_records and total_fetched >= max_records:
@@ -209,7 +207,7 @@ class AsyncODataV4Client(AsyncODataClientBase):
                 jobs.append({"method": "GET", "endpoint": entity_set, "params": params})
 
             # Fetch batch of pages in parallel
-            logging.debug(f"Fetching pages {batch_start}-{batch_end-1} in parallel")
+            logging.debug(f"Fetching pages {batch_start}-{batch_end - 1} in parallel")
             responses = await self._client.process_multiple(jobs)
 
             # Yield records from all responses in order
@@ -233,7 +231,7 @@ class AsyncODataV4Client(AsyncODataClientBase):
             params["$filter"] = filter_expr
 
         try:
-            response = await self._probe_client.get_raw(endpoint_path=endpoint_path, params=params if params else None)
+            response = await self._probe_client.get_raw(endpoint=endpoint_path, params=params if params else None)
             response.raise_for_status()
             return int(response.text.strip())
         except Exception as e:
