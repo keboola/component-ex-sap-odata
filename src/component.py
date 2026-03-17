@@ -923,6 +923,12 @@ class Component(ComponentBase):
     def validate_filter(self) -> dict[str, str]:
         """Validate OData filter expression.
 
+        Uses $count endpoint with $filter to validate the expression without
+        fetching actual data. This avoids sending $top which some SAP endpoints
+        (e.g. SAP IBP PLANNING_DATA_API_SRV) reject in combination with $filter.
+
+        Falls back to fetch_entity_set with $top=1 if $count is not supported.
+
         Raises:
             UserException: When API returns an error (decorator writes to stderr, UI shows notification)
         """
@@ -932,6 +938,16 @@ class Component(ComponentBase):
             return {"status": "success", "message": "No filter to validate"}
 
         client = self._build_client()
+
+        # Try $count first — avoids $top which some SAP endpoints reject with $filter
+        count = client.get_record_count(
+            entity_set=self._config.entity_set,
+            filter_expr=self._config.filter_expression,
+        )
+        if count is not None:
+            return {"status": "success", "message": f"Filter expression is valid ({count} records match)"}
+
+        # Fallback for endpoints that don't support $count
         list(
             client.fetch_entity_set(
                 entity_set=self._config.entity_set,
