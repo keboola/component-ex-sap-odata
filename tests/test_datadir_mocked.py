@@ -11,8 +11,8 @@ from pathlib import Path
 
 import httpx
 import pytest
-import respx
 import responses
+import respx
 
 from tests.fixtures.mock_odata_server_respx import (
     MockODataV2Server,
@@ -34,20 +34,11 @@ class TestODataV4BasicExtraction:
 
         # Create datadir
         config = {
-            "connection": {
-                "base_url": mock_v4_server.base_url
-            },
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
-            "advanced_options": {
-                "connection_options": [],
-                "pagination_defaults": []
-            },
+            "connection": {"base_url": mock_v4_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
+            "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
-            "entity_set": "Products"
+            "entity_set": "Products",
         }
         datadir = datadir_factory(config)
 
@@ -75,18 +66,11 @@ class TestODataV4BasicExtraction:
 
         config = {
             "connection": {"base_url": mock_v4_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
             "entity_set": "Products",
-            "query_options": {
-                "select_fields": ["ID", "Name", "Price"],
-                "expand_properties": []
-            }
+            "query_options": {"select_fields": ["ID", "Name", "Price"], "expand_properties": []},
         }
         datadir = datadir_factory(config)
 
@@ -109,18 +93,11 @@ class TestODataV4BasicExtraction:
 
         config = {
             "connection": {"base_url": mock_v4_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
             "entity_set": "Products",
-            "query_options": {
-                "filter_expression": "Category eq 'Electronics'",
-                "expand_properties": []
-            }
+            "query_options": {"filter_expression": "Category eq 'Electronics'", "expand_properties": []},
         }
         datadir = datadir_factory(config)
 
@@ -141,14 +118,10 @@ class TestODataV4BasicExtraction:
 
         config = {
             "connection": {"base_url": mock_v4_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
-            "entity_set": "Products"
+            "entity_set": "Products",
         }
         datadir = datadir_factory(config)
 
@@ -166,19 +139,10 @@ class TestODataV4BasicExtraction:
 
         config = {
             "connection": {"base_url": mock_v4_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
-            "advanced_options": {
-                "connection_options": [],
-                "pagination_defaults": [{
-                    "max_records": 3
-                }]
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
+            "advanced_options": {"connection_options": [], "pagination_defaults": [{"max_records": 3}]},
             "odata_version": "v4",
-            "entity_set": "Products"
+            "entity_set": "Products",
         }
         datadir = datadir_factory(config)
 
@@ -200,14 +164,10 @@ class TestODataV2BasicExtraction:
 
         config = {
             "connection": {"base_url": mock_v2_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v2",
-            "entity_set": "A_BusinessPartner"
+            "entity_set": "A_BusinessPartner",
         }
         datadir = datadir_factory(config)
 
@@ -232,18 +192,11 @@ class TestODataV2BasicExtraction:
 
         config = {
             "connection": {"base_url": mock_v2_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v2",
             "entity_set": "A_BusinessPartner",
-            "query_options": {
-                "select_fields": ["BusinessPartner", "BusinessPartnerName"],
-                "expand_properties": []
-            }
+            "query_options": {"select_fields": ["BusinessPartner", "BusinessPartnerName"], "expand_properties": []},
         }
         datadir = datadir_factory(config)
 
@@ -265,18 +218,11 @@ class TestODataV2BasicExtraction:
 
         config = {
             "connection": {"base_url": mock_v2_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v2",
             "entity_set": "A_BusinessPartner",
-            "query_options": {
-                "filter_expression": "BusinessPartnerCategory eq '1'",
-                "expand_properties": []
-            }
+            "query_options": {"filter_expression": "BusinessPartnerCategory eq '1'", "expand_properties": []},
         }
         datadir = datadir_factory(config)
 
@@ -295,7 +241,8 @@ class TestIncrementalExtraction:
     @respx.mock
     def test_v4_incremental_first_run(
         self,
-        respx_mock, mock_v4_server,
+        respx_mock,
+        mock_v4_server,
         datadir_factory,
         run_component_with_datadir,
         verify_output_table,
@@ -306,22 +253,12 @@ class TestIncrementalExtraction:
 
         config = {
             "connection": {"base_url": mock_v4_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
             "entity_set": "Products",
-            "fetching_options": {
-                "fetch_type": "incremental",
-                "incremental_field": "LastModified"
-            },
-            "destination": {
-                "load_type": "incremental",
-                "primary_key": ["ID"]
-            }
+            "fetching_options": {"fetch_type": "incremental", "incremental_field": "LastModified"},
+            "destination": {"load_type": "incremental", "primary_key": ["ID"]},
         }
         datadir = datadir_factory(config)
 
@@ -341,7 +278,8 @@ class TestIncrementalExtraction:
     @respx.mock
     def test_v4_incremental_subsequent_run(
         self,
-        respx_mock, mock_v4_server,
+        respx_mock,
+        mock_v4_server,
         datadir_factory,
         run_component_with_datadir,
         verify_output_table,
@@ -352,22 +290,12 @@ class TestIncrementalExtraction:
 
         config = {
             "connection": {"base_url": mock_v4_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
             "entity_set": "Products",
-            "fetching_options": {
-                "fetch_type": "incremental",
-                "incremental_field": "LastModified"
-            },
-            "destination": {
-                "load_type": "incremental",
-                "primary_key": ["ID"]
-            }
+            "fetching_options": {"fetch_type": "incremental", "incremental_field": "LastModified"},
+            "destination": {"load_type": "incremental", "primary_key": ["ID"]},
         }
 
         # Provide initial state - only records after 2024-01-16 should be fetched
@@ -402,7 +330,8 @@ class TestIncrementalExtraction:
     @respx.mock
     def test_v2_incremental_with_datetime(
         self,
-        respx_mock, mock_v2_server,
+        respx_mock,
+        mock_v2_server,
         datadir_factory,
         run_component_with_datadir,
         verify_output_table,
@@ -413,22 +342,12 @@ class TestIncrementalExtraction:
 
         config = {
             "connection": {"base_url": mock_v2_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v2",
             "entity_set": "A_BusinessPartner",
-            "fetching_options": {
-                "fetch_type": "incremental",
-                "incremental_field": "LastChangeDateTime"
-            },
-            "destination": {
-                "load_type": "incremental",
-                "primary_key": ["BusinessPartner"]
-            }
+            "fetching_options": {"fetch_type": "incremental", "incremental_field": "LastChangeDateTime"},
+            "destination": {"load_type": "incremental", "primary_key": ["BusinessPartner"]},
         }
 
         # Provide initial state
@@ -458,20 +377,17 @@ class TestSyncActions:
     """Test sync actions with mocked servers."""
 
     @respx.mock
-    def test_test_connection_v4_success(self, respx_mock, mock_v4_server, datadir_factory, run_sync_action_with_datadir):
+    def test_test_connection_v4_success(
+        self, respx_mock, mock_v4_server, datadir_factory, run_sync_action_with_datadir
+    ):
         """Test successful connection test for V4."""
         mock_v4_server.setup(respx_mock)
 
         config = {
             "connection": {"base_url": mock_v4_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
-
         }
         datadir = datadir_factory(config)
 
@@ -483,20 +399,17 @@ class TestSyncActions:
         assert comp is not None
 
     @respx.mock
-    def test_test_connection_v2_success(self, respx_mock, mock_v2_server, datadir_factory, run_sync_action_with_datadir):
+    def test_test_connection_v2_success(
+        self, respx_mock, mock_v2_server, datadir_factory, run_sync_action_with_datadir
+    ):
         """Test successful connection test for V2."""
         mock_v2_server.setup(respx_mock)
 
         config = {
             "connection": {"base_url": mock_v2_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v2",
-
         }
         datadir = datadir_factory(config)
 
@@ -510,14 +423,9 @@ class TestSyncActions:
 
         config = {
             "connection": {"base_url": mock_v4_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
-
         }
         datadir = datadir_factory(config)
 
@@ -534,14 +442,9 @@ class TestSyncActions:
 
         config = {
             "connection": {"base_url": mock_v2_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v2",
-
         }
         datadir = datadir_factory(config)
 
@@ -555,14 +458,10 @@ class TestSyncActions:
 
         config = {
             "connection": {"base_url": mock_v4_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
-            "entity_set": "Products"
+            "entity_set": "Products",
         }
         datadir = datadir_factory(config)
 
@@ -576,14 +475,10 @@ class TestSyncActions:
 
         config = {
             "connection": {"base_url": mock_v2_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v2",
-            "entity_set": "A_BusinessPartner"
+            "entity_set": "A_BusinessPartner",
         }
         datadir = datadir_factory(config)
 
@@ -608,17 +503,10 @@ class TestSAPCatalog:
         config = {
             "connection": {
                 "base_url": "https://api.example.com",
-                "catalog_path": "sap/opu/odata/IWFND/CATALOGSERVICE;v=2"
+                "catalog_path": "sap/opu/odata/IWFND/CATALOGSERVICE;v=2",
             },
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
-            "advanced_options": {
-                "connection_options": [],
-                "pagination_defaults": []
-            }
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
+            "advanced_options": {"connection_options": [], "pagination_defaults": []},
         }
         datadir = datadir_factory(config)
 
@@ -640,14 +528,10 @@ class TestErrorScenarios:
 
         config = {
             "connection": {"base_url": mock_v4_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "wrong_user",
-                "#password": "wrong_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "wrong_user", "#password": "wrong_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
-            "entity_set": "Products"
+            "entity_set": "Products",
         }
         datadir = datadir_factory(config)
 
@@ -662,11 +546,7 @@ class TestErrorScenarios:
 
         config = {
             "connection": {"base_url": mock_v4_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
         }
@@ -674,6 +554,7 @@ class TestErrorScenarios:
 
         # Should raise UserException - entity_set is required
         from keboola.component.exceptions import UserException
+
         with pytest.raises(UserException, match="entity_set"):
             run_component_with_datadir(datadir)
 
@@ -696,21 +577,14 @@ class TestErrorScenarios:
 
         config = {
             "connection": {"base_url": mock_v4_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
             "entity_set": "Products",
             "fetching_options": {
                 "fetch_type": "incremental",
             },
-            "destination": {
-                "load_type": "incremental",
-                "primary_key": ["ID"]
-            }
+            "destination": {"load_type": "incremental", "primary_key": ["ID"]},
         }
         datadir = datadir_factory(config)
 
@@ -723,9 +597,7 @@ class TestSplitURLConfiguration:
     """Test split URL configuration (base_url + service_path)."""
 
     @respx.mock
-    def test_v4_split_url(
-        self, respx_mock, datadir_factory, run_component_with_datadir, verify_output_table
-    ):
+    def test_v4_split_url(self, respx_mock, datadir_factory, run_component_with_datadir, verify_output_table):
         """Test V4 extraction using base_url + service_path."""
         # Setup mock for split URL
         base_url = "https://api.example.com"
@@ -738,21 +610,12 @@ class TestSplitURLConfiguration:
         server.setup(respx_mock)
 
         config = {
-            "connection": {
-                "base_url": base_url
-            },
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
-            "advanced_options": {
-                "connection_options": [],
-                "pagination_defaults": []
-            },
+            "connection": {"base_url": base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
+            "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
             "service_path": service_path,
-            "entity_set": "Products"
+            "entity_set": "Products",
         }
         datadir = datadir_factory(config)
 
@@ -762,9 +625,7 @@ class TestSplitURLConfiguration:
         assert len(rows) == 5
 
     @respx.mock
-    def test_v2_split_url(
-        self, respx_mock, datadir_factory, run_component_with_datadir, verify_output_table
-    ):
+    def test_v2_split_url(self, respx_mock, datadir_factory, run_component_with_datadir, verify_output_table):
         """Test V2 extraction using base_url + service_path."""
         base_url = "https://sap-server.com"
         service_path = "sap/opu/odata/sap/API_BUSINESS_PARTNER"
@@ -776,21 +637,12 @@ class TestSplitURLConfiguration:
         server.setup(respx_mock)
 
         config = {
-            "connection": {
-                "base_url": base_url
-            },
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
-            "advanced_options": {
-                "connection_options": [],
-                "pagination_defaults": []
-            },
+            "connection": {"base_url": base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
+            "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v2",
             "service_path": service_path,
-            "entity_set": "A_BusinessPartner"
+            "entity_set": "A_BusinessPartner",
         }
         datadir = datadir_factory(config)
 
@@ -812,13 +664,10 @@ class TestAuthenticationMethods:
 
         config = {
             "connection": {"base_url": mock_v4_server.base_url},
-            "authentication": {
-                "auth_type": "apiKey",
-                "#api_key": "test_api_key_12345"
-            },
+            "authentication": {"auth_type": "apiKey", "#api_key": "test_api_key_12345"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
-            "entity_set": "Products"
+            "entity_set": "Products",
         }
         datadir = datadir_factory(config)
 
@@ -855,11 +704,11 @@ class TestAuthenticationMethods:
                 "auth_type": "oauth",
                 "token_url": token_url,
                 "client_id": "test_client_id",
-                "#client_secret": "test_client_secret"
+                "#client_secret": "test_client_secret",
             },
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
-            "entity_set": "Products"
+            "entity_set": "Products",
         }
         datadir = datadir_factory(config)
 
@@ -873,25 +722,19 @@ class TestLoadTypeAndDestination:
     """Test load type and destination configuration."""
 
     @respx.mock
-    def test_full_load(
-        self, respx_mock, mock_v4_server, datadir_factory, run_component_with_datadir
-    ):
+    def test_full_load(self, respx_mock, mock_v4_server, datadir_factory, run_component_with_datadir):
         """Test full load (replace) to Keboola Storage."""
         mock_v4_server.setup(respx_mock)
 
         config = {
             "connection": {"base_url": mock_v4_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
             "entity_set": "Products",
             "destination": {
                 "load_type": "full",
-            }
+            },
         }
         datadir = datadir_factory(config)
 
@@ -915,18 +758,11 @@ class TestLoadTypeAndDestination:
 
         config = {
             "connection": {"base_url": mock_v4_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
             "entity_set": "Products",
-            "destination": {
-                "load_type": "incremental",
-                "primary_key": ["ID"]
-            }
+            "destination": {"load_type": "incremental", "primary_key": ["ID"]},
         }
         datadir = datadir_factory(config)
 
@@ -949,17 +785,13 @@ class TestLoadTypeAndDestination:
 
         config = {
             "connection": {"base_url": mock_v4_server.base_url},
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
             "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
             "entity_set": "Products",
             "destination": {
                 "output_table_name": "my_products",
-            }
+            },
         }
         datadir = datadir_factory(config)
 
@@ -996,20 +828,13 @@ class TestCatalogWorkflow:
         config = {
             "connection": {
                 "base_url": "https://api.example.com",
-                "catalog_path": "sap/opu/odata/IWFND/CATALOGSERVICE;v=2"  # This should be IGNORED
+                "catalog_path": "sap/opu/odata/IWFND/CATALOGSERVICE;v=2",  # This should be IGNORED
             },
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
-            "advanced_options": {
-                "connection_options": [],
-                "pagination_defaults": []
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
+            "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
             "service_path": mock_v4_server.base_url.replace("https://api.example.com/", ""),  # This should be USED
-            "entity_set": "Products"
+            "entity_set": "Products",
         }
         datadir = datadir_factory(config)
 
@@ -1035,17 +860,10 @@ class TestCatalogWorkflow:
         config = {
             "connection": {
                 "base_url": "https://api.example.com",
-                "catalog_path": "sap/opu/odata/IWFND/CATALOGSERVICE;v=2"
+                "catalog_path": "sap/opu/odata/IWFND/CATALOGSERVICE;v=2",
             },
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
-            "advanced_options": {
-                "connection_options": [],
-                "pagination_defaults": []
-            }
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
+            "advanced_options": {"connection_options": [], "pagination_defaults": []},
             # No service_path - metadata fetch will fail
         }
         datadir = datadir_factory(config)
@@ -1079,18 +897,11 @@ class TestCatalogWorkflow:
                 "base_url": "https://api.example.com"
                 # catalog_path might still be set from browsing step, but should be ignored
             },
-            "authentication": {
-                "auth_type": "basic",
-                "username": "test_user",
-                "#password": "test_password"
-            },
-            "advanced_options": {
-                "connection_options": [],
-                "pagination_defaults": []
-            },
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
+            "advanced_options": {"connection_options": [], "pagination_defaults": []},
             "odata_version": "v4",
             "service_path": mock_v4_server.base_url.replace("https://api.example.com/", ""),
-            "entity_set": "Products"
+            "entity_set": "Products",
         }
         datadir = datadir_factory(config)
 
@@ -1114,18 +925,15 @@ class TestCatalogWorkflow:
         config = {
             "connection": {
                 "base_url": "https://26db83b8trial.it-cpitrial03-rt.cfapps.ap21.hana.ondemand.com",
-                "catalog_path": "http/keboola/catalog"  # Contains "keboola" - triggers proxy path conversion
+                "catalog_path": "http/keboola/catalog",  # Contains "keboola" - triggers proxy path conversion
             },
             "authentication": {
                 "auth_type": "oauth",
                 "token_url": "https://auth.example.com/oauth/token",
                 "client_id": "test_client",
-                "#client_secret": "test_secret"
+                "#client_secret": "test_secret",
             },
-            "advanced_options": {
-                "connection_options": [],
-                "pagination_defaults": []
-            }
+            "advanced_options": {"connection_options": [], "pagination_defaults": []},
         }
         datadir = datadir_factory(config)
 

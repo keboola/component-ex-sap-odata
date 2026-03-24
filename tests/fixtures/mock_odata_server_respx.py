@@ -509,12 +509,12 @@ class MockSAPCatalogServer:
   <entry xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata"
          xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices">
     <id>{service_url}</id>
-    <title type="text">{svc['title']}</title>
+    <title type="text">{svc["title"]}</title>
     <content type="application/xml">
       <m:properties>
-        <d:ID>{svc['id']}</d:ID>
-        <d:Title>{svc['title']}</d:Title>
-        <d:Description>{svc['description']}</d:Description>
+        <d:ID>{svc["id"]}</d:ID>
+        <d:Title>{svc["title"]}</d:Title>
+        <d:Description>{svc["description"]}</d:Description>
         <d:ServiceUrl>{service_url}</d:ServiceUrl>
         <d:MetadataUrl>{metadata_url}</d:MetadataUrl>
       </m:properties>

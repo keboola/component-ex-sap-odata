@@ -141,9 +141,7 @@ class AsyncODataV2Client(AsyncODataClientBase):
 
         while endpoint_path:
             if page_count >= max_pages:
-                logging.warning(
-                    f"Reached page safety limit ({max_pages}) for {entity_set}, stopping."
-                )
+                logging.warning(f"Reached page safety limit ({max_pages}) for {entity_set}, stopping.")
                 break
             page_count += 1
             if max_records and total_fetched >= max_records:
@@ -215,7 +213,7 @@ class AsyncODataV2Client(AsyncODataClientBase):
                 jobs.append({"method": "GET", "endpoint": entity_set, "params": params})
 
             # Fetch batch of pages in parallel
-            logging.debug(f"Fetching pages {batch_start}-{batch_end-1} in parallel")
+            logging.debug(f"Fetching pages {batch_start}-{batch_end - 1} in parallel")
             responses = await self._client.process_multiple(jobs)
 
             # Yield records from all responses in order

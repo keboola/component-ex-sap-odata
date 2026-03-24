@@ -2,13 +2,13 @@
 """Functional tests for parallel fetching with async clients."""
 
 import os
+
+# Add src to path
+import sys
 import time
 from typing import Any
 
 import pytest
-
-# Add src to path
-import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
 
