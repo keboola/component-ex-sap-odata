@@ -70,12 +70,16 @@ class OAuthHandler(AuthHandler):
                 raise UserException("No access_token in OAuth response")
         except requests.RequestException as e:
             logging.error(f"Failed to fetch OAuth token: {e}")
-            if hasattr(e, 'response') and e.response is not None:
+            if hasattr(e, "response") and e.response is not None:
                 status_code = e.response.status_code
                 if status_code == 401:
-                    raise UserException("OAuth authentication failed: Invalid client credentials. Please verify client_id and client_secret.") from e
+                    raise UserException(
+                        "OAuth authentication failed: Invalid client credentials. Please verify client_id and client_secret."
+                    ) from e
                 elif status_code == 403:
-                    raise UserException("OAuth authentication failed: Access forbidden. Check your OAuth permissions.") from e
+                    raise UserException(
+                        "OAuth authentication failed: Access forbidden. Check your OAuth permissions."
+                    ) from e
                 else:
                     raise UserException(f"OAuth token request failed with HTTP {status_code}: {e}") from e
             raise UserException(f"OAuth token request failed: {e}") from e

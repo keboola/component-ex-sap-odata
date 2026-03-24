@@ -187,9 +187,7 @@ class MockODataV4Server:
 
         # Add next link if there are more records
         if skip + top < total_count:
-            response_data["@odata.nextLink"] = (
-                f"{self.base_url}/Products?$skip={skip + top}&$top={top}"
-            )
+            response_data["@odata.nextLink"] = f"{self.base_url}/Products?$skip={skip + top}&$top={top}"
             if filter_expr:
                 response_data["@odata.nextLink"] += f"&$filter={filter_expr}"
             if select_fields:
@@ -530,9 +528,7 @@ class MockSAPCatalogServer:
                         "Updated": "/Date(1704067200000)/",
                         "TechnicalServiceName": "API_BUSINESS_PARTNER",
                         "TechnicalServiceVersion": "0001",
-                        "__metadata": {
-                            "uri": "http://sap-server:50000/sap/opu/odata/sap/API_BUSINESS_PARTNER"
-                        },
+                        "__metadata": {"uri": "http://sap-server:50000/sap/opu/odata/sap/API_BUSINESS_PARTNER"},
                     },
                     {
                         "ID": "API_FIXEDASSET",
@@ -541,9 +537,7 @@ class MockSAPCatalogServer:
                         "Updated": "/Date(1704153600000)/",
                         "TechnicalServiceName": "API_FIXEDASSET",
                         "TechnicalServiceVersion": "0001",
-                        "__metadata": {
-                            "uri": "http://sap-server:50000/sap/opu/odata/sap/API_FIXEDASSET"
-                        },
+                        "__metadata": {"uri": "http://sap-server:50000/sap/opu/odata/sap/API_FIXEDASSET"},
                     },
                 ]
             }

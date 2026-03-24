@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 
 from lxml import etree
@@ -24,7 +24,7 @@ def _safe_int(value: str | None) -> int | None:
         return None
 
 
-class ODataVersion(str, Enum):
+class ODataVersion(StrEnum):
     V2 = "v2"
     V4 = "v4"
     AUTO = "auto"
@@ -163,7 +163,9 @@ class MetadataParser:
 
             # Check DataServiceVersion attribute (V2 uses "2.0")
             for elem in root.iter():
-                ds_version = elem.get("{http://schemas.microsoft.com/ado/2007/08/dataservices/metadata}DataServiceVersion")
+                ds_version = elem.get(
+                    "{http://schemas.microsoft.com/ado/2007/08/dataservices/metadata}DataServiceVersion"
+                )
                 if ds_version and ds_version.startswith("2."):
                     return ODataVersion.V2
 
@@ -283,20 +285,12 @@ class MetadataParser:
         association_map: dict[tuple[str, str], str] = {}
         edm_ns = ns.get("edm", "")
 
-        associations = (
-            schema.findall(f".//{{{edm_ns}}}Association")
-            if edm_ns
-            else schema.findall(".//Association")
-        )
+        associations = schema.findall(f".//{{{edm_ns}}}Association") if edm_ns else schema.findall(".//Association")
         for assoc in associations:
             assoc_name = assoc.get("Name", "")
             qualified_name = f"{schema_namespace}.{assoc_name}" if schema_namespace else assoc_name
 
-            ends = (
-                assoc.findall(f"{{{edm_ns}}}End")
-                if edm_ns
-                else assoc.findall("End")
-            )
+            ends = assoc.findall(f"{{{edm_ns}}}End") if edm_ns else assoc.findall("End")
             for end in ends:
                 role = end.get("Role", "")
                 entity_type = end.get("Type", "")

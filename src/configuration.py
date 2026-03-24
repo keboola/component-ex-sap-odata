@@ -2,32 +2,34 @@ from __future__ import annotations
 
 import logging
 import re
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
-class AuthType(str, Enum):
+class AuthType(StrEnum):
     BASIC = "basic"
     OAUTH = "oauth"
     API_KEY = "apiKey"
 
 
-class ODataVersionChoice(str, Enum):
+class ODataVersionChoice(StrEnum):
     AUTO = "auto"
     V2 = "v2"
     V4 = "v4"
 
 
-class LoadType(str, Enum):
+class LoadType(StrEnum):
     """How data is written to Keboola Storage."""
+
     FULL = "full"
     INCREMENTAL = "incremental"
 
 
-class FetchType(str, Enum):
+class FetchType(StrEnum):
     """How data is fetched from SAP OData API."""
+
     FULL = "full"
     INCREMENTAL = "incremental"
 
@@ -37,12 +39,14 @@ class FetchType(str, Enum):
 
 class Connection(BaseModel):
     """Connection settings from root config."""
+
     base_url: str | None = Field(default=None, description="Base URL of SAP system")
     catalog_path: str | None = Field(default=None, description="SAP Service Catalog path")
 
 
 class Authentication(BaseModel):
     """Authentication settings from root config."""
+
     auth_type: AuthType = Field(default=AuthType.BASIC, description="Authentication type")
     username: str | None = Field(default=None, description="Username for basic authentication")
     password: str | None = Field(default=None, alias="#password", description="Password for basic authentication")
@@ -55,6 +59,7 @@ class Authentication(BaseModel):
 
 class ConnectionOptions(BaseModel):
     """Advanced connection options."""
+
     timeout: int = Field(default=60, description="Request timeout in seconds")
     max_retries: int = Field(default=3, description="Maximum number of retries for failed requests")
     verify_ssl: bool = Field(default=True, description="Verify SSL certificates")
@@ -65,12 +70,14 @@ class ConnectionOptions(BaseModel):
 
 class PaginationDefaults(BaseModel):
     """Default pagination settings."""
+
     page_size: int = Field(default=1000, description="Number of records per page")
     max_records: int = Field(default=0, description="Maximum records to fetch (0 = unlimited)")
 
 
 class RootAdvancedOptions(BaseModel):
     """Advanced options from root config."""
+
     model_config = ConfigDict(extra="forbid")
     connection_options: list[ConnectionOptions] = Field(default_factory=list, description="Connection options")
     pagination_defaults: list[PaginationDefaults] = Field(default_factory=list, description="Pagination defaults")
@@ -78,6 +85,7 @@ class RootAdvancedOptions(BaseModel):
 
 class QueryOptions(BaseModel):
     """OData query options from row config."""
+
     select_fields: list[str] = Field(default_factory=list, description="Fields to select ($select)")
     filter_expression: str | None = Field(default=None, description="OData $filter expression")
     expand_properties: list[str] = Field(default_factory=list, description="Navigation properties to expand")
@@ -91,7 +99,7 @@ class QueryOptions(BaseModel):
             return v
 
         pattern = r"(?<!datetime)'(\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z)?)?)'"
-        fixed = re.sub(pattern, r'\1', v)
+        fixed = re.sub(pattern, r"\1", v)
 
         if fixed != v:
             logging.warning(f"Filter expression auto-fixed: {v} -> {fixed}")
@@ -101,12 +109,14 @@ class QueryOptions(BaseModel):
 
 class FetchingOptions(BaseModel):
     """Fetching options from row config."""
+
     fetch_type: FetchType = Field(default=FetchType.FULL, description="How data is fetched")
     incremental_field: str | None = Field(default=None, description="Field used for incremental fetch")
 
 
 class Destination(BaseModel):
     """Destination configuration from row config."""
+
     output_table_name: str | None = Field(default=None, description="Output table name")
     load_type: LoadType = Field(default=LoadType.FULL, description="How data is written to Storage")
     primary_key: list[str] = Field(default_factory=list, description="Primary key fields")
@@ -114,6 +124,7 @@ class Destination(BaseModel):
 
 class RowAdvancedOptions(BaseModel):
     """Advanced entity options from row config."""
+
     model_config = ConfigDict(extra="forbid")
     page_size: int | None = Field(default=None, description="Override page size for this entity")
     max_records: int | None = Field(default=None, description="Override max records for this entity")
@@ -182,15 +193,13 @@ class Configuration(BaseModel):
             elif isinstance(adv, dict):
                 # Detect Keboola's deep-merge artifact: numeric keys present alongside string keys
                 # (happens when root has a dict and row has a list for the same key)
-                has_numeric_key = any(
-                    isinstance(k, int) or (isinstance(k, str) and k.isdigit())
-                    for k in adv
-                )
+                has_numeric_key = any(isinstance(k, int) or (isinstance(k, str) and k.isdigit()) for k in adv)
                 if has_numeric_key:
                     # Split into row item (numeric key 0) and root parts (string keys)
                     row_item = adv.get(0) or adv.get("0")
-                    root_parts = {k: v for k, v in adv.items()
-                                  if not (isinstance(k, int) or (isinstance(k, str) and k.isdigit()))}
+                    root_parts = {
+                        k: v for k, v in adv.items() if not (isinstance(k, int) or (isinstance(k, str) and k.isdigit()))
+                    }
                     result["advanced_options"] = row_item if isinstance(row_item, dict) else None
                     if root_parts:
                         result["root_advanced_options"] = root_parts
