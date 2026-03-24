@@ -616,6 +616,36 @@ class TestValidateFilterAction:
         comp = run_sync_action_with_datadir(datadir, "validateFilter")
         assert comp is not None
 
+    @respx.mock
+    def test_validate_filter_fallback_when_top_rejected(
+        self, respx_mock, datadir_factory, run_sync_action_with_datadir
+    ):
+        """Test that validateFilter succeeds when endpoint rejects $top+$filter (SAP IBP pattern).
+
+        SAP IBP's PLANNING_DATA_API_SRV returns 400 when $top and $filter are combined.
+        The fix retries without $top so a valid filter is not falsely reported as invalid.
+        """
+        base_url = "https://api.example.com/sap/opu/odata/IBP/PLANNING_DATA_API_SRV"
+
+        def entity_side_effect(request):
+            if "$top" in str(request.url):
+                return httpx.Response(400, json={"error": {"message": "top not supported with filter"}})
+            return httpx.Response(200, json={"value": [{"ID": "1"}]})
+
+        respx_mock.get(f"{base_url}/DPFASTDP2").mock(side_effect=entity_side_effect)
+
+        config = {
+            "connection": {"base_url": base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
+            "odata_version": "v4",
+            "entity_set": "DPFASTDP2",
+            "query_options": {"filter_expression": "UOMTOIDe eq '1BU'"},
+        }
+        datadir = datadir_factory(config)
+
+        comp = run_sync_action_with_datadir(datadir, "validateFilter")
+        assert comp is not None
+
 
 class TestSyncActionsChain:
     """Test that URLs returned by one sync action work correctly in the next.
