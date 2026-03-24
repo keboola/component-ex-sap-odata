@@ -36,7 +36,7 @@ def replace_env_placeholders(content: str) -> str:
 
     Supported types: string, int, float, bool
     """
-    pattern = r'%env\((?:string|int|float|bool):(\w+)\)%'
+    pattern = r"%env\((?:string|int|float|bool):(\w+)\)%"
 
     def replace(match):
         var_name = match.group(1)
@@ -183,6 +183,7 @@ class TestDatadirFunctional:
             expected_stdout = test_case / "expected" / "data" / "stdout.txt"
             if expected_stdout.exists():
                 import json as _json
+
                 actual_stdout = result.stdout.strip()
                 expected_stdout_content = expected_stdout.read_text(encoding="utf-8").strip()
                 # Try JSON semantic comparison first (handles unicode escaping differences)

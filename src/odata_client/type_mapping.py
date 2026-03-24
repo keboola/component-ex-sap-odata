@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import Enum, StrEnum
 
 
-class SnowflakeDataType(str, Enum):
+class SnowflakeDataType(StrEnum):
     STRING = "STRING"
     INTEGER = "INTEGER"
     NUMERIC = "NUMERIC"

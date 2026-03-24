@@ -13,7 +13,7 @@ from keboola.http_client import AsyncHttpClient
 
 from .auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler, OAuthHandler
 from .catalog_parser import CatalogParser, ServiceInfo
-from .metadata import EntitySet, EntityProperty, MetadataParser, ODataMetadata, ODataVersion
+from .metadata import EntityProperty, EntitySet, MetadataParser, ODataMetadata, ODataVersion
 
 # Type alias for JSON-serializable data
 JsonDict = dict[str, Any]
@@ -352,13 +352,13 @@ class AsyncODataClientBase(ABC):
             xml_text = await self._get_raw(
                 endpoint_path=target_url,
                 headers={"Accept": "application/atom+xml, application/xml, */*"},
-                is_absolute_path=True
+                is_absolute_path=True,
             )
 
             logging.debug(f"list_catalog_services: got response, length={len(xml_text)} from {target_url}")
 
             # Check if this is XML (starts with <)
-            if xml_text.strip().startswith('<'):
+            if xml_text.strip().startswith("<"):
                 logging.debug("Response is XML, parsing as ATOM feed")
                 services = CatalogParser.parse_sap_catalog_xml(xml_text)
                 logging.info(f"list_catalog_services: parsed {len(services)} services from SAP catalog XML")

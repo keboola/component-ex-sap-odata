@@ -23,7 +23,6 @@ import httpx
 import pytest
 import respx
 
-
 # ---------------------------------------------------------------------------
 # Minimal OData XML metadata templates
 # ---------------------------------------------------------------------------
@@ -67,6 +66,7 @@ V2_METADATA_XML = """<?xml version="1.0" encoding="utf-8"?>
 # Helper: minimal respx mock for a V4 service
 # ---------------------------------------------------------------------------
 
+
 def _setup_v4_mock(
     respx_mock: respx.MockRouter,
     base_url: str,
@@ -101,20 +101,19 @@ def _setup_v4_mock(
         params = parse_qs(parsed.query)
         skip = int(params.get("$skip", ["0"])[0])
         top = int(params.get("$top", ["1000"])[0])
-        data = records[skip: skip + top]
+        data = records[skip : skip + top]
         return httpx.Response(
             200,
             json={"@odata.context": f"{base}/$metadata#Products", "value": data},
         )
 
-    respx_mock.get(url__regex=rf"{re.escape(base)}/Products(\?.*)?$").mock(
-        side_effect=_handle
-    )
+    respx_mock.get(url__regex=rf"{re.escape(base)}/Products(\?.*)?$").mock(side_effect=_handle)
 
 
 # ---------------------------------------------------------------------------
 # Helper: minimal respx mock for a V2 service
 # ---------------------------------------------------------------------------
+
 
 def _setup_v2_mock(
     respx_mock: respx.MockRouter,
@@ -154,15 +153,13 @@ def _setup_v2_mock(
         params = parse_qs(parsed.query)
         skip = int(params.get("$skip", ["0"])[0])
         top = int(params.get("$top", ["1000"])[0])
-        data = records[skip: skip + top]
+        data = records[skip : skip + top]
         return httpx.Response(
             200,
             json={"d": {"results": data}},
         )
 
-    respx_mock.get(url__regex=rf"{re.escape(base)}/Products(\?.*)?$").mock(
-        side_effect=_handle
-    )
+    respx_mock.get(url__regex=rf"{re.escape(base)}/Products(\?.*)?$").mock(side_effect=_handle)
 
 
 # ---------------------------------------------------------------------------
@@ -229,14 +226,10 @@ class TestFilterAutoFix:
         )
 
         # Combined with other predicates (AND)
-        qo4 = QueryOptions(
-            filter_expression="Category eq 'Electronics' and LastModified gt '2024-01-01T00:00:00Z'"
-        )
+        qo4 = QueryOptions(filter_expression="Category eq 'Electronics' and LastModified gt '2024-01-01T00:00:00Z'")
         # 'Electronics' is NOT an ISO date so it must keep its quotes;
         # the date part must lose its quotes
-        assert "Category eq 'Electronics'" in qo4.filter_expression, (
-            "Non-date string quotes must be preserved"
-        )
+        assert "Category eq 'Electronics'" in qo4.filter_expression, "Non-date string quotes must be preserved"
         assert "LastModified gt 2024-01-01T00:00:00Z" in qo4.filter_expression, (
             "Date quotes must still be removed in combined expression"
         )
@@ -275,14 +268,10 @@ class TestFilterAutoFix:
         from configuration import QueryOptions
 
         qo = QueryOptions(filter_expression="Status eq 'Active'")
-        assert qo.filter_expression == "Status eq 'Active'", (
-            "Non-date string literals must keep their quotes"
-        )
+        assert qo.filter_expression == "Status eq 'Active'", "Non-date string literals must keep their quotes"
 
         qo2 = QueryOptions(filter_expression="Code eq '1234'")
-        assert qo2.filter_expression == "Code eq '1234'", (
-            "Numeric string literals must keep their quotes"
-        )
+        assert qo2.filter_expression == "Code eq '1234'", "Numeric string literals must keep their quotes"
 
 
 # ===========================================================================
@@ -483,9 +472,7 @@ class TestODataV2DateNormalization:
         saved_value = entity_state["last_incremental_value"]
 
         # Must NOT be the raw /Date(...)/ format
-        assert not saved_value.startswith("/Date("), (
-            f"/Date(ms)/ was not normalised – got {saved_value!r} in state"
-        )
+        assert not saved_value.startswith("/Date("), f"/Date(ms)/ was not normalised – got {saved_value!r} in state"
 
         # Must be a recognisable ISO datetime string
         assert saved_value == EXPECTED_MAX_ISO, (
@@ -505,9 +492,7 @@ class TestODataV2DateNormalization:
 
         # Standard /Date(ms)/ format
         result = Component._normalize_odata_datetime("/Date(1704067200000)/")
-        assert result == "2024-01-01T00:00:00", (
-            f"Expected '2024-01-01T00:00:00', got {result!r}"
-        )
+        assert result == "2024-01-01T00:00:00", f"Expected '2024-01-01T00:00:00', got {result!r}"
 
         # With timezone offset (e.g., /Date(1704067200000+0000)/)
         result_tz = Component._normalize_odata_datetime("/Date(1704067200000+0000)/")
@@ -523,6 +508,4 @@ class TestODataV2DateNormalization:
 
         # Plain string (non-date) must pass through unchanged
         plain = "some-string"
-        assert Component._normalize_odata_datetime(plain) == plain, (
-            "Non-date strings must pass through unchanged"
-        )
+        assert Component._normalize_odata_datetime(plain) == plain, "Non-date strings must pass through unchanged"

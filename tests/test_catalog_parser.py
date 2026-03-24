@@ -11,16 +11,7 @@ class TestCatalogParser:
 
     def test_parse_odata_v2_service_document(self):
         """Test parsing standard OData V2 service document."""
-        data = {
-            "d": {
-                "EntitySets": [
-                    "Products",
-                    "Categories",
-                    "Orders",
-                    "Customers"
-                ]
-            }
-        }
+        data = {"d": {"EntitySets": ["Products", "Categories", "Orders", "Customers"]}}
 
         metadata = CatalogParser.parse_service_document(data, ODataVersion.V2)
 
@@ -44,7 +35,7 @@ class TestCatalogParser:
             "value": [
                 {"name": "Products", "kind": "EntitySet", "url": "Products"},
                 {"name": "Categories", "kind": "EntitySet", "url": "Categories"},
-                {"name": "Orders", "kind": "EntitySet", "url": "Orders"}
+                {"name": "Orders", "kind": "EntitySet", "url": "Orders"},
             ]
         }
 
@@ -68,7 +59,7 @@ class TestCatalogParser:
                             "__deferred": {
                                 "uri": "http://example.com/catalog/ServiceCollection('SERVICE_001')/EntitySets"
                             }
-                        }
+                        },
                     }
                 ]
             }
@@ -82,11 +73,7 @@ class TestCatalogParser:
 
     def test_parse_empty_service_document(self):
         """Test parsing empty service document."""
-        data = {
-            "d": {
-                "EntitySets": []
-            }
-        }
+        data = {"d": {"EntitySets": []}}
 
         metadata = CatalogParser.parse_service_document(data, ODataVersion.V2)
 
@@ -95,9 +82,7 @@ class TestCatalogParser:
 
     def test_parse_malformed_service_document(self):
         """Test parsing malformed service document."""
-        data = {
-            "invalid": "format"
-        }
+        data = {"invalid": "format"}
 
         metadata = CatalogParser.parse_service_document(data, ODataVersion.V2)
 
@@ -113,11 +98,7 @@ class TestCatalogParser:
 
     def test_try_parse_from_response_with_service_document(self):
         """Test try_parse_from_response with valid service document."""
-        data = {
-            "d": {
-                "EntitySets": ["Products", "Orders"]
-            }
-        }
+        data = {"d": {"EntitySets": ["Products", "Orders"]}}
 
         metadata = CatalogParser.try_parse_from_response(data, ODataVersion.V2)
 
@@ -140,7 +121,7 @@ class TestCatalogParser:
             "value": [
                 {"name": "Products", "kind": "EntitySet", "url": "Products"},
                 {"name": "GetOrders", "kind": "FunctionImport", "url": "GetOrders"},  # Not an EntitySet
-                {"name": "Categories", "kind": "EntitySet", "url": "Categories"}
+                {"name": "Categories", "kind": "EntitySet", "url": "Categories"},
             ]
         }
 

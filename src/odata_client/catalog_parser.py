@@ -1,4 +1,5 @@
 """Parser for SAP Service Catalog responses (alternative to $metadata)."""
+
 from __future__ import annotations
 
 import logging
@@ -69,30 +70,36 @@ class CatalogParser:
 
             # Define namespaces used in ATOM feeds
             namespaces = {
-                'atom': 'http://www.w3.org/2005/Atom',
-                'm': 'http://schemas.microsoft.com/ado/2007/08/dataservices/metadata',
-                'd': 'http://schemas.microsoft.com/ado/2007/08/dataservices',
+                "atom": "http://www.w3.org/2005/Atom",
+                "m": "http://schemas.microsoft.com/ado/2007/08/dataservices/metadata",
+                "d": "http://schemas.microsoft.com/ado/2007/08/dataservices",
             }
 
             # Find all entry elements
-            entries = root.findall('.//atom:entry', namespaces)
+            entries = root.findall(".//atom:entry", namespaces)
 
             for entry in entries:
                 # Get properties from content/m:properties
-                properties = entry.find('.//m:properties', namespaces)
+                properties = entry.find(".//m:properties", namespaces)
                 if properties is not None:
                     # Extract service information
-                    service_id_elem = properties.find('d:ID', namespaces)
-                    title_elem = properties.find('d:Title', namespaces)
-                    description_elem = properties.find('d:Description', namespaces)
-                    service_url_elem = properties.find('d:ServiceUrl', namespaces)
-                    metadata_url_elem = properties.find('d:MetadataUrl', namespaces)
+                    service_id_elem = properties.find("d:ID", namespaces)
+                    title_elem = properties.find("d:Title", namespaces)
+                    description_elem = properties.find("d:Description", namespaces)
+                    service_url_elem = properties.find("d:ServiceUrl", namespaces)
+                    metadata_url_elem = properties.find("d:MetadataUrl", namespaces)
 
                     service_id = service_id_elem.text if service_id_elem is not None and service_id_elem.text else ""
                     title = title_elem.text if title_elem is not None and title_elem.text else ""
-                    description = description_elem.text if description_elem is not None and description_elem.text else ""
-                    service_url = service_url_elem.text if service_url_elem is not None and service_url_elem.text else None
-                    metadata_url = metadata_url_elem.text if metadata_url_elem is not None and metadata_url_elem.text else None
+                    description = (
+                        description_elem.text if description_elem is not None and description_elem.text else ""
+                    )
+                    service_url = (
+                        service_url_elem.text if service_url_elem is not None and service_url_elem.text else None
+                    )
+                    metadata_url = (
+                        metadata_url_elem.text if metadata_url_elem is not None and metadata_url_elem.text else None
+                    )
 
                     # Only include if has ID
                     if service_id:
