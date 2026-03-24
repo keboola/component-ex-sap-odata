@@ -16,11 +16,7 @@ class TestConfiguration:
     def test_basic_configuration(self) -> None:
         config = Configuration(
             connection={"base_url": "https://example.com/odata"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            }
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
         )
 
         assert config.base_url == "https://example.com/odata"
@@ -38,8 +34,8 @@ class TestConfiguration:
                 "auth_type": "oauth",
                 "token_url": "https://auth.example.com/oauth/token",
                 "client_id": "my-client-id",
-                "#client_secret": "my-client-secret"
-            }
+                "#client_secret": "my-client-secret",
+            },
         )
 
         assert config.auth_type == AuthType.OAUTH
@@ -52,10 +48,7 @@ class TestConfiguration:
     def test_api_key_configuration(self) -> None:
         config = Configuration(
             connection={"base_url": "https://example.com/odata"},
-            authentication={
-                "auth_type": "apiKey",
-                "#api_key": "my-secret-api-key"
-            }
+            authentication={"auth_type": "apiKey", "#api_key": "my-secret-api-key"},
         )
 
         assert config.auth_type == AuthType.API_KEY
@@ -65,11 +58,7 @@ class TestConfiguration:
     def test_api_key_with_custom_header_name(self) -> None:
         config = Configuration(
             connection={"base_url": "https://example.com/odata"},
-            authentication={
-                "auth_type": "apiKey",
-                "api_key_header_name": "X-API-Key",
-                "#api_key": "my-secret-api-key"
-            }
+            authentication={"auth_type": "apiKey", "api_key_header_name": "X-API-Key", "#api_key": "my-secret-api-key"},
         )
 
         assert config.api_key == "my-secret-api-key"
@@ -77,8 +66,7 @@ class TestConfiguration:
 
     def test_api_key_auth_requires_api_key(self) -> None:
         config = Configuration(
-            connection={"base_url": "https://example.com/odata"},
-            authentication={"auth_type": "apiKey"}
+            connection={"base_url": "https://example.com/odata"}, authentication={"auth_type": "apiKey"}
         )
         with pytest.raises(ValueError, match="API key is required"):
             config.validate_authentication()
@@ -86,10 +74,7 @@ class TestConfiguration:
     def test_basic_auth_requires_username(self) -> None:
         config = Configuration(
             connection={"base_url": "https://example.com/odata"},
-            authentication={
-                "auth_type": "basic",
-                "#password": "pass"
-            }
+            authentication={"auth_type": "basic", "#password": "pass"},
         )
         with pytest.raises(ValueError, match="Username is required"):
             config.validate_authentication()
@@ -97,10 +82,7 @@ class TestConfiguration:
     def test_basic_auth_requires_password(self) -> None:
         config = Configuration(
             connection={"base_url": "https://example.com/odata"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user"
-            }
+            authentication={"auth_type": "basic", "username": "user"},
         )
         with pytest.raises(ValueError, match="Password is required"):
             config.validate_authentication()
@@ -108,14 +90,8 @@ class TestConfiguration:
     def test_custom_timeout_and_retries(self) -> None:
         config = Configuration(
             connection={"base_url": "https://example.com/odata"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
-            advanced_options={
-                "connection_options": [{"timeout": 120, "max_retries": 5, "verify_ssl": True}]
-            }
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
+            advanced_options={"connection_options": [{"timeout": 120, "max_retries": 5, "verify_ssl": True}]},
         )
 
         assert config.timeout == 120
@@ -126,12 +102,8 @@ class TestConfiguration:
         for version in [ODataVersionChoice.AUTO, ODataVersionChoice.V2, ODataVersionChoice.V4]:
             config = Configuration(
                 connection={"base_url": "https://example.com/odata"},
-                authentication={
-                    "auth_type": "basic",
-                    "username": "user",
-                    "#password": "pass"
-                },
-                odata_version=version
+                authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
+                odata_version=version,
             )
             assert config.odata_version == version
 
@@ -142,12 +114,8 @@ class TestConfigurationWithRowFields:
     def test_configuration_with_entity_set(self) -> None:
         config = Configuration(
             connection={"base_url": "https://example.com/odata"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
-            entity_set="Products"
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
+            entity_set="Products",
         )
 
         assert config.entity_set == "Products"
@@ -162,11 +130,7 @@ class TestConfigurationWithRowFields:
     def test_full_configuration_with_row_fields(self) -> None:
         config = Configuration(
             connection={"base_url": "https://example.com/odata"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
             entity_set="Products",
             query_options={
                 "select_fields": ["ProductID", "ProductName"],
@@ -184,8 +148,8 @@ class TestConfigurationWithRowFields:
             },
             advanced_options={
                 "connection_options": [],
-                "pagination_defaults": [{"page_size": 500, "max_records": 10000}]
-            }
+                "pagination_defaults": [{"page_size": 500, "max_records": 10000}],
+            },
         )
 
         assert config.entity_set == "Products"
@@ -203,25 +167,17 @@ class TestConfigurationWithRowFields:
     def test_get_output_table_name_with_custom_name(self) -> None:
         config = Configuration(
             connection={"base_url": "https://example.com/odata"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
             entity_set="Products",
-            destination={"output_table_name": "custom_table"}
+            destination={"output_table_name": "custom_table"},
         )
         assert config.get_output_table_name() == "custom_table"
 
     def test_get_output_table_name_default(self) -> None:
         config = Configuration(
             connection={"base_url": "https://example.com/odata"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
-            entity_set="Products"
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
+            entity_set="Products",
         )
         assert config.get_output_table_name() == "Products"
 
@@ -232,8 +188,8 @@ class TestConfigurationWithRowFields:
                 "auth_type": "oauth",
                 "token_url": "https://auth.example.com/oauth/token",
                 "client_id": "my-client-id",
-                "#client_secret": "my-client-secret"
-            }
+                "#client_secret": "my-client-secret",
+            },
         )
         assert config.get_output_table_name() == "output"
 
@@ -324,11 +280,7 @@ class TestURLConfiguration:
         """Test that complete base_url still works"""
         config = Configuration(
             connection={"base_url": "https://sap-server.com/sap/opu/odata/sap/API_BUSINESS_PARTNER"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            }
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
         )
 
         url = config.get_service_url()
@@ -338,13 +290,9 @@ class TestURLConfiguration:
         """Test split URL configuration for OData V2"""
         config = Configuration(
             connection={"base_url": "https://sap-server.com"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
             service_path="API_BUSINESS_PARTNER",
-            odata_version=ODataVersionChoice.V2
+            odata_version=ODataVersionChoice.V2,
         )
 
         url = config.get_service_url()
@@ -354,13 +302,9 @@ class TestURLConfiguration:
         """Test split URL configuration for OData V4"""
         config = Configuration(
             connection={"base_url": "https://sap-server.com"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
             service_path="api_fixedasset/srvd_a2x/sap/fixedasset/0001",
-            odata_version=ODataVersionChoice.V4
+            odata_version=ODataVersionChoice.V4,
         )
 
         url = config.get_service_url()
@@ -370,13 +314,9 @@ class TestURLConfiguration:
         """Test that AUTO version uses simple path joining"""
         config = Configuration(
             connection={"base_url": "https://sap-server.com"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
             service_path="API_BUSINESS_PARTNER",
-            odata_version=ODataVersionChoice.AUTO
+            odata_version=ODataVersionChoice.AUTO,
         )
 
         url = config.get_service_url()
@@ -386,13 +326,9 @@ class TestURLConfiguration:
         """Test that AUTO version uses simple path joining"""
         config = Configuration(
             connection={"base_url": "https://sap-server.com"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
             service_path="api_fixedasset/srvd_a2x/sap/fixedasset/0001",
-            odata_version=ODataVersionChoice.AUTO
+            odata_version=ODataVersionChoice.AUTO,
         )
 
         url = config.get_service_url()
@@ -402,13 +338,9 @@ class TestURLConfiguration:
         """Test that trailing/leading slashes are handled correctly"""
         config = Configuration(
             connection={"base_url": "https://sap-server.com/"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
             service_path="/API_BUSINESS_PARTNER",
-            odata_version=ODataVersionChoice.V2
+            odata_version=ODataVersionChoice.V2,
         )
 
         url = config.get_service_url()
@@ -418,11 +350,7 @@ class TestURLConfiguration:
         """Test that providing neither URL configuration raises an error when validating for extraction"""
         config = Configuration(
             connection={},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
             entity_set="TestEntity",
         )
         with pytest.raises(ValueError, match="Either base_url or service_path is required"):
@@ -432,12 +360,8 @@ class TestURLConfiguration:
         """Test that providing both base_url and service_path works (service_path takes precedence)"""
         config = Configuration(
             connection={"base_url": "https://sap-server.com"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
-            service_path="API_BUSINESS_PARTNER"
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
+            service_path="API_BUSINESS_PARTNER",
         )
         # service_path takes precedence, should work fine
         url = config.get_service_url()
@@ -447,11 +371,7 @@ class TestURLConfiguration:
         """Test that base_url without service_path is valid (for root config or simple setups)"""
         config = Configuration(
             connection={"base_url": "https://sap-server.com/odata/API_PARTNER"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            }
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
         )
         # This should work - get_service_url returns base_url if no service_path
         url = config.get_service_url()
@@ -461,12 +381,8 @@ class TestURLConfiguration:
         """Test that service_path without base_url raises an error when getting service URL"""
         config = Configuration(
             connection={},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
-            service_path="API_BUSINESS_PARTNER"
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
+            service_path="API_BUSINESS_PARTNER",
         )
         with pytest.raises(ValueError, match="base_url is required"):
             config.get_service_url()
@@ -479,12 +395,8 @@ class TestFilterValidation:
         """Test that quoted dates are automatically fixed for OData V4"""
         config = Configuration(
             connection={"base_url": "https://sap-server.com/odata/API_PARTNER"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
-            query_options=QueryOptions(filter_expression="DocumentDate gt '2024-01-01'")
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
+            query_options=QueryOptions(filter_expression="DocumentDate gt '2024-01-01'"),
         )
         # Quotes should be removed
         assert config.filter_expression == "DocumentDate gt 2024-01-01"
@@ -493,12 +405,8 @@ class TestFilterValidation:
         """Test that quoted datetime values are fixed"""
         config = Configuration(
             connection={"base_url": "https://sap-server.com/odata/API_PARTNER"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
-            query_options=QueryOptions(filter_expression="CreatedAt gt '2024-01-01T00:00:00Z'")
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
+            query_options=QueryOptions(filter_expression="CreatedAt gt '2024-01-01T00:00:00Z'"),
         )
         assert config.filter_expression == "CreatedAt gt 2024-01-01T00:00:00Z"
 
@@ -506,12 +414,8 @@ class TestFilterValidation:
         """Test that OData V2 datetime'...' format is preserved"""
         config = Configuration(
             connection={"base_url": "https://sap-server.com/odata/API_PARTNER"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
-            query_options=QueryOptions(filter_expression="CreatedAt gt datetime'2024-01-01T00:00:00'")
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
+            query_options=QueryOptions(filter_expression="CreatedAt gt datetime'2024-01-01T00:00:00'"),
         )
         # V2 format should NOT be changed
         assert config.filter_expression == "CreatedAt gt datetime'2024-01-01T00:00:00'"
@@ -520,12 +424,8 @@ class TestFilterValidation:
         """Test that string values keep their quotes"""
         config = Configuration(
             connection={"base_url": "https://sap-server.com/odata/API_PARTNER"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
-            query_options=QueryOptions(filter_expression="Status eq 'Active'")
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
+            query_options=QueryOptions(filter_expression="Status eq 'Active'"),
         )
         # String quotes should be preserved (not a date pattern)
         assert config.filter_expression == "Status eq 'Active'"
@@ -534,14 +434,10 @@ class TestFilterValidation:
         """Test complex filter with multiple date conditions"""
         config = Configuration(
             connection={"base_url": "https://sap-server.com/odata/API_PARTNER"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
             query_options=QueryOptions(
                 filter_expression="DocumentDate gt '2024-01-01' and DocumentDate lt '2024-12-31'"
-            )
+            ),
         )
         assert config.filter_expression == "DocumentDate gt 2024-01-01 and DocumentDate lt 2024-12-31"
 
@@ -549,12 +445,8 @@ class TestFilterValidation:
         """Test that correctly formatted filters are not modified"""
         config = Configuration(
             connection={"base_url": "https://sap-server.com/odata/API_PARTNER"},
-            authentication={
-                "auth_type": "basic",
-                "username": "user",
-                "#password": "pass"
-            },
-            query_options=QueryOptions(filter_expression="DocumentDate gt 2024-01-01")
+            authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
+            query_options=QueryOptions(filter_expression="DocumentDate gt 2024-01-01"),
         )
         assert config.filter_expression == "DocumentDate gt 2024-01-01"
 

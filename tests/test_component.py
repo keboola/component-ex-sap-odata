@@ -1,10 +1,12 @@
 """Tests for Component class methods."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
+
 from component import Component
-from configuration import Configuration, ODataVersionChoice, AuthType
-from odata_client.metadata import ODataVersion, EntitySet, EntityProperty
+from configuration import AuthType, Configuration, ODataVersionChoice
+from odata_client.metadata import EntityProperty, EntitySet, ODataVersion
 
 
 class TestFormatFilterLiteral:
@@ -13,7 +15,7 @@ class TestFormatFilterLiteral:
     @pytest.fixture
     def component(self):
         """Create a Component instance with minimal configuration."""
-        with patch.object(Component, '__init__', lambda self: None):
+        with patch.object(Component, "__init__", lambda self: None):
             comp = Component()
             comp._config = Mock(spec=Configuration)
             comp._config.entity_set = "TestEntity"
@@ -155,7 +157,7 @@ class TestGetFieldEdmType:
     @pytest.fixture
     def component(self):
         """Create a Component instance with minimal configuration."""
-        with patch.object(Component, '__init__', lambda self: None):
+        with patch.object(Component, "__init__", lambda self: None):
             comp = Component()
             comp._config = Mock(spec=Configuration)
             comp._config.entity_set = "Products"
@@ -245,7 +247,7 @@ class TestGetFieldEdmType:
 
         component._build_client = Mock(return_value=mock_client)
 
-        with patch('logging.warning') as mock_warning:
+        with patch("logging.warning") as mock_warning:
             result = component._get_field_edm_type("SomeField")
             assert result is None
             mock_warning.assert_called_once()
@@ -289,7 +291,7 @@ class TestBuildFilterExpression:
     @pytest.fixture
     def component(self):
         """Create a Component instance with minimal configuration."""
-        with patch.object(Component, '__init__', lambda self: None):
+        with patch.object(Component, "__init__", lambda self: None):
             comp = Component()
             comp._config = Mock(spec=Configuration)
             comp._config.entity_set = "Products"

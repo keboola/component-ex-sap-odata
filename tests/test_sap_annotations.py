@@ -1,6 +1,8 @@
 """Tests for SAP annotation parsing in OData V2 metadata."""
+
 import sys
-sys.path.insert(0, 'src')
+
+sys.path.insert(0, "src")
 
 from odata_client.metadata import MetadataParser, ODataVersion
 
