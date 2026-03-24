@@ -932,13 +932,25 @@ class Component(ComponentBase):
             return {"status": "success", "message": "No filter to validate"}
 
         client = self._build_client()
-        list(
-            client.fetch_entity_set(
-                entity_set=self._config.entity_set,
-                filter_expr=self._config.filter_expression,
-                top=1,
+        try:
+            next(
+                client.fetch_entity_set(
+                    entity_set=self._config.entity_set,
+                    filter_expr=self._config.filter_expression,
+                    top=1,
+                ),
+                None,
             )
-        )
+        except UserException:
+            # Some SAP endpoints (e.g. SAP IBP) reject $top combined with $filter with a 400.
+            # Retry without $top to avoid a false "invalid filter" error.
+            next(
+                client.fetch_entity_set(
+                    entity_set=self._config.entity_set,
+                    filter_expr=self._config.filter_expression,
+                ),
+                None,
+            )
 
         return {"status": "success", "message": "Filter expression is valid"}
 
