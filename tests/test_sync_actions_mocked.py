@@ -646,6 +646,43 @@ class TestValidateFilterAction:
         comp = run_sync_action_with_datadir(datadir, "validateFilter")
         assert comp is not None
 
+    @respx.mock
+    def test_validate_filter_includes_select_fields(
+        self, respx_mock, datadir_factory, run_sync_action_with_datadir
+    ):
+        """Test that validateFilter passes $select when select_fields are configured.
+
+        SAP IBP's PLANNING_DATA_API_SRV requires $select — requests without it return 400.
+        The fix forwards the configured select_fields into the validation request.
+        """
+        base_url = "https://api.example.com/sap/opu/odata/IBP/PLANNING_DATA_API_SRV"
+
+        captured = {}
+
+        def entity_side_effect(request):
+            captured["url"] = str(request.url)
+            return httpx.Response(200, json={"value": [{"UOMTOID": "1BU", "LOCID": "1000"}]})
+
+        respx_mock.get(f"{base_url}/DPFASTDP2").mock(side_effect=entity_side_effect)
+
+        config = {
+            "connection": {"base_url": base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
+            "odata_version": "v4",
+            "entity_set": "DPFASTDP2",
+            "query_options": {
+                "filter_expression": "UOMTOID eq '1BU'",
+                "select_fields": ["UOMTOID", "LOCID"],
+            },
+        }
+        datadir = datadir_factory(config)
+
+        comp = run_sync_action_with_datadir(datadir, "validateFilter")
+        assert comp is not None
+        assert "%24select" in captured["url"] or "$select" in captured["url"], (
+            f"Expected $select in validation request URL, got: {captured['url']}"
+        )
+
 
 class TestSyncActionsChain:
     """Test that URLs returned by one sync action work correctly in the next.

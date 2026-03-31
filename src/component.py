@@ -932,10 +932,12 @@ class Component(ComponentBase):
             return {"status": "success", "message": "No filter to validate"}
 
         client = self._build_client()
+        select = self._config.select_fields if self._config.select_fields else None
         try:
             next(
                 client.fetch_entity_set(
                     entity_set=self._config.entity_set,
+                    select=select,
                     filter_expr=self._config.filter_expression,
                     top=1,
                 ),
@@ -947,6 +949,7 @@ class Component(ComponentBase):
             next(
                 client.fetch_entity_set(
                     entity_set=self._config.entity_set,
+                    select=select,
                     filter_expr=self._config.filter_expression,
                 ),
                 None,
