@@ -9,7 +9,7 @@ dependencies = [
     "keboola-csvwriter>=1.0.1",
     "keboola-http-client>=0.2.0",
     "pydantic>=2.0",
-    "lxml>=5.0.0",
+    "lxml>=6.1.0",
     "requests>=2.31.0",
 ]
 
