@@ -47,6 +47,20 @@ def _simplify_error_message(error: Exception, base_url: str | None = None) -> st
     """
     error_str = str(error)
 
+    # Handle SSL errors first. requests.exceptions.SSLError is a subclass of
+    # ConnectionError, so it must be checked before the ConnectionError branch
+    # below - otherwise a certificate verification failure is mislabeled as a
+    # generic "Connection failed", hiding the real cause (e.g. an internal /
+    # self-signed cert on an on-premise or VPN-tunnelled endpoint).
+    if isinstance(error, req.exceptions.SSLError):
+        target = base_url or "the server"
+        return (
+            f"SSL certificate verification failed for {target}. "
+            "The server's certificate is not trusted (self-signed / internal CA) "
+            "or its hostname does not match. For on-premise or VPN endpoints, "
+            "disable 'Verify SSL Certificate' in the configuration or provide a trusted CA."
+        )
+
     # Handle requests connection errors
     if isinstance(error, req.exceptions.ConnectionError):
         # Extract domain from error or use base_url
@@ -72,12 +86,6 @@ def _simplify_error_message(error: Exception, base_url: str | None = None) -> st
         if base_url:
             return f"Connection to {base_url} timed out"
         return "Connection timed out"
-
-    # Handle SSL errors
-    if isinstance(error, req.exceptions.SSLError):
-        if base_url:
-            return f"SSL certificate verification failed for {base_url}"
-        return "SSL certificate verification failed"
 
     # For other errors, return simplified message
     # Remove long tracebacks and technical details

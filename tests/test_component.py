@@ -3,8 +3,9 @@
 from unittest.mock import Mock, patch
 
 import pytest
+import requests as req
 
-from component import Component
+from component import Component, _simplify_error_message
 from configuration import AuthType, Configuration, ODataVersionChoice
 from odata_client.metadata import EntityProperty, EntitySet, ODataVersion
 
@@ -376,3 +377,28 @@ class TestBuildFilterExpression:
 
         # Should return only the base filter
         assert result == "Status eq 'Active'"
+
+
+class TestSimplifyErrorMessage:
+    """Tests for _simplify_error_message (CFTL-681)."""
+
+    def test_ssl_error_reported_as_ssl_not_connection(self):
+        """SSLError must be labeled as a certificate failure, not 'Connection failed'.
+
+        requests.exceptions.SSLError subclasses ConnectionError, so it must be
+        checked first or the real cause (cert verification) is hidden.
+        """
+        error = req.exceptions.SSLError("certificate verify failed")
+        msg = _simplify_error_message(error, "https://sap.example.com:40003/sap/opu/odata/")
+
+        assert "SSL certificate verification failed" in msg
+        assert "Verify SSL Certificate" in msg
+        assert "Connection failed" not in msg
+
+    def test_plain_connection_error_still_reports_connection_failed(self):
+        """A non-SSL ConnectionError should still produce the connection message."""
+        error = req.exceptions.ConnectionError("connection refused")
+        msg = _simplify_error_message(error, "https://sap.example.com:40003/sap/opu/odata/")
+
+        assert "Connection failed" in msg
+        assert "SSL certificate" not in msg
