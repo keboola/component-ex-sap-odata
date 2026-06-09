@@ -61,6 +61,14 @@ class AsyncODataClientBase(ABC):
             retry_status_codes=[],
             auth_header=auth_handler.get_auth_headers(),
         )
+        # SAP OData services redirect to the canonical trailing-slash URL
+        # (e.g. .../SERVICE -> .../SERVICE/) with a 307. httpx does not follow
+        # redirects by default, which surfaces loadServices / loadEntities /
+        # metadata fetches as a hard "307 Temporary Redirect" error even though
+        # browsers and Postman handle it transparently. Follow redirects so the
+        # canonical URL is reached automatically. (CFTL-681)
+        self._client.client.follow_redirects = True
+        self._probe_client.client.follow_redirects = True
 
     @classmethod
     def from_basic_auth(
