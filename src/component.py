@@ -553,9 +553,21 @@ class Component(ComponentBase):
         if not self._config.base_url:
             raise UserException("Base URL is not configured. Please set it in the root configuration.")
         if not self._config.catalog_path:
-            raise UserException(
-                "Catalog Path is required to load services. Please configure it in the root settings."
-            )
+            # No catalog configured. Browsing the service list isn't possible, but
+            # it isn't required either - the user can type the Service Path directly.
+            # Return a non-blocking hint in the dropdown rather than a hard error so
+            # the manual path (per the field tooltip) is discoverable. (CFTL-681)
+            return [
+                {
+                    "value": "",
+                    "label": (
+                        "⚠️ Catalog Path is not set, so services can't be listed automatically. "
+                        "You can skip this and enter the Service Path manually "
+                        "(e.g. /sap/opu/odata/sap/MY_SERVICE), then use Load Entity Sets. "
+                        "Set Catalog Path in the connection settings only if you want to browse services."
+                    ),
+                }
+            ]
         logging.info(
             f"loadServices called - base_url: {self._config.base_url}, catalog_path: {self._config.catalog_path}"
         )
