@@ -8,6 +8,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import requests as req
+import urllib3
 from keboola.component.base import ComponentBase, sync_action
 from keboola.component.exceptions import UserException
 from keboola.csvwriter import ElasticDictWriter
@@ -116,6 +117,15 @@ class Component(ComponentBase):
             raise UserException(f"Configuration validation failed: {'; '.join(errors)}") from e
         self._client: ODataClient | None = None
         self._detected_version: ODataVersion | None = None
+
+        # When TLS verification is disabled (common for on-premise / VPN SAP
+        # systems behind an internal certificate), urllib3 emits an
+        # InsecureRequestWarning. Sync actions require stdout to be a single
+        # JSON object - the warning text leaks onto that stream and breaks the
+        # runner with "Decoding JSON response from component failed". Suppress
+        # it so the result stream stays clean. (CFTL-681)
+        if not self._config.verify_ssl:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     def _build_auth_handler(self) -> AuthHandler:
         config = self._config

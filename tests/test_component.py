@@ -1,6 +1,6 @@
 """Tests for Component class methods."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 import requests as req
@@ -402,3 +402,34 @@ class TestSimplifyErrorMessage:
 
         assert "Connection failed" in msg
         assert "SSL certificate" not in msg
+
+
+class TestInsecureWarningSuppressed:
+    """verify_ssl=False must suppress urllib3 InsecureRequestWarning (CFTL-681).
+
+    In a sync action the runner parses stdout as a single JSON object; a leaked
+    InsecureRequestWarning corrupts it ("Decoding JSON response failed").
+    """
+
+    def _init_component(self, verify_ssl: bool):
+        fake_config = Mock(spec=Configuration)
+        fake_config.verify_ssl = verify_ssl
+
+        with (
+            patch("component.ComponentBase.__init__", lambda self: None),
+            patch.object(
+                Component, "configuration", new_callable=PropertyMock, return_value=Mock(parameters={})
+            ),
+            patch("component.Configuration", return_value=fake_config),
+            patch("component.urllib3.disable_warnings") as mock_disable,
+        ):
+            Component()
+        return mock_disable
+
+    def test_warning_disabled_when_verify_ssl_false(self):
+        mock_disable = self._init_component(verify_ssl=False)
+        mock_disable.assert_called_once()
+
+    def test_warning_not_touched_when_verify_ssl_true(self):
+        mock_disable = self._init_component(verify_ssl=True)
+        mock_disable.assert_not_called()
