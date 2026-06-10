@@ -128,6 +128,8 @@ class RowAdvancedOptions(BaseModel):
     model_config = ConfigDict(extra="forbid")
     page_size: int | None = Field(default=None, description="Override page size for this entity")
     max_records: int | None = Field(default=None, description="Override max records for this entity")
+    enable_parallel: bool | None = Field(default=None, description="Override parallel fetching for this entity")
+    parallel_pages: int | None = Field(default=None, description="Override parallel page count for this entity")
 
 
 class Configuration(BaseModel):
@@ -302,6 +304,11 @@ class Configuration(BaseModel):
 
     @property
     def enable_parallel(self) -> bool:
+        # Row advanced_options takes precedence
+        if isinstance(self.advanced_options, RowAdvancedOptions):
+            if self.advanced_options.enable_parallel is not None:
+                return self.advanced_options.enable_parallel
+        # Then root connection_options
         root = self._root_opts
         if root and root.connection_options:
             return root.connection_options[0].enable_parallel
@@ -309,6 +316,11 @@ class Configuration(BaseModel):
 
     @property
     def parallel_pages(self) -> int:
+        # Row advanced_options takes precedence
+        if isinstance(self.advanced_options, RowAdvancedOptions):
+            if self.advanced_options.parallel_pages is not None:
+                return self.advanced_options.parallel_pages
+        # Then root connection_options
         root = self._root_opts
         if root and root.connection_options:
             return root.connection_options[0].parallel_pages

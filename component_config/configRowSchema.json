@@ -230,11 +230,11 @@
     "advanced_options": {
       "type": "array",
       "title": "Advanced Entity Options (Optional)",
-      "description": "Override pagination settings for this entity.",
+      "description": "Override pagination and parallel-fetching settings for this entity.",
       "maxItems": 1,
       "propertyOrder": 30,
       "options": {
-        "tooltip": "Override **pagination settings** for this specific entity.\n\nLeave empty to use the global defaults from the main configuration."
+        "tooltip": "Override **pagination and parallel-fetching** settings for this specific entity.\n\nLeave empty to use the global defaults from the main configuration."
       },
       "items": {
         "type": "object",
@@ -256,6 +256,30 @@
             "propertyOrder": 2,
             "options": {
               "tooltip": "Override the **global max records** limit for this entity.\n\n- `0` = **unlimited** (default)\n- Leave empty to use the global default"
+            }
+          },
+          "enable_parallel": {
+            "type": "boolean",
+            "title": "Parallel Fetching",
+            "description": "Fetch multiple pages concurrently for higher throughput.",
+            "default": true,
+            "propertyOrder": 3,
+            "options": {
+              "tooltip": "Fetch several pages **concurrently** instead of one at a time.\n\nFaster on sources that handle concurrent requests, but it multiplies peak memory by the number of parallel pages. Turn **off** for the most predictable, lowest memory usage (one page at a time)."
+            }
+          },
+          "parallel_pages": {
+            "type": "integer",
+            "title": "Parallel Pages",
+            "description": "Number of pages to fetch concurrently.",
+            "default": 5,
+            "minimum": 1,
+            "propertyOrder": 4,
+            "options": {
+              "dependencies": {
+                "enable_parallel": true
+              },
+              "tooltip": "How many pages to fetch at once when parallel fetching is on.\n\n**Peak memory ≈ Page Size × Parallel Pages × row width.** Lower this (or the page size) for very wide entities; raise it for more throughput when you have memory headroom (e.g. a larger job backend)."
             }
           }
         }

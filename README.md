@@ -65,6 +65,8 @@ Each row extracts one entity set. Multiple rows can be configured for different 
 | `destination.primary_key` | For incremental | Primary key fields - multiselect array |
 | `advanced_options.page_size` | No | Override page size for this entity |
 | `advanced_options.max_records` | No | Override max records for this entity |
+| `advanced_options.enable_parallel` | No | Override parallel fetching for this entity (default: `true`) |
+| `advanced_options.parallel_pages` | No | Override number of pages fetched concurrently (default: 5) |
 
 ### Performance & Large Loads
 
