@@ -7,6 +7,7 @@ allowing for comprehensive testing without requiring a live SAP system.
 from __future__ import annotations
 
 import json
+import os
 
 import httpx
 import pytest
@@ -984,7 +985,11 @@ class TestWriterTempDirOnDataVolume:
 
         assert captured_temp_dirs, "ElasticDictWriter was never constructed"
         temp_dir = captured_temp_dirs[0]
-        assert temp_dir is not None, "temp_directory must be set explicitly, not defaulted to /tmp"
-        # Must live under the job's data folder, not the system /tmp (tmpfs).
-        assert str(datadir) in str(temp_dir), f"temp dir {temp_dir} is not under the data folder {datadir}"
-        assert not str(temp_dir).startswith("/tmp"), f"temp dir {temp_dir} is on /tmp (tmpfs)"
+        # temp_directory must be set explicitly (not left to default to the system
+        # temp, which is tmpfs/RAM in a Keboola job container) and must live on the
+        # data volume — specifically under data/out/tables.
+        assert temp_dir is not None, "temp_directory must be set explicitly, not defaulted to the system temp"
+        expected_parent = os.path.join(str(datadir), "out", "tables")
+        assert str(temp_dir).startswith(expected_parent), (
+            f"temp dir {temp_dir} is not under the data volume {expected_parent}"
+        )
