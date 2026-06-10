@@ -942,3 +942,49 @@ class TestCatalogWorkflow:
         with pytest.raises(SystemExit) as exc_info:
             run_sync_action_with_datadir(datadir, "loadEntities")
         assert exc_info.value.code == 1
+
+
+class TestWriterTempDirOnDataVolume:
+    """The CSV writer's temp dir must live on the data volume, not /tmp.
+
+    ElasticDictWriter buffers the whole dataset in its temp directory until
+    close(). In a Keboola job container /tmp is tmpfs (RAM-backed) and counts
+    against the component memory limit, so a large extraction would grow in
+    memory with total row count. The component must place the temp dir under
+    the data folder (a real volume). (CFTL-681)
+    """
+
+    @respx.mock
+    def test_writer_temp_dir_is_under_data_folder(
+        self, respx_mock, mock_v4_server, datadir_factory, run_component_with_datadir
+    ):
+        from unittest.mock import patch
+
+        import component as component_module
+
+        mock_v4_server.setup(respx_mock)
+        config = {
+            "connection": {"base_url": mock_v4_server.base_url},
+            "authentication": {"auth_type": "basic", "username": "test_user", "#password": "test_password"},
+            "advanced_options": {"connection_options": [], "pagination_defaults": []},
+            "odata_version": "v4",
+            "entity_set": "Products",
+        }
+        datadir = datadir_factory(config)
+
+        captured_temp_dirs = []
+        real_writer_cls = component_module.ElasticDictWriter
+
+        def _recording_writer(*args, **kwargs):
+            captured_temp_dirs.append(kwargs.get("temp_directory"))
+            return real_writer_cls(*args, **kwargs)
+
+        with patch.object(component_module, "ElasticDictWriter", side_effect=_recording_writer):
+            run_component_with_datadir(datadir)
+
+        assert captured_temp_dirs, "ElasticDictWriter was never constructed"
+        temp_dir = captured_temp_dirs[0]
+        assert temp_dir is not None, "temp_directory must be set explicitly, not defaulted to /tmp"
+        # Must live under the job's data folder, not the system /tmp (tmpfs).
+        assert str(datadir) in str(temp_dir), f"temp dir {temp_dir} is not under the data folder {datadir}"
+        assert not str(temp_dir).startswith("/tmp"), f"temp dir {temp_dir} is on /tmp (tmpfs)"

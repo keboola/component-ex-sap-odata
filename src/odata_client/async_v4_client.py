@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 
 from keboola.component.exceptions import UserException
 
-from .async_base_client import AsyncODataClientBase, JsonDict
+from .async_base_client import MAX_PAGE_SIZE_PER_REQUEST, AsyncODataClientBase, JsonDict
 from .metadata import ODataVersion
 
 
@@ -83,6 +83,16 @@ class AsyncODataV4Client(AsyncODataClientBase):
         If enable_parallel is True and we can determine total count, fetches multiple
         pages in parallel for better performance.
         """
+        # Cap the per-request page size so a single response never materialises an
+        # excessive number of wide rows in memory, regardless of the configured
+        # page_size. Larger page sizes simply page through in capped requests. (CFTL-681)
+        if page_size > MAX_PAGE_SIZE_PER_REQUEST:
+            logging.info(
+                f"Configured page size {page_size} exceeds the per-request limit; "
+                f"fetching in {MAX_PAGE_SIZE_PER_REQUEST}-record requests to bound memory."
+            )
+            page_size = MAX_PAGE_SIZE_PER_REQUEST
+
         if self.enable_parallel and max_records is None:
             # Try to get total count to enable parallel fetching
             total_count = await self.get_record_count(entity_set, filter_expr)
