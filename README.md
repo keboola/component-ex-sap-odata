@@ -91,6 +91,21 @@ prompt). Use `medium`/`large` for the initial full load, then switch to
 **incremental** loads afterwards. Keeping `page_size` modest (the `1000` default)
 and `parallel_pages` low are the levers if you need to reduce memory instead.
 
+#### Page size is the main speed lever
+
+Throughput is dominated by the **number of requests** (`total_rows ÷ page_size`),
+not the row count — each request carries a fixed cost (network latency plus the
+server computing the `$skip` offset, which is expensive for aggregating CDS
+views). So a **larger page size is the most effective speedup**: e.g. on one ~1.4M
+row load, `page_size=5000` ran ~4× faster than `page_size=1000` (~830 vs ~210
+rows/s). Parallel fetching helps only if the source actually serves concurrent
+requests — some SAP systems serialize them server-side, giving little gain for
+the extra memory.
+
+**Recommended for large loads:** raise `page_size` *and* the backend size together
+(more memory to afford the bigger pages) rather than relying on small pages —
+it's both faster and safe from OOM.
+
 ## SAP Service Catalog Support
 
 ### What is a Service Catalog?
