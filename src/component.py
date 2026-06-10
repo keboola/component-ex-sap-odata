@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 import requests as req
 import urllib3
 from keboola.component.base import ComponentBase, sync_action
+from keboola.component.dao import BaseType, ColumnDefinition
 from keboola.component.exceptions import UserException
 from keboola.csvwriter import ElasticDictWriter
 from keboola.http_client import HttpClient
@@ -27,6 +28,7 @@ from configuration import (
 from odata_client.auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler, OAuthHandler
 from odata_client.metadata import MetadataParser, ODataMetadata, ODataVersion
 from odata_client.sync_wrapper import SyncODataV2Client, SyncODataV4Client
+from odata_client.type_mapping import map_edm_type_to_base_type
 
 # Type alias for JSON-like dictionaries
 JsonDict = dict[str, Any]
@@ -253,11 +255,16 @@ class Component(ComponentBase):
         entity_state = state.get_entity_state(self._config.entity_set)
 
         filter_expr = self._build_filter_expression(entity_state)
+        # First create the table only to obtain its output path (columns are
+        # discovered from the data). The manifest is written afterwards with a
+        # proper typed schema built from the columns actually extracted.
         table_def = self._create_output_table()
 
-        records_count, last_incremental_value = self._process_records(client, table_def, filter_expr)
+        records_count, last_incremental_value, columns = self._process_records(client, table_def, filter_expr)
 
         if records_count > 0:
+            schema = self._build_output_schema(columns)
+            table_def = self._create_output_table(schema=schema)
             self.write_manifest(table_def)
 
         self._update_extraction_state(state, records_count, last_incremental_value)
@@ -326,23 +333,76 @@ class Component(ComponentBase):
             logging.warning(f"Could not determine EDM type for field '{field_name}': {e}")
         return None
 
-    def _create_output_table(self):
-        """Create output table definition."""
+    def _create_output_table(self, schema: dict[str, ColumnDefinition] | None = None):
+        """Create output table definition.
+
+        Called twice per run: once without a schema just to resolve the output
+        path (columns aren't known until the first record is read), then again
+        with the typed ``schema`` to write a proper manifest. Setting an explicit
+        ``destination`` and ``schema`` also silences the platform's "neither
+        manifest file nor mapping set" fallback warning.
+        """
         output_table_name = self._config.get_output_table_name()
         return self.create_out_table_definition(
             f"{output_table_name}.csv",
-            primary_key=self._config.primary_key if self._config.primary_key else None,
+            destination=output_table_name,
+            schema=schema,
+            # primary_key/has_header only make sense once we have the schema;
+            # passing primary_key without columns would force legacy manifest mode.
+            primary_key=(self._config.primary_key or None) if schema else None,
             incremental=self._config.load_type == LoadType.INCREMENTAL,
+            has_header=True if schema else None,
         )
 
-    def _process_records(self, client: ODataClient, table_def, filter_expr: str | None) -> tuple[int, str | None]:
+    def _build_output_schema(self, columns: list[str]) -> dict[str, ColumnDefinition]:
+        """Build a typed output schema for the given (flattened) column names.
+
+        Column EDM types come from the entity metadata; columns without metadata
+        (flattened/expanded nested fields, or services without $metadata) default
+        to STRING via map_edm_type_to_base_type.
+        """
+        edm_types = self._get_entity_property_edm_types()
+        primary_key = set(self._config.primary_key or [])
+        schema: dict[str, ColumnDefinition] = {}
+        for column in columns:
+            base_type = map_edm_type_to_base_type(edm_types.get(column))
+            is_pk = column in primary_key
+            schema[column] = ColumnDefinition(
+                data_types=BaseType(dtype=base_type),
+                primary_key=is_pk,
+                nullable=not is_pk,
+            )
+        return schema
+
+    def _get_entity_property_edm_types(self) -> dict[str, str]:
+        """Return a {property_name: edm_type} map for the configured entity set.
+
+        Returns an empty map (callers fall back to STRING) if metadata is
+        unavailable — e.g. services that don't expose $metadata.
+        """
+        try:
+            client = self._build_client()
+            metadata = client.get_metadata()
+            entity_set = metadata.get_entity_set(self._config.entity_set or "")
+            if entity_set:
+                return {prop.name: prop.edm_type for prop in entity_set.properties}
+        except Exception as e:
+            logging.warning(f"Could not load entity property types for output schema: {e}")
+        return {}
+
+    def _process_records(
+        self, client: ODataClient, table_def, filter_expr: str | None
+    ) -> tuple[int, str | None, list[str]]:
         """Process and write records from OData service.
 
         Returns:
-            Tuple of (records_count, last_incremental_value)
+            Tuple of (records_count, last_incremental_value, columns) where
+            ``columns`` is the final, flattened column list written to the CSV
+            (used to build the typed output manifest schema).
         """
         records_count = 0
         last_incremental_value: str | None = None
+        columns: list[str] = []
         writer: ElasticDictWriter | None = None
 
         try:
@@ -356,12 +416,12 @@ class Component(ComponentBase):
                 page_size=self._config.page_size,
                 max_records=max_records,
             ):
+                flat_record = self._flatten_record(record)
+
                 if writer is None:
-                    columns = list(record.keys())
-                    writer = ElasticDictWriter(table_def.full_path, columns)
+                    writer = ElasticDictWriter(table_def.full_path, list(flat_record.keys()))
                     writer.writeheader()
 
-                flat_record = self._flatten_record(record)
                 writer.writerow(flat_record)
                 records_count += 1
 
@@ -373,8 +433,9 @@ class Component(ComponentBase):
         finally:
             if writer is not None:
                 writer.close()
+                columns = list(writer.fieldnames)
 
-        return records_count, last_incremental_value
+        return records_count, last_incremental_value, columns
 
     def _track_incremental_value(self, record: JsonDict, current_max: str | None) -> str | None:
         """Track the maximum incremental value from records.

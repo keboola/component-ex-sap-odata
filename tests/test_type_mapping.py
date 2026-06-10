@@ -1,6 +1,9 @@
+from keboola.component.dao import SupportedDataTypes
+
 from odata_client.type_mapping import (
     SAP_TO_SNOWFLAKE_TYPE_MAP,
     SnowflakeDataType,
+    map_edm_type_to_base_type,
     map_edm_type_to_snowflake,
 )
 
@@ -66,6 +69,31 @@ class TestTypeMapping:
 
         for edm_type in expected_types:
             assert edm_type in SAP_TO_SNOWFLAKE_TYPE_MAP, f"Missing mapping for {edm_type}"
+
+
+class TestBaseTypeMapping:
+    """EDM → Keboola base type mapping used for output manifest schemas."""
+
+    def test_common_types(self) -> None:
+        assert map_edm_type_to_base_type("Edm.String") == SupportedDataTypes.STRING
+        assert map_edm_type_to_base_type("Edm.Int32") == SupportedDataTypes.INTEGER
+        assert map_edm_type_to_base_type("Edm.Decimal") == SupportedDataTypes.NUMERIC
+        assert map_edm_type_to_base_type("Edm.Double") == SupportedDataTypes.FLOAT
+        assert map_edm_type_to_base_type("Edm.Boolean") == SupportedDataTypes.BOOLEAN
+        assert map_edm_type_to_base_type("Edm.Date") == SupportedDataTypes.DATE
+        assert map_edm_type_to_base_type("Edm.DateTime") == SupportedDataTypes.TIMESTAMP
+
+    def test_datetimeoffset_falls_back_to_timestamp(self) -> None:
+        # SupportedDataTypes has no timezone-aware variant.
+        assert map_edm_type_to_base_type("Edm.DateTimeOffset") == SupportedDataTypes.TIMESTAMP
+
+    def test_time_falls_back_to_string(self) -> None:
+        # SupportedDataTypes has no TIME type.
+        assert map_edm_type_to_base_type("Edm.Time") == SupportedDataTypes.STRING
+
+    def test_unknown_and_none_default_to_string(self) -> None:
+        assert map_edm_type_to_base_type("Edm.Something") == SupportedDataTypes.STRING
+        assert map_edm_type_to_base_type(None) == SupportedDataTypes.STRING
 
 
 class TestSnowflakeDataType:
