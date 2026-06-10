@@ -175,9 +175,11 @@ class AsyncODataV4Client(AsyncODataClientBase):
                 is_absolute = True
                 params = None
                 logging.debug(f"Following @odata.nextLink, fetched {total_fetched} records so far")
-            elif page_len >= page_size:
-                # No next link but the page was full — SAP capped on $top. Advance
-                # the offset manually (client-driven paging) to get the next page.
+            elif page_len == page_size:
+                # No next link but the page was exactly full — SAP capped on $top.
+                # Using == (not >=) avoids infinite looping if a non-conformant server
+                # ignores $top and returns more than page_size records. Advance the
+                # offset manually (client-driven paging) to get the next page.
                 params = self._build_query_params(
                     select=select,
                     filter_expr=filter_expr,
