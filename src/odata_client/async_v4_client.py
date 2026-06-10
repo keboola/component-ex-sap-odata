@@ -267,8 +267,15 @@ class AsyncODataV4Client(AsyncODataClientBase):
             if "403" in error_msg:
                 logging.error(f"Cannot get record count due to permission error: {e}")
                 raise UserException(f"Access forbidden: {e}") from e
-            # Any other error (404, 500, parse error) — $count not supported, fall back silently
-            logging.info(f"Record count not available ($count not supported or failed): {e}")
+            # Any other error (404, 400, 500, parse error) — this service doesn't support
+            # $count (common for SAP CDS query views). Not a problem: we fall back to
+            # sequential pagination. Keep the raw error at debug level so it doesn't look
+            # like a failure in the job log.
+            logging.info(
+                f"Total record count is unavailable for '{entity_set}' "
+                f"(the service does not support $count); using sequential pagination."
+            )
+            logging.debug(f"$count probe error detail: {e}")
             return None
 
     @staticmethod
