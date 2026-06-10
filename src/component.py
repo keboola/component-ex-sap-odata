@@ -663,7 +663,10 @@ class Component(ComponentBase):
         if not entities:
             raise UserException(
                 "No entity sets found in service metadata. "
-                "Please verify the Service Path is correct and the service exposes entity sets."
+                "If you haven't set a Service Path yet, enter it (e.g. /sap/opu/odata/sap/MY_SERVICE) - "
+                "it points to the specific OData service and is required unless the Base URL already "
+                "targets a service directly. Otherwise verify the Service Path is correct and that the "
+                "service exposes entity sets."
             )
 
         return [{"value": e.name, "label": e.name} for e in entities]
