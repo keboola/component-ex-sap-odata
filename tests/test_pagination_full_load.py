@@ -26,7 +26,6 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 import respx
 
-from odata_client.async_base_client import MAX_PAGE_SIZE_PER_REQUEST
 from odata_client.sync_wrapper import SyncODataV2Client, SyncODataV4Client
 
 V2_BASE_URL = "https://sap.example.com/sap/opu/odata/sap/Z_BILL_CDS"
@@ -183,23 +182,21 @@ def test_v2_max_records_caps_full_load(respx_mock):
 
 
 @respx.mock
-def test_v2_large_page_size_is_capped_per_request(respx_mock):
-    """A configured page_size above the per-request cap must be chunked into
-    capped requests (bounds memory) while still fetching the whole set."""
+def test_v2_configured_page_size_is_honored_as_top(respx_mock):
+    """The configured page_size must be used verbatim as $top — the component
+    does not silently override the user's setting."""
     total = 2500
     mock = _SapV2Mock(V2_BASE_URL, total)
     mock.setup(respx_mock)
     client = SyncODataV2Client.from_basic_auth(username="u", password="p", base_url=V2_BASE_URL, enable_parallel=False)
     try:
-        records = list(client.fetch_with_pagination("Items", page_size=10000))
+        records = list(client.fetch_with_pagination("Items", page_size=2000))
     finally:
         client.close()
-    # Everything fetched despite the oversized configured page size.
-    assert len(records) == total
     assert [r["ID"] for r in records] == list(range(total))
-    # No single HTTP request asked for more than the per-request cap.
+    # Requests used the configured page size as $top (not a hidden cap).
     assert mock.requested_tops, "expected at least one data request"
-    assert max(mock.requested_tops) == MAX_PAGE_SIZE_PER_REQUEST
+    assert set(mock.requested_tops) == {2000}
 
 
 @respx.mock

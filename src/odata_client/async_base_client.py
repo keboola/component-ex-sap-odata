@@ -18,14 +18,6 @@ from .metadata import EntityProperty, EntitySet, MetadataParser, ODataMetadata, 
 # Type alias for JSON-serializable data
 JsonDict = dict[str, Any]
 
-# Hard cap on the number of records requested in a single HTTP page ($top),
-# independent of the user-configured page_size. A single response is fully
-# materialised in memory (raw bytes + parsed dicts) before records are yielded,
-# so a very large page (e.g. 10000 wide rows) can blow past the component memory
-# limit. Larger configured page sizes are transparently fetched as several
-# capped requests instead. (CFTL-681)
-MAX_PAGE_SIZE_PER_REQUEST = 1000
-
 
 class AsyncODataClientBase(ABC):
     def __init__(
