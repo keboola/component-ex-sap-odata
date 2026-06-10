@@ -7,18 +7,11 @@ allowing for comprehensive testing without requiring a live SAP system.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import httpx
 import pytest
 import responses
 import respx
-
-from tests.fixtures.mock_odata_server_respx import (
-    MockODataV2Server,
-    MockODataV4Server,
-    MockSAPCatalogServer,
-)
 
 
 class TestODataV4BasicExtraction:
@@ -365,7 +358,7 @@ class TestIncrementalExtraction:
         run_component_with_datadir(datadir)
 
         # Should extract records with LastChangeDateTime > 2024-01-24
-        rows = verify_output_table(datadir, "A_BusinessPartner", min_rows=1)
+        verify_output_table(datadir, "A_BusinessPartner", min_rows=1)
 
         # Verify state was updated
         state = verify_state(datadir)
@@ -768,13 +761,22 @@ class TestLoadTypeAndDestination:
 
         run_component_with_datadir(datadir)
 
-        # Verify manifest has incremental=true and primary_key
+        # Verify manifest has incremental=true, an explicit destination, and a typed
+        # schema. With a schema the primary key is encoded per-column, not at top level.
         manifest_path = datadir / "out" / "tables" / "Products.csv.manifest"
         with open(manifest_path) as f:
             manifest = json.load(f)
 
         assert manifest.get("incremental") is True
-        assert manifest.get("primary_key") == ["ID"]
+        assert manifest.get("destination") == "Products"
+        assert manifest.get("has_header") is True
+
+        schema = {col["name"]: col for col in manifest["schema"]}
+        assert schema["ID"].get("primary_key") is True
+        assert schema["ID"]["data_type"]["base"]["type"] == "INTEGER"
+        # Types are derived from the entity metadata EDM types.
+        assert schema["Price"]["data_type"]["base"]["type"] == "NUMERIC"
+        assert schema["IsActive"]["data_type"]["base"]["type"] == "BOOLEAN"
 
     @respx.mock
     def test_custom_output_table_name(

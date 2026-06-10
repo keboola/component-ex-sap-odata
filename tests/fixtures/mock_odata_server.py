@@ -463,10 +463,10 @@ class MockODataV2Server:
             # Extract field and datetime value: LastChangeDateTime gt datetime'2024-01-24T00:00:00'
             parts = filter_expr.split(" gt datetime")
             field = parts[0].strip()
-            datetime_value = parts[1].strip().strip("'\"")
+            _datetime_value = parts[1].strip().strip("'\"")
 
             # Compare date strings (simplified for mock)
-            return [item for item in data if item.get(field, "") > f"/Date(1706054400000)/"]
+            return [item for item in data if item.get(field, "") > "/Date(1706054400000)/"]
 
         # Handle combined filters
         if " and " in filter_expr:

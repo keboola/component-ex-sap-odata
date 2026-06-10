@@ -1,25 +1,21 @@
-FROM python:3.12-slim
-
-ENV PYTHONIOENCODING=utf-8
-ENV PYTHONUNBUFFERED=1
-
-WORKDIR /code
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libxml2-dev \
-    libxslt-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install uv for faster package installation
+FROM python:3.13-slim AS base
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Copy project files (production only)
-COPY pyproject.toml ./
-COPY src/ ./src/
-COPY component_config/ ./component_config/
+WORKDIR /code/
+COPY pyproject.toml uv.lock ./
 
-# Install production dependencies only
-RUN uv pip install --system --no-cache .
+ENV UV_PROJECT_ENVIRONMENT="/usr/local/"
+RUN uv sync --no-dev --frozen
 
+COPY src/ src/
+COPY scripts/ scripts/
+COPY component_config/ component_config/
+
+FROM base AS test
+RUN uv sync --all-groups --frozen
+COPY tests/ tests/
+RUN uv run ruff check src/ tests/
+CMD ["uv", "run", "pytest", "tests/", "-v"]
+
+FROM base AS production
 CMD ["python", "-u", "/code/src/component.py"]

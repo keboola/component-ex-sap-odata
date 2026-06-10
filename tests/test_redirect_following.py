@@ -17,9 +17,7 @@ BASE = "https://sap.example.com/sap/opu/odata/sap/ZZ1_BILL_DOC_ITEM_QUERY_CDS"
 
 
 def _make_client():
-    return AsyncODataV4Client.from_basic_auth(
-        username="u", password="p", base_url=BASE, max_retries=0
-    )
+    return AsyncODataV4Client.from_basic_auth(username="u", password="p", base_url=BASE, max_retries=0)
 
 
 def test_both_httpx_clients_follow_redirects():
@@ -36,9 +34,7 @@ def test_async_client_follows_307_trailing_slash_redirect():
             return await c.get_raw("Entity")
 
     with respx.mock:
-        respx.get(f"{BASE}/Entity").mock(
-            return_value=httpx.Response(307, headers={"Location": f"{BASE}/Entity/"})
-        )
+        respx.get(f"{BASE}/Entity").mock(return_value=httpx.Response(307, headers={"Location": f"{BASE}/Entity/"}))
         respx.get(f"{BASE}/Entity/").mock(return_value=httpx.Response(200, json={"ok": True}))
         resp = asyncio.run(_run())
 

@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 import requests as req
 import urllib3
 from keboola.component.base import ComponentBase, sync_action
+from keboola.component.dao import BaseType, ColumnDefinition
 from keboola.component.exceptions import UserException
 from keboola.csvwriter import ElasticDictWriter
 from keboola.http_client import HttpClient
@@ -27,6 +28,7 @@ from configuration import (
 from odata_client.auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler, OAuthHandler
 from odata_client.metadata import MetadataParser, ODataMetadata, ODataVersion
 from odata_client.sync_wrapper import SyncODataV2Client, SyncODataV4Client
+from odata_client.type_mapping import map_edm_type_to_base_type
 
 # Type alias for JSON-like dictionaries
 JsonDict = dict[str, Any]
@@ -76,7 +78,7 @@ def _simplify_error_message(error: Exception, base_url: str | None = None) -> st
 
     # Handle HTTP errors
     if isinstance(error, req.exceptions.HTTPError):
-        if hasattr(error, 'response') and error.response is not None:
+        if hasattr(error, "response") and error.response is not None:
             status = error.response.status_code
             url = error.response.url
             return f"HTTP {status} error at {url}"
@@ -99,7 +101,7 @@ def _simplify_error_message(error: Exception, base_url: str | None = None) -> st
             return f"Cannot reach server at https://{host}: Connection failed"
 
     # Default: return first line of error only
-    return error_str.split('\n')[0] if '\n' in error_str else error_str
+    return error_str.split("\n")[0] if "\n" in error_str else error_str
 
 
 class Component(ComponentBase):
@@ -208,15 +210,11 @@ class Component(ComponentBase):
         except req.exceptions.HTTPError as e:
             resp = getattr(e, "response", None)
             if resp is not None and resp.status_code in (401, 403):
-                raise UserException(
-                    f"Authentication failed during OData version detection: {e}"
-                ) from e
+                raise UserException(f"Authentication failed during OData version detection: {e}") from e
             logging.warning(f"Failed to detect OData version from $metadata, defaulting to V2: {e}")
             return ODataVersion.V2
         except req.exceptions.SSLError as e:
-            raise UserException(
-                f"SSL certificate verification failed during OData version detection: {e}"
-            ) from e
+            raise UserException(f"SSL certificate verification failed during OData version detection: {e}") from e
         except Exception as e:
             logging.warning(f"Failed to detect OData version from $metadata, defaulting to V2: {e}")
             return ODataVersion.V2
@@ -257,11 +255,16 @@ class Component(ComponentBase):
         entity_state = state.get_entity_state(self._config.entity_set)
 
         filter_expr = self._build_filter_expression(entity_state)
+        # First create the table only to obtain its output path (columns are
+        # discovered from the data). The manifest is written afterwards with a
+        # proper typed schema built from the columns actually extracted.
         table_def = self._create_output_table()
 
-        records_count, last_incremental_value = self._process_records(client, table_def, filter_expr)
+        records_count, last_incremental_value, columns = self._process_records(client, table_def, filter_expr)
 
         if records_count > 0:
+            schema = self._build_output_schema(columns)
+            table_def = self._create_output_table(schema=schema)
             self.write_manifest(table_def)
 
         self._update_extraction_state(state, records_count, last_incremental_value)
@@ -330,25 +333,76 @@ class Component(ComponentBase):
             logging.warning(f"Could not determine EDM type for field '{field_name}': {e}")
         return None
 
-    def _create_output_table(self):
-        """Create output table definition."""
+    def _create_output_table(self, schema: dict[str, ColumnDefinition] | None = None):
+        """Create output table definition.
+
+        Called twice per run: once without a schema just to resolve the output
+        path (columns aren't known until the first record is read), then again
+        with the typed ``schema`` to write a proper manifest. Setting an explicit
+        ``destination`` and ``schema`` also silences the platform's "neither
+        manifest file nor mapping set" fallback warning.
+        """
         output_table_name = self._config.get_output_table_name()
         return self.create_out_table_definition(
             f"{output_table_name}.csv",
-            primary_key=self._config.primary_key if self._config.primary_key else None,
+            destination=output_table_name,
+            schema=schema,
+            # primary_key/has_header only make sense once we have the schema;
+            # passing primary_key without columns would force legacy manifest mode.
+            primary_key=(self._config.primary_key or None) if schema else None,
             incremental=self._config.load_type == LoadType.INCREMENTAL,
+            has_header=True if schema else None,
         )
+
+    def _build_output_schema(self, columns: list[str]) -> dict[str, ColumnDefinition]:
+        """Build a typed output schema for the given (flattened) column names.
+
+        Column EDM types come from the entity metadata; columns without metadata
+        (flattened/expanded nested fields, or services without $metadata) default
+        to STRING via map_edm_type_to_base_type.
+        """
+        edm_types = self._get_entity_property_edm_types()
+        primary_key = set(self._config.primary_key or [])
+        schema: dict[str, ColumnDefinition] = {}
+        for column in columns:
+            base_type = map_edm_type_to_base_type(edm_types.get(column))
+            is_pk = column in primary_key
+            schema[column] = ColumnDefinition(
+                data_types=BaseType(dtype=base_type),
+                primary_key=is_pk,
+                nullable=not is_pk,
+            )
+        return schema
+
+    def _get_entity_property_edm_types(self) -> dict[str, str]:
+        """Return a {property_name: edm_type} map for the configured entity set.
+
+        Returns an empty map (callers fall back to STRING) if metadata is
+        unavailable — e.g. services that don't expose $metadata.
+        """
+        try:
+            client = self._build_client()
+            metadata = client.get_metadata()
+            entity_set = metadata.get_entity_set(self._config.entity_set or "")
+            if entity_set:
+                return {prop.name: prop.edm_type for prop in entity_set.properties}
+        except Exception as e:
+            logging.warning(f"Could not load entity property types for output schema: {e}")
+        return {}
 
     def _process_records(
         self, client: ODataClient, table_def, filter_expr: str | None
-    ) -> tuple[int, str | None]:
+    ) -> tuple[int, str | None, list[str]]:
         """Process and write records from OData service.
 
         Returns:
-            Tuple of (records_count, last_incremental_value)
+            Tuple of (records_count, last_incremental_value, columns) where
+            ``columns`` is the final, flattened column list written to the CSV
+            (used to build the typed output manifest schema).
         """
         records_count = 0
         last_incremental_value: str | None = None
+        columns: list[str] = []
         writer: ElasticDictWriter | None = None
 
         try:
@@ -362,12 +416,12 @@ class Component(ComponentBase):
                 page_size=self._config.page_size,
                 max_records=max_records,
             ):
+                flat_record = self._flatten_record(record)
+
                 if writer is None:
-                    columns = list(record.keys())
-                    writer = ElasticDictWriter(table_def.full_path, columns)
+                    writer = ElasticDictWriter(table_def.full_path, list(flat_record.keys()))
                     writer.writeheader()
 
-                flat_record = self._flatten_record(record)
                 writer.writerow(flat_record)
                 records_count += 1
 
@@ -379,8 +433,9 @@ class Component(ComponentBase):
         finally:
             if writer is not None:
                 writer.close()
+                columns = list(writer.fieldnames)
 
-        return records_count, last_incremental_value
+        return records_count, last_incremental_value, columns
 
     def _track_incremental_value(self, record: JsonDict, current_max: str | None) -> str | None:
         """Track the maximum incremental value from records.
@@ -427,9 +482,7 @@ class Component(ComponentBase):
             records_synced=records_count,
         )
 
-    def _flatten_record(
-        self, record: JsonDict, prefix: str = ""
-    ) -> JsonDict:
+    def _flatten_record(self, record: JsonDict, prefix: str = "") -> JsonDict:
         """Flatten nested record structure."""
         flat: JsonDict = {}
         for key, value in record.items():
@@ -490,13 +543,19 @@ class Component(ComponentBase):
             )
 
             if response.status_code == 401:
-                return {"status": "error", "message": f"Authentication failed (401) at {test_url}. Check your credentials."}
+                return {
+                    "status": "error",
+                    "message": f"Authentication failed (401) at {test_url}. Check your credentials.",
+                }
             if response.status_code == 403:
                 return {"status": "error", "message": f"Access forbidden (403) at {test_url}. Check permissions."}
             if response.status_code == 404:
                 # 404 on base_url without catalog_path is a warning - server reachable but endpoint not found
                 if not config.catalog_path:
-                    return {"status": "warning", "message": f"Connection partially successful - server is reachable but returned 404. Verify your URL and credentials."}
+                    return {
+                        "status": "warning",
+                        "message": "Connection partially successful - server is reachable but returned 404. Verify your URL and credentials.",
+                    }
                 # If catalog_path is set, we'll test that next
 
             # Test 2: If catalog_path is set, also test catalog URL
@@ -511,15 +570,24 @@ class Component(ComponentBase):
                 )
 
                 if catalog_response.status_code == 401:
-                    return {"status": "error", "message": f"Authentication failed (401) at catalog {catalog_url}. Check your credentials."}
+                    return {
+                        "status": "error",
+                        "message": f"Authentication failed (401) at catalog {catalog_url}. Check your credentials.",
+                    }
                 if catalog_response.status_code == 403:
-                    return {"status": "error", "message": f"Access forbidden (403) at catalog {catalog_url}. Check permissions."}
+                    return {
+                        "status": "error",
+                        "message": f"Access forbidden (403) at catalog {catalog_url}. Check permissions.",
+                    }
                 if catalog_response.status_code == 404:
-                    return {"status": "error", "message": f"Catalog not found (404) at {catalog_url}. Check Catalog Path."}
+                    return {
+                        "status": "error",
+                        "message": f"Catalog not found (404) at {catalog_url}. Check Catalog Path.",
+                    }
 
                 return {
                     "status": "success",
-                    "message": f"Connection successful! Base URL and Catalog both responded with HTTP 200.",
+                    "message": "Connection successful! Base URL and Catalog both responded with HTTP 200.",
                 }
 
             return {
@@ -598,9 +666,7 @@ class Component(ComponentBase):
                 f"Failed to load services from {catalog_url}: HTTP 401 Unauthorized - Check credentials"
             )
         if catalog_response.status_code == 403:
-            raise UserException(
-                f"Failed to load services from {catalog_url}: HTTP 403 Forbidden - Check permissions"
-            )
+            raise UserException(f"Failed to load services from {catalog_url}: HTTP 403 Forbidden - Check permissions")
         if catalog_response.status_code >= 500:
             raise UserException(
                 f"Failed to load services from {catalog_url}: HTTP {catalog_response.status_code} Server Error"
@@ -620,7 +686,7 @@ class Component(ComponentBase):
         for service in catalog_services:
             # Parse internal URL: http://20.113.120.45:50000/sap/opu/odata/sap/SERVICE_NAME
             parsed = urlparse(service.service_url)
-            internal_path = parsed.path.lstrip('/')  # sap/opu/odata/sap/SERVICE_NAME
+            internal_path = parsed.path.lstrip("/")  # sap/opu/odata/sap/SERVICE_NAME
 
             # Detect proxy prefix from catalog_path
             # If catalog_path is "http/keboola/catalog", prefix is "http/keboola/connector/"
@@ -630,11 +696,12 @@ class Component(ComponentBase):
                 # For other proxies, use internal path as-is
                 service_path = internal_path
 
-            result.append({
-                "value": service_path,
-                "label": f"{service.title} - {service.description}" if service.description
-                else service.title,
-            })
+            result.append(
+                {
+                    "value": service_path,
+                    "label": f"{service.title} - {service.description}" if service.description else service.title,
+                }
+            )
 
         return result
 
@@ -651,8 +718,7 @@ class Component(ComponentBase):
         if not self._config.base_url:
             raise UserException("Base URL is not configured. Please set it in the root configuration.")
         logging.info(
-            f"loadEntities called - "
-            f"base_url: {self._config.base_url}, service_path: {self._config.service_path}"
+            f"loadEntities called - base_url: {self._config.base_url}, service_path: {self._config.service_path}"
         )
         client = self._build_client()
 
@@ -721,10 +787,7 @@ class Component(ComponentBase):
             if field.sap_quickinfo and field.sap_quickinfo != field.sap_label:
                 label_parts.append(field.sap_quickinfo)
 
-            result.append({
-                "value": field.name,
-                "label": " - ".join(label_parts)
-            })
+            result.append({"value": field.name, "label": " - ".join(label_parts)})
 
         return result
 
@@ -832,14 +895,10 @@ class Component(ComponentBase):
             visited_types=set(),
         )
 
-        logging.info(
-            f"loadNavigationProperties: found {len(results)} navigation properties"
-        )
+        logging.info(f"loadNavigationProperties: found {len(results)} navigation properties")
 
         if not results:
-            logging.info(
-                f"No navigation properties found for entity set '{self._config.entity_set}'"
-            )
+            logging.info(f"No navigation properties found for entity set '{self._config.entity_set}'")
             return [
                 {
                     "value": "",
