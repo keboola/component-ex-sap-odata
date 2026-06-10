@@ -1,1 +1,1 @@
-[{"value": "", "label": "\u26a0\ufe0f Catalog Path is required to load services. Please configure it in root settings."}]
+[{"value": "", "label": "⚠️ Catalog Path is not set, so services can't be listed automatically. You can skip this and enter the Service Path manually (e.g. /sap/opu/odata/sap/MY_SERVICE), then use Load Entity Sets. Set Catalog Path in the connection settings only if you want to browse services."}]
