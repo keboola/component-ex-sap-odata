@@ -7,18 +7,11 @@ allowing for comprehensive testing without requiring a live SAP system.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import httpx
 import pytest
 import responses
 import respx
-
-from tests.fixtures.mock_odata_server_respx import (
-    MockODataV2Server,
-    MockODataV4Server,
-    MockSAPCatalogServer,
-)
 
 
 class TestODataV4BasicExtraction:
@@ -365,7 +358,7 @@ class TestIncrementalExtraction:
         run_component_with_datadir(datadir)
 
         # Should extract records with LastChangeDateTime > 2024-01-24
-        rows = verify_output_table(datadir, "A_BusinessPartner", min_rows=1)
+        verify_output_table(datadir, "A_BusinessPartner", min_rows=1)
 
         # Verify state was updated
         state = verify_state(datadir)

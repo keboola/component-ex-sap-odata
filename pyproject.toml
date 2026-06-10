@@ -3,7 +3,7 @@ name = "component-ex-sap-odata"
 version = "0.2.1"
 description = "SAP OData Extractor for Keboola - supports both OData V2 and V4 protocols"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = "~=3.13.0"
 dependencies = [
     "keboola-component>=1.6.10",
     "keboola-csvwriter>=1.0.1",
@@ -13,7 +13,7 @@ dependencies = [
     "requests>=2.31.0",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.0.0",
@@ -22,16 +22,23 @@ dev = [
     "responses>=0.25.0",
     "respx>=0.21.0",
     "httpx>=0.24.0",
+    "ty>=0.0.1a6",
+    "pre-commit>=3.0.0",
 ]
 
 [tool.ruff]
 line-length = 120
-target-version = "py313"
 
 [tool.ruff.lint]
-select = ["I", "UP"]
+extend-select = [
+    "I",   # isort – import sorting
+    "UP",  # pyupgrade – modern Python syntax
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 pythonpath = ["src"]
+
+[tool.ty.environment]
+extra-paths = ["src"]

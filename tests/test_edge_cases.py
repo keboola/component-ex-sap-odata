@@ -13,9 +13,7 @@ Scenarios covered
 
 from __future__ import annotations
 
-import json
 import re
-from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -436,7 +434,7 @@ class TestODataV2DateNormalization:
         """State last_incremental_value must be an ISO string, not /Date(...)/ ."""
         # 1704067200000 ms  →  2024-01-01T00:00:00 UTC
         DATE_MS = "/Date(1704067200000)/"
-        EXPECTED_ISO = "2024-01-01T00:00:00"
+        _EXPECTED_ISO = "2024-01-01T00:00:00"
 
         records = [
             {"ProductID": "P1", "Name": "Alpha", "LastChangeDate": DATE_MS},

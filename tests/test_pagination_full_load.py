@@ -24,7 +24,6 @@ import re
 from urllib.parse import parse_qs, urlparse
 
 import httpx
-import pytest
 import respx
 
 from odata_client.sync_wrapper import SyncODataV2Client, SyncODataV4Client
@@ -97,9 +96,7 @@ class _SapV4Mock:
 def test_v2_sequential_full_load_fetches_all_pages(respx_mock):
     """Bug #2 (V2): without a __next link, $skip paging must still fetch everything."""
     _SapV2Mock(V2_BASE_URL, TOTAL_RECORDS).setup(respx_mock)
-    client = SyncODataV2Client.from_basic_auth(
-        username="u", password="p", base_url=V2_BASE_URL, enable_parallel=False
-    )
+    client = SyncODataV2Client.from_basic_auth(username="u", password="p", base_url=V2_BASE_URL, enable_parallel=False)
     try:
         records = list(client.fetch_with_pagination("Items", page_size=PAGE_SIZE))
     finally:
@@ -112,9 +109,7 @@ def test_v2_sequential_full_load_fetches_all_pages(respx_mock):
 def test_v4_sequential_full_load_fetches_all_pages(respx_mock):
     """Bug #2 (V4): without a nextLink, $skip paging must still fetch everything."""
     _SapV4Mock(V4_BASE_URL, TOTAL_RECORDS).setup(respx_mock)
-    client = SyncODataV4Client.from_basic_auth(
-        username="u", password="p", base_url=V4_BASE_URL, enable_parallel=False
-    )
+    client = SyncODataV4Client.from_basic_auth(username="u", password="p", base_url=V4_BASE_URL, enable_parallel=False)
     try:
         records = list(client.fetch_with_pagination("Items", page_size=PAGE_SIZE))
     finally:
@@ -165,9 +160,7 @@ def test_v2_parallel_full_load_fetches_all_pages(respx_mock):
 def test_v2_max_records_caps_full_load(respx_mock):
     """max_records must still cap the sequential $skip loop."""
     _SapV2Mock(V2_BASE_URL, TOTAL_RECORDS).setup(respx_mock)
-    client = SyncODataV2Client.from_basic_auth(
-        username="u", password="p", base_url=V2_BASE_URL, enable_parallel=False
-    )
+    client = SyncODataV2Client.from_basic_auth(username="u", password="p", base_url=V2_BASE_URL, enable_parallel=False)
     try:
         records = list(client.fetch_with_pagination("Items", page_size=PAGE_SIZE, max_records=12))
     finally:

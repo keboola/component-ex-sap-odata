@@ -6,7 +6,6 @@ import os
 # Add src to path
 import sys
 import time
-from typing import Any
 
 import pytest
 

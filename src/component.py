@@ -76,7 +76,7 @@ def _simplify_error_message(error: Exception, base_url: str | None = None) -> st
 
     # Handle HTTP errors
     if isinstance(error, req.exceptions.HTTPError):
-        if hasattr(error, 'response') and error.response is not None:
+        if hasattr(error, "response") and error.response is not None:
             status = error.response.status_code
             url = error.response.url
             return f"HTTP {status} error at {url}"
@@ -99,7 +99,7 @@ def _simplify_error_message(error: Exception, base_url: str | None = None) -> st
             return f"Cannot reach server at https://{host}: Connection failed"
 
     # Default: return first line of error only
-    return error_str.split('\n')[0] if '\n' in error_str else error_str
+    return error_str.split("\n")[0] if "\n" in error_str else error_str
 
 
 class Component(ComponentBase):
@@ -208,15 +208,11 @@ class Component(ComponentBase):
         except req.exceptions.HTTPError as e:
             resp = getattr(e, "response", None)
             if resp is not None and resp.status_code in (401, 403):
-                raise UserException(
-                    f"Authentication failed during OData version detection: {e}"
-                ) from e
+                raise UserException(f"Authentication failed during OData version detection: {e}") from e
             logging.warning(f"Failed to detect OData version from $metadata, defaulting to V2: {e}")
             return ODataVersion.V2
         except req.exceptions.SSLError as e:
-            raise UserException(
-                f"SSL certificate verification failed during OData version detection: {e}"
-            ) from e
+            raise UserException(f"SSL certificate verification failed during OData version detection: {e}") from e
         except Exception as e:
             logging.warning(f"Failed to detect OData version from $metadata, defaulting to V2: {e}")
             return ODataVersion.V2
@@ -339,9 +335,7 @@ class Component(ComponentBase):
             incremental=self._config.load_type == LoadType.INCREMENTAL,
         )
 
-    def _process_records(
-        self, client: ODataClient, table_def, filter_expr: str | None
-    ) -> tuple[int, str | None]:
+    def _process_records(self, client: ODataClient, table_def, filter_expr: str | None) -> tuple[int, str | None]:
         """Process and write records from OData service.
 
         Returns:
@@ -427,9 +421,7 @@ class Component(ComponentBase):
             records_synced=records_count,
         )
 
-    def _flatten_record(
-        self, record: JsonDict, prefix: str = ""
-    ) -> JsonDict:
+    def _flatten_record(self, record: JsonDict, prefix: str = "") -> JsonDict:
         """Flatten nested record structure."""
         flat: JsonDict = {}
         for key, value in record.items():
@@ -490,13 +482,19 @@ class Component(ComponentBase):
             )
 
             if response.status_code == 401:
-                return {"status": "error", "message": f"Authentication failed (401) at {test_url}. Check your credentials."}
+                return {
+                    "status": "error",
+                    "message": f"Authentication failed (401) at {test_url}. Check your credentials.",
+                }
             if response.status_code == 403:
                 return {"status": "error", "message": f"Access forbidden (403) at {test_url}. Check permissions."}
             if response.status_code == 404:
                 # 404 on base_url without catalog_path is a warning - server reachable but endpoint not found
                 if not config.catalog_path:
-                    return {"status": "warning", "message": f"Connection partially successful - server is reachable but returned 404. Verify your URL and credentials."}
+                    return {
+                        "status": "warning",
+                        "message": "Connection partially successful - server is reachable but returned 404. Verify your URL and credentials.",
+                    }
                 # If catalog_path is set, we'll test that next
 
             # Test 2: If catalog_path is set, also test catalog URL
@@ -511,15 +509,24 @@ class Component(ComponentBase):
                 )
 
                 if catalog_response.status_code == 401:
-                    return {"status": "error", "message": f"Authentication failed (401) at catalog {catalog_url}. Check your credentials."}
+                    return {
+                        "status": "error",
+                        "message": f"Authentication failed (401) at catalog {catalog_url}. Check your credentials.",
+                    }
                 if catalog_response.status_code == 403:
-                    return {"status": "error", "message": f"Access forbidden (403) at catalog {catalog_url}. Check permissions."}
+                    return {
+                        "status": "error",
+                        "message": f"Access forbidden (403) at catalog {catalog_url}. Check permissions.",
+                    }
                 if catalog_response.status_code == 404:
-                    return {"status": "error", "message": f"Catalog not found (404) at {catalog_url}. Check Catalog Path."}
+                    return {
+                        "status": "error",
+                        "message": f"Catalog not found (404) at {catalog_url}. Check Catalog Path.",
+                    }
 
                 return {
                     "status": "success",
-                    "message": f"Connection successful! Base URL and Catalog both responded with HTTP 200.",
+                    "message": "Connection successful! Base URL and Catalog both responded with HTTP 200.",
                 }
 
             return {
@@ -598,9 +605,7 @@ class Component(ComponentBase):
                 f"Failed to load services from {catalog_url}: HTTP 401 Unauthorized - Check credentials"
             )
         if catalog_response.status_code == 403:
-            raise UserException(
-                f"Failed to load services from {catalog_url}: HTTP 403 Forbidden - Check permissions"
-            )
+            raise UserException(f"Failed to load services from {catalog_url}: HTTP 403 Forbidden - Check permissions")
         if catalog_response.status_code >= 500:
             raise UserException(
                 f"Failed to load services from {catalog_url}: HTTP {catalog_response.status_code} Server Error"
@@ -620,7 +625,7 @@ class Component(ComponentBase):
         for service in catalog_services:
             # Parse internal URL: http://20.113.120.45:50000/sap/opu/odata/sap/SERVICE_NAME
             parsed = urlparse(service.service_url)
-            internal_path = parsed.path.lstrip('/')  # sap/opu/odata/sap/SERVICE_NAME
+            internal_path = parsed.path.lstrip("/")  # sap/opu/odata/sap/SERVICE_NAME
 
             # Detect proxy prefix from catalog_path
             # If catalog_path is "http/keboola/catalog", prefix is "http/keboola/connector/"
@@ -630,11 +635,12 @@ class Component(ComponentBase):
                 # For other proxies, use internal path as-is
                 service_path = internal_path
 
-            result.append({
-                "value": service_path,
-                "label": f"{service.title} - {service.description}" if service.description
-                else service.title,
-            })
+            result.append(
+                {
+                    "value": service_path,
+                    "label": f"{service.title} - {service.description}" if service.description else service.title,
+                }
+            )
 
         return result
 
@@ -651,8 +657,7 @@ class Component(ComponentBase):
         if not self._config.base_url:
             raise UserException("Base URL is not configured. Please set it in the root configuration.")
         logging.info(
-            f"loadEntities called - "
-            f"base_url: {self._config.base_url}, service_path: {self._config.service_path}"
+            f"loadEntities called - base_url: {self._config.base_url}, service_path: {self._config.service_path}"
         )
         client = self._build_client()
 
@@ -721,10 +726,7 @@ class Component(ComponentBase):
             if field.sap_quickinfo and field.sap_quickinfo != field.sap_label:
                 label_parts.append(field.sap_quickinfo)
 
-            result.append({
-                "value": field.name,
-                "label": " - ".join(label_parts)
-            })
+            result.append({"value": field.name, "label": " - ".join(label_parts)})
 
         return result
 
@@ -832,14 +834,10 @@ class Component(ComponentBase):
             visited_types=set(),
         )
 
-        logging.info(
-            f"loadNavigationProperties: found {len(results)} navigation properties"
-        )
+        logging.info(f"loadNavigationProperties: found {len(results)} navigation properties")
 
         if not results:
-            logging.info(
-                f"No navigation properties found for entity set '{self._config.entity_set}'"
-            )
+            logging.info(f"No navigation properties found for entity set '{self._config.entity_set}'")
             return [
                 {
                     "value": "",
