@@ -13,8 +13,6 @@ Key test scenarios:
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -93,7 +91,7 @@ class TestConnectionAction:
         """Test connection using base_url + service_path."""
         base_url = "https://api.example.com"
         service_path = "odata/v4/service"
-        full_url = f"{base_url}/{service_path}"
+        _full_url = f"{base_url}/{service_path}"
 
         respx_mock.get("{full_url}/").mock(return_value=httpx.Response(200, content="OK"))
 
@@ -112,9 +110,7 @@ class TestConnectionAction:
 class TestLoadServicesAction:
     """Test loadServices sync action."""
 
-    def test_load_services_no_catalog_returns_manual_hint(
-        self, datadir_factory, run_sync_action_with_datadir, capsys
-    ):
+    def test_load_services_no_catalog_returns_manual_hint(self, datadir_factory, run_sync_action_with_datadir, capsys):
         """No catalog_path must return a non-blocking hint, not raise (CFTL-681).
 
         Catalog browsing is optional - the user can type the Service Path manually.
@@ -174,9 +170,7 @@ class TestLoadServicesAction:
 
         values = [item["value"] for item in result if item.get("value")]
         # catalog_path has no "keboola" → paths are returned in direct format
-        assert "sap/opu/odata/sap/API_BUSINESS_PARTNER" in values, (
-            f"Expected direct service path in: {values}"
-        )
+        assert "sap/opu/odata/sap/API_BUSINESS_PARTNER" in values, f"Expected direct service path in: {values}"
         # Labels should be human-readable service titles
         labels = [item["label"] for item in result if item.get("value")]
         assert any("Business Partner" in lbl for lbl in labels)
@@ -201,6 +195,7 @@ class TestLoadServicesAction:
 
         # Create catalog server at the keboola catalog URL and mock it
         from tests.fixtures.mock_odata_server_respx import MockSAPCatalogServer
+
         catalog_server = MockSAPCatalogServer(catalog_url)
         catalog_server.setup(respx_mock)
 
@@ -242,9 +237,7 @@ class TestLoadServicesAction:
         responses_lib.add(responses_lib.GET, catalog_url, status=200, body="OK")
 
         # But the actual httpx catalog fetch returns 401
-        respx_mock.get(catalog_url).mock(
-            return_value=httpx.Response(401, text="Unauthorized")
-        )
+        respx_mock.get(catalog_url).mock(return_value=httpx.Response(401, text="Unauthorized"))
 
         config = {
             "connection": {"base_url": base_url, "catalog_path": catalog_path},
@@ -288,8 +281,7 @@ class TestLoadServicesAction:
   <title>SAP Service Catalog</title>
 </feed>"""
         respx_mock.get(catalog_url).mock(
-            return_value=httpx.Response(200, text=empty_atom,
-                                        headers={"content-type": "application/atom+xml"})
+            return_value=httpx.Response(200, text=empty_atom, headers={"content-type": "application/atom+xml"})
         )
 
         config = {
@@ -343,9 +335,7 @@ class TestLoadEntitiesAction:
         assert comp is not None
 
     @respx.mock
-    def test_load_entities_empty_metadata(
-        self, respx_mock, datadir_factory, run_sync_action_with_datadir, capsys
-    ):
+    def test_load_entities_empty_metadata(self, respx_mock, datadir_factory, run_sync_action_with_datadir, capsys):
         """Service responds OK but exposes no entity sets → UserException so UI shows error.
 
         If the service returns empty metadata, the user would see an empty dropdown
@@ -592,8 +582,8 @@ class TestPreviewDataAction:
             "odata_version": "v4",
             "entity_set": "Products",
             "query_options": {
-                    "filter_expression": "Category eq 'Electronics'",
-                },
+                "filter_expression": "Category eq 'Electronics'",
+            },
         }
         datadir = datadir_factory(config)
 
@@ -615,8 +605,8 @@ class TestValidateFilterAction:
             "odata_version": "v4",
             "entity_set": "Products",
             "query_options": {
-                    "filter_expression": "Category eq 'Electronics'",
-                },
+                "filter_expression": "Category eq 'Electronics'",
+            },
         }
         datadir = datadir_factory(config)
 
@@ -670,9 +660,7 @@ class TestValidateFilterAction:
         assert comp is not None
 
     @respx.mock
-    def test_validate_filter_includes_select_fields(
-        self, respx_mock, datadir_factory, run_sync_action_with_datadir
-    ):
+    def test_validate_filter_includes_select_fields(self, respx_mock, datadir_factory, run_sync_action_with_datadir):
         """Test that validateFilter passes $select when select_fields are configured.
 
         SAP IBP's PLANNING_DATA_API_SRV requires $select — requests without it return 400.
@@ -883,7 +871,7 @@ class TestSyncActionsChain:
             "authentication": {"auth_type": "basic", "username": "user", "#password": "pass"},
             "odata_version": "v2",
             "service_path": service_path,  # manually entered
-            "entity_set": entity_set,       # manually entered
+            "entity_set": entity_set,  # manually entered
         }
         datadir = datadir_factory(config)
 
@@ -903,9 +891,7 @@ class TestLoadMetadataSummaryAction:
     """Test loadMetadataSummary sync action."""
 
     @respx.mock
-    def test_load_metadata_summary_v4(
-        self, respx_mock, mock_v4_server, datadir_factory, run_sync_action_with_datadir
-    ):
+    def test_load_metadata_summary_v4(self, respx_mock, mock_v4_server, datadir_factory, run_sync_action_with_datadir):
         """Test loading metadata summary from V4 service."""
         mock_v4_server.setup(respx_mock)
 
@@ -920,9 +906,7 @@ class TestLoadMetadataSummaryAction:
         assert comp is not None
 
     @respx.mock
-    def test_load_metadata_summary_v2(
-        self, respx_mock, mock_v2_server, datadir_factory, run_sync_action_with_datadir
-    ):
+    def test_load_metadata_summary_v2(self, respx_mock, mock_v2_server, datadir_factory, run_sync_action_with_datadir):
         """Test loading metadata summary from V2 service."""
         mock_v2_server.setup(respx_mock)
 
