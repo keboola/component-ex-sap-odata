@@ -258,28 +258,15 @@
               "tooltip": "Override the **global max records** limit for this entity.\n\n- `0` = **unlimited** (default)\n- Leave empty to use the global default"
             }
           },
-          "enable_parallel": {
-            "type": "boolean",
-            "title": "Parallel Fetching",
-            "description": "Fetch multiple pages concurrently for higher throughput.",
-            "default": true,
-            "propertyOrder": 3,
-            "options": {
-              "tooltip": "Fetch several pages **concurrently** instead of one at a time.\n\nFaster on sources that handle concurrent requests, but it multiplies peak memory by the number of parallel pages. Turn **off** for the most predictable, lowest memory usage (one page at a time)."
-            }
-          },
           "parallel_pages": {
             "type": "integer",
             "title": "Parallel Pages",
-            "description": "Number of pages to fetch concurrently.",
-            "default": 5,
+            "description": "Number of pages to fetch concurrently (1 = sequential).",
+            "default": 1,
             "minimum": 1,
-            "propertyOrder": 4,
+            "propertyOrder": 3,
             "options": {
-              "dependencies": {
-                "enable_parallel": true
-              },
-              "tooltip": "How many pages to fetch at once when parallel fetching is on.\n\n**Peak memory ≈ Page Size × Parallel Pages × row width.** Lower this (or the page size) for very wide entities; raise it for more throughput when you have memory headroom (e.g. a larger job backend)."
+              "tooltip": "How many pages to fetch **at once**.\n\n- `1` (default) = sequential, one page at a time — lowest, most predictable memory.\n- Higher = more throughput on sources that handle concurrent requests, but **peak memory ≈ Page Size × Parallel Pages × row width**.\n\nTry increasing it for faster loads; lower it (or the page size) if a wide entity runs out of memory."
             }
           }
         }

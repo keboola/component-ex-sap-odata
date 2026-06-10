@@ -65,8 +65,7 @@ Each row extracts one entity set. Multiple rows can be configured for different 
 | `destination.primary_key` | For incremental | Primary key fields - multiselect array |
 | `advanced_options.page_size` | No | Override page size for this entity |
 | `advanced_options.max_records` | No | Override max records for this entity |
-| `advanced_options.enable_parallel` | No | Override parallel fetching for this entity (default: `true`) |
-| `advanced_options.parallel_pages` | No | Override number of pages fetched concurrently (default: 5) |
+| `advanced_options.parallel_pages` | No | Pages fetched concurrently for this entity (default: 1 = sequential; increase for throughput) |
 
 ### Performance & Large Loads
 
@@ -75,8 +74,9 @@ size is not the memory constraint — the per-batch peak is. Peak memory is roug
 `page_size × parallel_pages × row_width`:
 
 - `page_size` (default `1000`) — records fetched per request.
-- `parallel_pages` (default `5`) — pages fetched concurrently (when parallel
-  fetching is enabled). Higher throughput, but multiplies peak memory.
+- `parallel_pages` (default `1` = sequential) — pages fetched concurrently.
+  Increase it for higher throughput on sources that handle concurrent requests,
+  but it multiplies peak memory.
 
 For a first load of **millions of rows**, especially for **wide** entities (many
 columns, e.g. ACDOCA-style CDS views), the default component memory can be too
@@ -89,7 +89,7 @@ small. Run that load on a larger backend by setting the runtime backend size:
 (or pick the **Backend size** in the UI / use the "run with increased memory"
 prompt). Use `medium`/`large` for the initial full load, then switch to
 **incremental** loads afterwards. Keeping `page_size` modest (the `1000` default)
-and lowering `parallel_pages` are the levers if you need to reduce memory instead.
+and `parallel_pages` low are the levers if you need to reduce memory instead.
 
 ## SAP Service Catalog Support
 

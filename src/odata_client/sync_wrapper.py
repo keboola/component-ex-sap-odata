@@ -62,8 +62,7 @@ class SyncODataClientWrapper:
         timeout: int = 60,
         max_retries: int = 3,
         verify_ssl: bool = True,
-        enable_parallel: bool = True,
-        parallel_pages: int = 5,
+        parallel_pages: int = 1,
         max_requests_per_second: float | None = None,
     ):
         self._async_client = self._async_client_class(
@@ -72,7 +71,6 @@ class SyncODataClientWrapper:
             timeout=timeout,
             max_retries=max_retries,
             verify_ssl=verify_ssl,
-            enable_parallel=enable_parallel,
             parallel_pages=parallel_pages,
             max_requests_per_second=max_requests_per_second,
         )
@@ -103,8 +101,7 @@ class SyncODataClientWrapper:
         timeout: int = 60,
         max_retries: int = 3,
         verify_ssl: bool = True,
-        enable_parallel: bool = True,
-        parallel_pages: int = 5,
+        parallel_pages: int = 1,
         max_requests_per_second: float | None = None,
     ) -> Self:
         return cls(
@@ -113,7 +110,6 @@ class SyncODataClientWrapper:
             timeout=timeout,
             max_retries=max_retries,
             verify_ssl=verify_ssl,
-            enable_parallel=enable_parallel,
             parallel_pages=parallel_pages,
             max_requests_per_second=max_requests_per_second,
         )
@@ -127,8 +123,7 @@ class SyncODataClientWrapper:
         timeout: int = 60,
         max_retries: int = 3,
         verify_ssl: bool = True,
-        enable_parallel: bool = True,
-        parallel_pages: int = 5,
+        parallel_pages: int = 1,
         max_requests_per_second: float | None = None,
     ) -> Self:
         return cls(
@@ -137,7 +132,6 @@ class SyncODataClientWrapper:
             timeout=timeout,
             max_retries=max_retries,
             verify_ssl=verify_ssl,
-            enable_parallel=enable_parallel,
             parallel_pages=parallel_pages,
             max_requests_per_second=max_requests_per_second,
         )

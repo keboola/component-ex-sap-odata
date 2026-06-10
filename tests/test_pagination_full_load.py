@@ -109,7 +109,7 @@ class _SapV4Mock:
 def test_v2_sequential_full_load_fetches_all_pages(respx_mock):
     """Bug #2 (V2): without a __next link, $skip paging must still fetch everything."""
     _SapV2Mock(V2_BASE_URL, TOTAL_RECORDS).setup(respx_mock)
-    client = SyncODataV2Client.from_basic_auth(username="u", password="p", base_url=V2_BASE_URL, enable_parallel=False)
+    client = SyncODataV2Client.from_basic_auth(username="u", password="p", base_url=V2_BASE_URL, parallel_pages=1)
     try:
         records = list(client.fetch_with_pagination("Items", page_size=PAGE_SIZE))
     finally:
@@ -122,7 +122,7 @@ def test_v2_sequential_full_load_fetches_all_pages(respx_mock):
 def test_v4_sequential_full_load_fetches_all_pages(respx_mock):
     """Bug #2 (V4): without a nextLink, $skip paging must still fetch everything."""
     _SapV4Mock(V4_BASE_URL, TOTAL_RECORDS).setup(respx_mock)
-    client = SyncODataV4Client.from_basic_auth(username="u", password="p", base_url=V4_BASE_URL, enable_parallel=False)
+    client = SyncODataV4Client.from_basic_auth(username="u", password="p", base_url=V4_BASE_URL, parallel_pages=1)
     try:
         records = list(client.fetch_with_pagination("Items", page_size=PAGE_SIZE))
     finally:
@@ -159,9 +159,7 @@ def test_v4_get_record_count_uses_correct_kwarg(respx_mock):
 def test_v2_parallel_full_load_fetches_all_pages(respx_mock):
     """With a working $count, parallel fetching must also return the whole set."""
     _SapV2Mock(V2_BASE_URL, TOTAL_RECORDS).setup(respx_mock)
-    client = SyncODataV2Client.from_basic_auth(
-        username="u", password="p", base_url=V2_BASE_URL, enable_parallel=True, parallel_pages=3
-    )
+    client = SyncODataV2Client.from_basic_auth(username="u", password="p", base_url=V2_BASE_URL, parallel_pages=3)
     try:
         records = list(client.fetch_with_pagination("Items", page_size=PAGE_SIZE))
     finally:
@@ -173,7 +171,7 @@ def test_v2_parallel_full_load_fetches_all_pages(respx_mock):
 def test_v2_max_records_caps_full_load(respx_mock):
     """max_records must still cap the sequential $skip loop."""
     _SapV2Mock(V2_BASE_URL, TOTAL_RECORDS).setup(respx_mock)
-    client = SyncODataV2Client.from_basic_auth(username="u", password="p", base_url=V2_BASE_URL, enable_parallel=False)
+    client = SyncODataV2Client.from_basic_auth(username="u", password="p", base_url=V2_BASE_URL, parallel_pages=1)
     try:
         records = list(client.fetch_with_pagination("Items", page_size=PAGE_SIZE, max_records=12))
     finally:
@@ -188,7 +186,7 @@ def test_v2_configured_page_size_is_honored_as_top(respx_mock):
     total = 2500
     mock = _SapV2Mock(V2_BASE_URL, total)
     mock.setup(respx_mock)
-    client = SyncODataV2Client.from_basic_auth(username="u", password="p", base_url=V2_BASE_URL, enable_parallel=False)
+    client = SyncODataV2Client.from_basic_auth(username="u", password="p", base_url=V2_BASE_URL, parallel_pages=1)
     try:
         records = list(client.fetch_with_pagination("Items", page_size=2000))
     finally:
@@ -206,9 +204,7 @@ def test_v2_speculative_parallel_when_count_unavailable(respx_mock):
     total = 25
     mock = _SapV2Mock(V2_BASE_URL, total, count_supported=False)
     mock.setup(respx_mock)
-    client = SyncODataV2Client.from_basic_auth(
-        username="u", password="p", base_url=V2_BASE_URL, enable_parallel=True, parallel_pages=3
-    )
+    client = SyncODataV2Client.from_basic_auth(username="u", password="p", base_url=V2_BASE_URL, parallel_pages=3)
     try:
         records = list(client.fetch_with_pagination("Items", page_size=10))
     finally:
@@ -224,9 +220,7 @@ def test_v4_speculative_parallel_when_count_unavailable(respx_mock):
     total = 25
     mock = _SapV4Mock(V4_BASE_URL, total, count_supported=False)
     mock.setup(respx_mock)
-    client = SyncODataV4Client.from_basic_auth(
-        username="u", password="p", base_url=V4_BASE_URL, enable_parallel=True, parallel_pages=3
-    )
+    client = SyncODataV4Client.from_basic_auth(username="u", password="p", base_url=V4_BASE_URL, parallel_pages=3)
     try:
         records = list(client.fetch_with_pagination("Items", page_size=10))
     finally:
@@ -241,9 +235,7 @@ def test_v2_speculative_parallel_exact_multiple_no_duplicates(respx_mock):
     total = 20  # exact multiple of page_size 10
     mock = _SapV2Mock(V2_BASE_URL, total, count_supported=False)
     mock.setup(respx_mock)
-    client = SyncODataV2Client.from_basic_auth(
-        username="u", password="p", base_url=V2_BASE_URL, enable_parallel=True, parallel_pages=3
-    )
+    client = SyncODataV2Client.from_basic_auth(username="u", password="p", base_url=V2_BASE_URL, parallel_pages=3)
     try:
         records = list(client.fetch_with_pagination("Items", page_size=10))
     finally:
