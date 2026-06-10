@@ -27,8 +27,7 @@ class AsyncODataClientBase(ABC):
         timeout: int = 60,
         max_retries: int = 3,
         verify_ssl: bool = True,
-        enable_parallel: bool = True,
-        parallel_pages: int = 5,
+        parallel_pages: int = 1,
         max_requests_per_second: float | None = None,
     ):
         self.base_url = base_url.rstrip("/")
@@ -36,7 +35,7 @@ class AsyncODataClientBase(ABC):
         self.timeout = timeout
         self.max_retries = max_retries
         self.verify_ssl = verify_ssl
-        self.enable_parallel = enable_parallel
+        # Pages fetched concurrently; 1 = sequential, > 1 = parallel.
         self.parallel_pages = parallel_pages
         self._metadata: ODataMetadata | None = None
         self._metadata_lock = asyncio.Lock()
@@ -79,8 +78,7 @@ class AsyncODataClientBase(ABC):
         timeout: int = 60,
         max_retries: int = 3,
         verify_ssl: bool = True,
-        enable_parallel: bool = True,
-        parallel_pages: int = 5,
+        parallel_pages: int = 1,
         max_requests_per_second: float | None = None,
     ) -> AsyncODataClientBase:
         auth_handler = BasicAuthHandler(username, password)
@@ -90,7 +88,6 @@ class AsyncODataClientBase(ABC):
             timeout=timeout,
             max_retries=max_retries,
             verify_ssl=verify_ssl,
-            enable_parallel=enable_parallel,
             parallel_pages=parallel_pages,
             max_requests_per_second=max_requests_per_second,
         )
@@ -104,8 +101,7 @@ class AsyncODataClientBase(ABC):
         timeout: int = 60,
         max_retries: int = 3,
         verify_ssl: bool = True,
-        enable_parallel: bool = True,
-        parallel_pages: int = 5,
+        parallel_pages: int = 1,
         max_requests_per_second: float | None = None,
     ) -> AsyncODataClientBase:
         auth_handler = ApiKeyAuthHandler(api_key, header_name)
@@ -115,7 +111,6 @@ class AsyncODataClientBase(ABC):
             timeout=timeout,
             max_retries=max_retries,
             verify_ssl=verify_ssl,
-            enable_parallel=enable_parallel,
             parallel_pages=parallel_pages,
             max_requests_per_second=max_requests_per_second,
         )

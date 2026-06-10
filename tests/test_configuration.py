@@ -164,25 +164,24 @@ class TestConfigurationWithRowFields:
         assert config.page_size == 500
         assert config.max_records == 10000
 
-    def test_parallel_defaults_when_not_overridden(self) -> None:
+    def test_parallel_pages_default_is_sequential(self) -> None:
         config = Configuration(
             connection={"base_url": "https://example.com/odata"},
             authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
             entity_set="Products",
         )
-        assert config.enable_parallel is True
-        assert config.parallel_pages == 5
+        # Default is 1 = sequential (one page at a time).
+        assert config.parallel_pages == 1
 
-    def test_row_advanced_options_override_parallelism(self) -> None:
+    def test_row_advanced_options_override_parallel_pages(self) -> None:
         config = Configuration(
             connection={"base_url": "https://example.com/odata"},
             authentication={"auth_type": "basic", "username": "user", "#password": "pass"},
             entity_set="Products",
             # Row-level Entity-Specific Settings (Keboola sends maxItems:1 as an array)
-            advanced_options=[{"page_size": 250, "enable_parallel": False, "parallel_pages": 2}],
+            advanced_options=[{"page_size": 250, "parallel_pages": 4}],
         )
-        assert config.enable_parallel is False
-        assert config.parallel_pages == 2
+        assert config.parallel_pages == 4
         assert config.page_size == 250
 
     def test_get_output_table_name_with_custom_name(self) -> None:

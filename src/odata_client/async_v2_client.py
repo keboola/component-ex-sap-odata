@@ -82,10 +82,10 @@ class AsyncODataV2Client(AsyncODataClientBase):
     ) -> AsyncIterator[JsonDict]:
         """Fetch entity set with automatic pagination.
 
-        If enable_parallel is True and we can determine total count, fetches multiple
-        pages in parallel for better performance.
+        If parallel_pages > 1, fetches multiple pages concurrently for better
+        performance (using the total count when available, otherwise speculatively).
         """
-        if self.enable_parallel and max_records is None:
+        if self.parallel_pages > 1 and max_records is None:
             # Try to get total count to enable precise parallel fetching
             total_count = await self.get_record_count(entity_set, filter_expr)
             if total_count and total_count > page_size:
