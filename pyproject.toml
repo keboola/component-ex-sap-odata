@@ -1,6 +1,6 @@
 [project]
 name = "component-ex-sap-odata"
-version = "0.2.0"
+version = "0.2.1"
 description = "SAP OData Extractor for Keboola - supports both OData V2 and V4 protocols"
 readme = "README.md"
 requires-python = ">=3.12"

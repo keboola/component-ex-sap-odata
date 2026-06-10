@@ -18,8 +18,8 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
-import respx
 import responses as responses_lib
+import respx
 
 
 class TestConnectionAction:
@@ -111,6 +111,29 @@ class TestConnectionAction:
 
 class TestLoadServicesAction:
     """Test loadServices sync action."""
+
+    def test_load_services_no_catalog_returns_manual_hint(
+        self, datadir_factory, run_sync_action_with_datadir, capsys
+    ):
+        """No catalog_path must return a non-blocking hint, not raise (CFTL-681).
+
+        Catalog browsing is optional - the user can type the Service Path manually.
+        loadServices should return a single dropdown hint item (exit 0) pointing to
+        manual entry, instead of a hard error.
+        """
+        config = {
+            "connection": {"base_url": "https://api.example.com", "catalog_path": ""},
+            "authentication": {"auth_type": "basic", "username": "user", "#password": "pass"},
+        }
+        datadir = datadir_factory(config)
+
+        run_sync_action_with_datadir(datadir, "loadServices")
+
+        result = json.loads(capsys.readouterr().out)
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["value"] == ""
+        assert "Service Path manually" in result[0]["label"]
 
     @responses_lib.activate
     @respx.mock

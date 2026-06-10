@@ -8,6 +8,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import requests as req
+import urllib3
 from keboola.component.base import ComponentBase, sync_action
 from keboola.component.exceptions import UserException
 from keboola.csvwriter import ElasticDictWriter
@@ -47,6 +48,20 @@ def _simplify_error_message(error: Exception, base_url: str | None = None) -> st
     """
     error_str = str(error)
 
+    # Handle SSL errors first. requests.exceptions.SSLError is a subclass of
+    # ConnectionError, so it must be checked before the ConnectionError branch
+    # below - otherwise a certificate verification failure is mislabeled as a
+    # generic "Connection failed", hiding the real cause (e.g. an internal /
+    # self-signed cert on an on-premise or VPN-tunnelled endpoint).
+    if isinstance(error, req.exceptions.SSLError):
+        target = base_url or "the server"
+        return (
+            f"SSL certificate verification failed for {target}. "
+            "The server's certificate is not trusted (self-signed / internal CA) "
+            "or its hostname does not match. For on-premise or VPN endpoints, "
+            "disable 'Verify SSL Certificate' in the configuration or provide a trusted CA."
+        )
+
     # Handle requests connection errors
     if isinstance(error, req.exceptions.ConnectionError):
         # Extract domain from error or use base_url
@@ -72,12 +87,6 @@ def _simplify_error_message(error: Exception, base_url: str | None = None) -> st
         if base_url:
             return f"Connection to {base_url} timed out"
         return "Connection timed out"
-
-    # Handle SSL errors
-    if isinstance(error, req.exceptions.SSLError):
-        if base_url:
-            return f"SSL certificate verification failed for {base_url}"
-        return "SSL certificate verification failed"
 
     # For other errors, return simplified message
     # Remove long tracebacks and technical details
@@ -108,6 +117,15 @@ class Component(ComponentBase):
             raise UserException(f"Configuration validation failed: {'; '.join(errors)}") from e
         self._client: ODataClient | None = None
         self._detected_version: ODataVersion | None = None
+
+        # When TLS verification is disabled (common for on-premise / VPN SAP
+        # systems behind an internal certificate), urllib3 emits an
+        # InsecureRequestWarning. Sync actions require stdout to be a single
+        # JSON object - the warning text leaks onto that stream and breaks the
+        # runner with "Decoding JSON response from component failed". Suppress
+        # it so the result stream stays clean. (CFTL-681)
+        if not self._config.verify_ssl:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     def _build_auth_handler(self) -> AuthHandler:
         config = self._config
@@ -535,9 +553,21 @@ class Component(ComponentBase):
         if not self._config.base_url:
             raise UserException("Base URL is not configured. Please set it in the root configuration.")
         if not self._config.catalog_path:
-            raise UserException(
-                "Catalog Path is required to load services. Please configure it in the root settings."
-            )
+            # No catalog configured. Browsing the service list isn't possible, but
+            # it isn't required either - the user can type the Service Path directly.
+            # Return a non-blocking hint in the dropdown rather than a hard error so
+            # the manual path (per the field tooltip) is discoverable. (CFTL-681)
+            return [
+                {
+                    "value": "",
+                    "label": (
+                        "⚠️ Catalog Path is not set, so services can't be listed automatically. "
+                        "You can skip this and enter the Service Path manually "
+                        "(e.g. /sap/opu/odata/sap/MY_SERVICE), then use Load Entity Sets. "
+                        "Set Catalog Path in the connection settings only if you want to browse services."
+                    ),
+                }
+            ]
         logging.info(
             f"loadServices called - base_url: {self._config.base_url}, catalog_path: {self._config.catalog_path}"
         )
@@ -633,7 +663,10 @@ class Component(ComponentBase):
         if not entities:
             raise UserException(
                 "No entity sets found in service metadata. "
-                "Please verify the Service Path is correct and the service exposes entity sets."
+                "If you haven't set a Service Path yet, enter it (e.g. /sap/opu/odata/sap/MY_SERVICE) - "
+                "it points to the specific OData service and is required unless the Base URL already "
+                "targets a service directly. Otherwise verify the Service Path is correct and that the "
+                "service exposes entity sets."
             )
 
         return [{"value": e.name, "label": e.name} for e in entities]
