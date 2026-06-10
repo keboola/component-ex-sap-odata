@@ -43,10 +43,12 @@ def _make_records(n: int) -> list[dict]:
 class _SapV2Mock:
     """SAP-style OData V2 service: honours $skip/$top, never returns __next."""
 
-    def __init__(self, base_url: str, total: int):
+    def __init__(self, base_url: str, total: int, count_supported: bool = True):
         self.base_url = base_url.rstrip("/")
         self.records = _make_records(total)
         self.requested_tops: list[int] = []
+        self.requested_skips: list[int] = []
+        self.count_supported = count_supported
 
     def setup(self, respx_mock: respx.MockRouter) -> None:
         respx_mock.get(url__regex=f"{re.escape(self.base_url)}/Items/\\$count(\\?.*)?$").mock(
@@ -61,20 +63,26 @@ class _SapV2Mock:
         skip = int(qs.get("$skip", ["0"])[0])
         top = int(qs.get("$top", ["1000"])[0])
         self.requested_tops.append(top)
+        self.requested_skips.append(skip)
         page = self.records[skip : skip + top]
         # SAP Gateway does NOT emit __next when $top is set — page is the hard cap.
         return httpx.Response(200, json={"d": {"results": page}})
 
     def _count(self, request: httpx.Request) -> httpx.Response:
+        # SAP CDS query views reject $count with 400; model that with count_supported=False.
+        if not self.count_supported:
+            return httpx.Response(400, content="Bad Request")
         return httpx.Response(200, content=str(len(self.records)))
 
 
 class _SapV4Mock:
     """SAP-style OData V4 service: honours $skip/$top, never returns nextLink."""
 
-    def __init__(self, base_url: str, total: int):
+    def __init__(self, base_url: str, total: int, count_supported: bool = True):
         self.base_url = base_url.rstrip("/")
         self.records = _make_records(total)
+        self.requested_skips: list[int] = []
+        self.count_supported = count_supported
 
     def setup(self, respx_mock: respx.MockRouter) -> None:
         respx_mock.get(url__regex=f"{re.escape(self.base_url)}/Items/\\$count(\\?.*)?$").mock(
@@ -88,10 +96,13 @@ class _SapV4Mock:
         qs = parse_qs(urlparse(str(request.url)).query)
         skip = int(qs.get("$skip", ["0"])[0])
         top = int(qs.get("$top", ["1000"])[0])
+        self.requested_skips.append(skip)
         page = self.records[skip : skip + top]
         return httpx.Response(200, json={"value": page})
 
     def _count(self, request: httpx.Request) -> httpx.Response:
+        if not self.count_supported:
+            return httpx.Response(400, content="Bad Request")
         return httpx.Response(200, content=str(len(self.records)))
 
 
@@ -189,3 +200,57 @@ def test_v2_large_page_size_is_capped_per_request(respx_mock):
     # No single HTTP request asked for more than the per-request cap.
     assert mock.requested_tops, "expected at least one data request"
     assert max(mock.requested_tops) == MAX_PAGE_SIZE_PER_REQUEST
+
+
+@respx.mock
+def test_v2_speculative_parallel_when_count_unavailable(respx_mock):
+    """When $count 400s (SAP CDS query views), parallel fetching must still engage
+    speculatively and return the whole set in order."""
+    total = 25
+    mock = _SapV2Mock(V2_BASE_URL, total, count_supported=False)
+    mock.setup(respx_mock)
+    client = SyncODataV2Client.from_basic_auth(
+        username="u", password="p", base_url=V2_BASE_URL, enable_parallel=True, parallel_pages=3
+    )
+    try:
+        records = list(client.fetch_with_pagination("Items", page_size=10))
+    finally:
+        client.close()
+    assert [r["ID"] for r in records] == list(range(total))
+    # It paged by $skip in batches (more than one distinct skip offset requested).
+    assert len(set(mock.requested_skips)) >= 3
+
+
+@respx.mock
+def test_v4_speculative_parallel_when_count_unavailable(respx_mock):
+    """V4 counterpart of the speculative parallel path."""
+    total = 25
+    mock = _SapV4Mock(V4_BASE_URL, total, count_supported=False)
+    mock.setup(respx_mock)
+    client = SyncODataV4Client.from_basic_auth(
+        username="u", password="p", base_url=V4_BASE_URL, enable_parallel=True, parallel_pages=3
+    )
+    try:
+        records = list(client.fetch_with_pagination("Items", page_size=10))
+    finally:
+        client.close()
+    assert [r["ID"] for r in records] == list(range(total))
+
+
+@respx.mock
+def test_v2_speculative_parallel_exact_multiple_no_duplicates(respx_mock):
+    """When total is an exact multiple of page_size, speculative paging must fetch
+    every row exactly once (the trailing empty page just signals the end)."""
+    total = 20  # exact multiple of page_size 10
+    mock = _SapV2Mock(V2_BASE_URL, total, count_supported=False)
+    mock.setup(respx_mock)
+    client = SyncODataV2Client.from_basic_auth(
+        username="u", password="p", base_url=V2_BASE_URL, enable_parallel=True, parallel_pages=3
+    )
+    try:
+        records = list(client.fetch_with_pagination("Items", page_size=10))
+    finally:
+        client.close()
+    ids = [r["ID"] for r in records]
+    assert ids == list(range(total)), "must fetch every row exactly once, in order"
+    assert len(ids) == len(set(ids)), "no duplicates"
