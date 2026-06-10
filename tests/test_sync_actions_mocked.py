@@ -93,7 +93,7 @@ class TestConnectionAction:
         service_path = "odata/v4/service"
         _full_url = f"{base_url}/{service_path}"
 
-        respx_mock.get("{full_url}/").mock(return_value=httpx.Response(200, content="OK"))
+        respx_mock.get(f"{_full_url}/").mock(return_value=httpx.Response(200, content="OK"))
 
         config = {
             "connection": {"base_url": base_url},
