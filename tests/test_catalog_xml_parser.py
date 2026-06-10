@@ -1,6 +1,5 @@
 """Tests for SAP Catalog XML/ATOM parsing."""
 
-
 from src.odata_client.catalog_parser import CatalogParser
 
 
