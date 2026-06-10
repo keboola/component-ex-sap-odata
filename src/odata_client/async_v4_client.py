@@ -94,7 +94,7 @@ class AsyncODataV4Client(AsyncODataClientBase):
             page_size = MAX_PAGE_SIZE_PER_REQUEST
 
         if self.enable_parallel and max_records is None:
-            # Try to get total count to enable parallel fetching
+            # Try to get total count to enable precise parallel fetching
             total_count = await self.get_record_count(entity_set, filter_expr)
             if total_count and total_count > page_size:
                 # Use parallel fetching with known count
@@ -106,6 +106,20 @@ class AsyncODataV4Client(AsyncODataClientBase):
                     order_by=order_by,
                     page_size=page_size,
                     total_count=total_count,
+                ):
+                    yield record
+                return
+            if total_count is None:
+                # Count unavailable (e.g. SAP CDS query views return 400 on $count).
+                # Fetch pages speculatively in parallel instead of crawling
+                # sequentially — far faster over high-latency links. (CFTL-681)
+                async for record in self._fetch_parallel_speculative(
+                    entity_set=entity_set,
+                    select=select,
+                    filter_expr=filter_expr,
+                    expand=expand,
+                    order_by=order_by,
+                    page_size=page_size,
                 ):
                     yield record
                 return
@@ -255,6 +269,65 @@ class AsyncODataV4Client(AsyncODataClientBase):
                     yield self._clean_record(record)
 
         logging.info(f"Finished parallel fetching {total_count} records from {entity_set}")
+
+    async def _fetch_parallel_speculative(
+        self,
+        entity_set: str,
+        select: list[str] | None = None,
+        filter_expr: str | None = None,
+        expand: list[str] | None = None,
+        order_by: str | None = None,
+        page_size: int = 1000,
+    ) -> AsyncIterator[JsonDict]:
+        """Fetch pages in parallel without a known total count.
+
+        Fires ``parallel_pages`` requests concurrently at increasing ``$skip``
+        offsets and keeps launching batches until a page returns fewer than
+        ``page_size`` records (end of data). Used when ``$count`` is unavailable
+        (e.g. SAP CDS query views return 400 on ``$count``), giving parallel
+        throughput where the code would otherwise crawl sequentially.
+
+        Memory stays bounded at ``parallel_pages × page_size`` records per batch.
+        """
+        logging.info(
+            f"Speculative parallel fetching enabled for {entity_set} "
+            f"(no $count; batch size: {self.parallel_pages}, page size: {page_size})"
+        )
+        total_fetched = 0
+        page_index = 0
+        done = False
+
+        while not done:
+            page_numbers = list(range(page_index, page_index + self.parallel_pages))
+            jobs = []
+            for page_num in page_numbers:
+                params = self._build_query_params(
+                    select=select,
+                    filter_expr=filter_expr,
+                    expand=expand,
+                    order_by=order_by,
+                    top=page_size,
+                    skip=page_num * page_size,
+                )
+                jobs.append({"method": "GET", "endpoint": entity_set, "params": params})
+
+            responses = await self._client.process_multiple(jobs)
+
+            for response in responses:
+                results = response.get("value", [])
+                page_len = len(results)
+                for record in results:
+                    yield self._clean_record(record)
+                    total_fetched += 1
+                if page_len < page_size:
+                    # Short page → end of data. Any later pages in this batch are
+                    # past the end; stop without consuming them.
+                    done = True
+                    break
+
+            page_index += self.parallel_pages
+
+        logging.info(f"Finished speculative parallel fetching {total_fetched} records from {entity_set}")
 
     async def get_record_count(self, entity_set: str, filter_expr: str | None = None) -> int | None:
         """Get total record count for entity set.
