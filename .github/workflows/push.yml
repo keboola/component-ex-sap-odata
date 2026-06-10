@@ -7,17 +7,6 @@ on:
       - "*"
 
 concurrency: ci-${{ github.ref }}
-
-env:
-  KBC_DEVELOPERPORTAL_APP: "keboola.ex-sap-odata"
-  KBC_DEVELOPERPORTAL_VENDOR: "keboola"
-  DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
-  KBC_DEVELOPERPORTAL_USERNAME: ${{ vars.KBC_DEVELOPERPORTAL_USERNAME }}
-  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-  KBC_DEVELOPERPORTAL_PASSWORD: ${{ secrets.KBC_DEVELOPERPORTAL_PASSWORD }}
-  KBC_TEST_PROJECT_CONFIGS: ""
-  KBC_STORAGE_TOKEN: ${{ secrets.KBC_STORAGE_TOKEN }}
-
 jobs:
   ci:
     uses: keboola/component-ci/.github/workflows/component-pipeline.yml@master

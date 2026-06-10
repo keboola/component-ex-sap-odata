@@ -1,6 +1,5 @@
 """Tests for catalog_parser.py - parsing service catalogs and service documents."""
 
-
 from src.odata_client.catalog_parser import CatalogParser
 from src.odata_client.metadata import ODataVersion
 
