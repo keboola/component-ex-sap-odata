@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
+import tempfile
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlparse
@@ -419,7 +421,20 @@ class Component(ComponentBase):
                 flat_record = self._flatten_record(record)
 
                 if writer is None:
-                    writer = ElasticDictWriter(table_def.full_path, list(flat_record.keys()))
+                    # ElasticDictWriter buffers the ENTIRE dataset in its temp directory
+                    # until close() (only then is the final CSV written). Its default temp
+                    # dir is tempfile.mkdtemp() -> /tmp, which in a Keboola job container is
+                    # tmpfs (RAM-backed) and counts against the component memory limit — so a
+                    # large extraction grows in memory with total row count and OOMs. Put the
+                    # temp dir on the data volume (same filesystem as the output) so the
+                    # buffered CSV streams to real disk regardless of dataset size. (CFTL-681)
+                    os.makedirs(self.tables_out_path, exist_ok=True)
+                    writer_temp_dir = tempfile.mkdtemp(dir=self.tables_out_path)
+                    writer = ElasticDictWriter(
+                        table_def.full_path,
+                        list(flat_record.keys()),
+                        temp_directory=writer_temp_dir,
+                    )
                     writer.writeheader()
 
                 writer.writerow(flat_record)
