@@ -6,7 +6,7 @@ import pytest
 import requests as req
 
 from component import Component, _simplify_error_message
-from configuration import AuthType, Configuration, ODataVersionChoice
+from configuration import AuthType, Configuration
 from odata_client.metadata import EntityProperty, EntitySet, ODataVersion
 
 
@@ -417,9 +417,7 @@ class TestInsecureWarningSuppressed:
 
         with (
             patch("component.ComponentBase.__init__", lambda self: None),
-            patch.object(
-                Component, "configuration", new_callable=PropertyMock, return_value=Mock(parameters={})
-            ),
+            patch.object(Component, "configuration", new_callable=PropertyMock, return_value=Mock(parameters={})),
             patch("component.Configuration", return_value=fake_config),
             patch("component.urllib3.disable_warnings") as mock_disable,
         ):

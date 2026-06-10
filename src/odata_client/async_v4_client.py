@@ -122,9 +122,17 @@ class AsyncODataV4Client(AsyncODataClientBase):
         page_size: int = 1000,
         max_records: int | None = None,
     ) -> AsyncIterator[JsonDict]:
-        """Sequential pagination following @odata.nextLink."""
+        """Sequential pagination, server-driven (@odata.nextLink) with $skip fallback.
+
+        SAP Gateway treats ``$top`` as a hard total cap and does NOT return an
+        ``@odata.nextLink`` when one is set, so relying on the next link alone
+        stops after the first page. When no next link is present but a full page
+        came back, we advance the offset with ``$skip`` (client-driven paging)
+        so the whole entity set is fetched. Only one page is held in memory.
+        """
         endpoint_path = entity_set
         is_absolute = False
+        next_skip = page_size
         params: dict[str, str] | None = self._build_query_params(
             select=select,
             filter_expr=filter_expr,
@@ -154,6 +162,7 @@ class AsyncODataV4Client(AsyncODataClientBase):
             results = data.get("value", [])
             next_link = data.get("@odata.nextLink")
 
+            page_len = len(results)
             for record in results:
                 if max_records and total_fetched >= max_records:
                     break
@@ -161,10 +170,28 @@ class AsyncODataV4Client(AsyncODataClientBase):
                 total_fetched += 1
 
             if next_link:
+                # Server-driven paging: follow the canonical next link.
                 endpoint_path = next_link
                 is_absolute = True
                 params = None
                 logging.debug(f"Following @odata.nextLink, fetched {total_fetched} records so far")
+            elif page_len == page_size:
+                # No next link but the page was exactly full — SAP capped on $top.
+                # Using == (not >=) avoids infinite looping if a non-conformant server
+                # ignores $top and returns more than page_size records. Advance the
+                # offset manually (client-driven paging) to get the next page.
+                params = self._build_query_params(
+                    select=select,
+                    filter_expr=filter_expr,
+                    expand=expand,
+                    order_by=order_by,
+                    top=page_size,
+                    skip=next_skip,
+                )
+                next_skip += page_size
+                is_absolute = False
+                endpoint_path = entity_set
+                logging.debug(f"No nextLink; advancing with $skip, fetched {total_fetched} records so far")
             else:
                 break
 
@@ -231,7 +258,7 @@ class AsyncODataV4Client(AsyncODataClientBase):
             params["$filter"] = filter_expr
 
         try:
-            response = await self._probe_client.get_raw(endpoint_path=endpoint_path, params=params if params else None)
+            response = await self._probe_client.get_raw(endpoint=endpoint_path, params=params if params else None)
             response.raise_for_status()
             return int(response.text.strip())
         except Exception as e:
@@ -242,8 +269,15 @@ class AsyncODataV4Client(AsyncODataClientBase):
             if "403" in error_msg:
                 logging.error(f"Cannot get record count due to permission error: {e}")
                 raise UserException(f"Access forbidden: {e}") from e
-            # Any other error (404, 500, parse error) — $count not supported, fall back silently
-            logging.info(f"Record count not available ($count not supported or failed): {e}")
+            # Any other error (404, 400, 500, parse error) — this service doesn't support
+            # $count (common for SAP CDS query views). Not a problem: we fall back to
+            # sequential pagination. Keep the raw error at debug level so it doesn't look
+            # like a failure in the job log.
+            logging.info(
+                f"Total record count is unavailable for '{entity_set}' "
+                f"(the service does not support $count); using sequential pagination."
+            )
+            logging.debug(f"$count probe error detail: {e}")
             return None
 
     @staticmethod

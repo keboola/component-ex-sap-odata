@@ -11,7 +11,7 @@ import httpx
 from keboola.component.exceptions import UserException
 from keboola.http_client import AsyncHttpClient
 
-from .auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler, OAuthHandler
+from .auth import ApiKeyAuthHandler, AuthHandler, BasicAuthHandler
 from .catalog_parser import CatalogParser, ServiceInfo
 from .metadata import EntityProperty, EntitySet, MetadataParser, ODataMetadata, ODataVersion
 

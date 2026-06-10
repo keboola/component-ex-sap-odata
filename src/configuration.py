@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
-from enum import Enum, StrEnum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator

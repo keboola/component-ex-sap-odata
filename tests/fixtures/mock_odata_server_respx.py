@@ -5,7 +5,6 @@ Provides realistic OData V2 and V4 mock responses for comprehensive testing.
 
 from __future__ import annotations
 
-import json
 import re
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -452,8 +451,8 @@ class MockODataV2Server:
         if " gt datetime" in filter_expr:
             parts = filter_expr.split(" gt datetime")
             field = parts[0].strip()
-            datetime_value = parts[1].strip().strip("'\"")
-            return [item for item in data if item.get(field, "") > f"/Date(1706054400000)/"]
+            _datetime_value = parts[1].strip().strip("'\"")
+            return [item for item in data if item.get(field, "") > "/Date(1706054400000)/"]
 
         # Handle combined filters
         if " and " in filter_expr:
