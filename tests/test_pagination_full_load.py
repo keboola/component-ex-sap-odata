@@ -24,7 +24,9 @@ import re
 from urllib.parse import parse_qs, urlparse
 
 import httpx
+import pytest
 import respx
+from keboola.component.exceptions import UserException
 
 from odata_client.sync_wrapper import SyncODataV2Client, SyncODataV4Client
 
@@ -80,6 +82,7 @@ class _SapV4Mock:
     def __init__(self, base_url: str, total: int, count_supported: bool = True):
         self.base_url = base_url.rstrip("/")
         self.records = _make_records(total)
+        self.requested_tops: list[int] = []
         self.requested_skips: list[int] = []
         self.count_supported = count_supported
 
@@ -95,6 +98,7 @@ class _SapV4Mock:
         qs = parse_qs(urlparse(str(request.url)).query)
         skip = int(qs.get("$skip", ["0"])[0])
         top = int(qs.get("$top", ["1000"])[0])
+        self.requested_tops.append(top)
         self.requested_skips.append(skip)
         page = self.records[skip : skip + top]
         return httpx.Response(200, json={"value": page})
@@ -243,3 +247,134 @@ def test_v2_speculative_parallel_exact_multiple_no_duplicates(respx_mock):
     ids = [r["ID"] for r in records]
     assert ids == list(range(total)), "must fetch every row exactly once, in order"
     assert len(ids) == len(set(ids)), "no duplicates"
+
+
+@respx.mock
+def test_v4_configured_page_size_is_honored_as_top(respx_mock):
+    """V4 counterpart: the configured page_size must be used verbatim as $top."""
+    total = 2500
+    mock = _SapV4Mock(V4_BASE_URL, total)
+    mock.setup(respx_mock)
+    client = SyncODataV4Client.from_basic_auth(username="u", password="p", base_url=V4_BASE_URL, parallel_pages=1)
+    try:
+        records = list(client.fetch_with_pagination("Items", page_size=2000))
+    finally:
+        client.close()
+    assert [r["ID"] for r in records] == list(range(total))
+    assert mock.requested_tops, "expected at least one data request"
+    assert set(mock.requested_tops) == {2000}
+
+
+@respx.mock
+def test_v4_speculative_parallel_exact_multiple_no_duplicates(respx_mock):
+    """V4 counterpart: when total is an exact multiple of page_size, speculative
+    paging must fetch every row exactly once."""
+    total = 20  # exact multiple of page_size 10
+    mock = _SapV4Mock(V4_BASE_URL, total, count_supported=False)
+    mock.setup(respx_mock)
+    client = SyncODataV4Client.from_basic_auth(username="u", password="p", base_url=V4_BASE_URL, parallel_pages=3)
+    try:
+        records = list(client.fetch_with_pagination("Items", page_size=10))
+    finally:
+        client.close()
+    ids = [r["ID"] for r in records]
+    assert ids == list(range(total)), "must fetch every row exactly once, in order"
+    assert len(ids) == len(set(ids)), "no duplicates"
+
+
+class _ServerPagingV2Mock:
+    """SAP-style V2 service that caps responses below $top AND emits __next
+    (server-driven paging) — incompatible with parallel $skip striding."""
+
+    def __init__(self, base_url: str):
+        self.base_url = base_url.rstrip("/")
+
+    def setup(self, respx_mock: respx.MockRouter) -> None:
+        # $count 400s so the speculative parallel path engages.
+        respx_mock.get(url__regex=f"{re.escape(self.base_url)}/Items/\\$count(\\?.*)?$").mock(
+            return_value=httpx.Response(400, content="Bad Request"),
+        )
+        respx_mock.get(url__regex=f"{re.escape(self.base_url)}/Items(\\?.*)?$").mock(
+            side_effect=self._items,
+        )
+
+    def _items(self, request: httpx.Request) -> httpx.Response:
+        # Always return fewer records than $top, plus a continuation link.
+        page = _make_records(5)
+        return httpx.Response(
+            200,
+            json={"d": {"results": page, "__next": f"{self.base_url}/Items?$skip=5&$top=10"}},
+        )
+
+
+class _ServerPagingV4Mock:
+    """SAP-style V4 service that caps responses below $top AND emits @odata.nextLink."""
+
+    def __init__(self, base_url: str):
+        self.base_url = base_url.rstrip("/")
+
+    def setup(self, respx_mock: respx.MockRouter) -> None:
+        respx_mock.get(url__regex=f"{re.escape(self.base_url)}/Items/\\$count(\\?.*)?$").mock(
+            return_value=httpx.Response(400, content="Bad Request"),
+        )
+        respx_mock.get(url__regex=f"{re.escape(self.base_url)}/Items(\\?.*)?$").mock(
+            side_effect=self._items,
+        )
+
+    def _items(self, request: httpx.Request) -> httpx.Response:
+        page = _make_records(5)
+        return httpx.Response(
+            200,
+            json={"value": page, "@odata.nextLink": f"{self.base_url}/Items?$skip=5&$top=10"},
+        )
+
+
+@respx.mock
+def test_v2_parallel_raises_on_server_driven_paging(respx_mock):
+    """A short page WITH a continuation link means the server caps below $top;
+    parallel striding would silently drop rows, so the fetch must raise."""
+    _ServerPagingV2Mock(V2_BASE_URL).setup(respx_mock)
+    client = SyncODataV2Client.from_basic_auth(username="u", password="p", base_url=V2_BASE_URL, parallel_pages=3)
+    try:
+        with pytest.raises(UserException, match="parallel_pages"):
+            list(client.fetch_with_pagination("Items", page_size=10))
+    finally:
+        client.close()
+
+
+@respx.mock
+def test_v4_parallel_raises_on_server_driven_paging(respx_mock):
+    """V4 counterpart of the server-driven-paging guard."""
+    _ServerPagingV4Mock(V4_BASE_URL).setup(respx_mock)
+    client = SyncODataV4Client.from_basic_auth(username="u", password="p", base_url=V4_BASE_URL, parallel_pages=3)
+    try:
+        with pytest.raises(UserException, match="parallel_pages"):
+            list(client.fetch_with_pagination("Items", page_size=10))
+    finally:
+        client.close()
+
+
+def test_v2_extract_page_parses_results_and_next():
+    """V2 _extract_page unwraps d.results and surfaces __next."""
+    client = SyncODataV2Client.from_basic_auth(username="u", password="p", base_url=V2_BASE_URL)
+    try:
+        with_next = client._async_client._extract_page(
+            {"d": {"results": [{"ID": 1}, {"ID": 2}], "__next": "https://x/next"}}
+        )
+        without_next = client._async_client._extract_page({"d": {"results": [{"ID": 3}]}})
+    finally:
+        client.close()
+    assert with_next == ([{"ID": 1}, {"ID": 2}], "https://x/next")
+    assert without_next == ([{"ID": 3}], None)
+
+
+def test_v4_extract_page_parses_value_and_next_link():
+    """V4 _extract_page reads value and @odata.nextLink."""
+    client = SyncODataV4Client.from_basic_auth(username="u", password="p", base_url=V4_BASE_URL)
+    try:
+        with_next = client._async_client._extract_page({"value": [{"ID": 1}], "@odata.nextLink": "https://x/next"})
+        without_next = client._async_client._extract_page({"value": [{"ID": 2}, {"ID": 3}]})
+    finally:
+        client.close()
+    assert with_next == ([{"ID": 1}], "https://x/next")
+    assert without_next == ([{"ID": 2}, {"ID": 3}], None)

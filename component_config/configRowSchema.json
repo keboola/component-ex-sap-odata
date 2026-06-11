@@ -264,6 +264,7 @@
             "description": "Number of pages to fetch concurrently (1 = sequential).",
             "default": 1,
             "minimum": 1,
+            "maximum": 10,
             "propertyOrder": 3,
             "options": {
               "tooltip": "How many pages to fetch **at once**.\n\n- `1` (default) = sequential, one page at a time — lowest, most predictable memory.\n- Higher = more throughput on sources that handle concurrent requests, but **peak memory ≈ Page Size × Parallel Pages × row width**.\n\nTry increasing it for faster loads; lower it (or the page size) if a wide entity runs out of memory."
