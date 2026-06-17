@@ -25,7 +25,6 @@ class TestFormatFilterLiteral:
             comp._config.timeout = 30
             comp._config.max_retries = 3
             comp._config.verify_ssl = True
-            comp._config.enable_parallel = False
             comp._config.parallel_pages = 5
             comp._config.max_requests_per_second = 10
             comp._config.auth_type = AuthType.BASIC
@@ -167,7 +166,6 @@ class TestGetFieldEdmType:
             comp._config.timeout = 30
             comp._config.max_retries = 3
             comp._config.verify_ssl = True
-            comp._config.enable_parallel = False
             comp._config.parallel_pages = 5
             comp._config.max_requests_per_second = 10
             comp._config.auth_type = AuthType.BASIC
@@ -303,7 +301,6 @@ class TestBuildFilterExpression:
             comp._config.timeout = 30
             comp._config.max_retries = 3
             comp._config.verify_ssl = True
-            comp._config.enable_parallel = False
             comp._config.parallel_pages = 5
             comp._config.max_requests_per_second = 10
             comp._config.auth_type = AuthType.BASIC

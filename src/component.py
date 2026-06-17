@@ -160,12 +160,12 @@ class Component(ComponentBase):
         service_url = config.get_service_url(detected_version_choice)
 
         # Common client parameters including parallel fetching options
+        # (parallel_pages = 1 means sequential; > 1 fetches that many pages concurrently)
         client_params = {
             "base_url": service_url,
             "timeout": config.timeout,
             "max_retries": config.max_retries,
             "verify_ssl": config.verify_ssl,
-            "enable_parallel": config.enable_parallel,
             "parallel_pages": config.parallel_pages,
             "max_requests_per_second": config.max_requests_per_second,
         }

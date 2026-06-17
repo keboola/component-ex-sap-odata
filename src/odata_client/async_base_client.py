@@ -27,8 +27,7 @@ class AsyncODataClientBase(ABC):
         timeout: int = 60,
         max_retries: int = 3,
         verify_ssl: bool = True,
-        enable_parallel: bool = True,
-        parallel_pages: int = 5,
+        parallel_pages: int = 1,
         max_requests_per_second: float | None = None,
     ):
         self.base_url = base_url.rstrip("/")
@@ -36,7 +35,7 @@ class AsyncODataClientBase(ABC):
         self.timeout = timeout
         self.max_retries = max_retries
         self.verify_ssl = verify_ssl
-        self.enable_parallel = enable_parallel
+        # Pages fetched concurrently; 1 = sequential, > 1 = parallel.
         self.parallel_pages = parallel_pages
         self._metadata: ODataMetadata | None = None
         self._metadata_lock = asyncio.Lock()
@@ -79,8 +78,7 @@ class AsyncODataClientBase(ABC):
         timeout: int = 60,
         max_retries: int = 3,
         verify_ssl: bool = True,
-        enable_parallel: bool = True,
-        parallel_pages: int = 5,
+        parallel_pages: int = 1,
         max_requests_per_second: float | None = None,
     ) -> AsyncODataClientBase:
         auth_handler = BasicAuthHandler(username, password)
@@ -90,7 +88,6 @@ class AsyncODataClientBase(ABC):
             timeout=timeout,
             max_retries=max_retries,
             verify_ssl=verify_ssl,
-            enable_parallel=enable_parallel,
             parallel_pages=parallel_pages,
             max_requests_per_second=max_requests_per_second,
         )
@@ -104,8 +101,7 @@ class AsyncODataClientBase(ABC):
         timeout: int = 60,
         max_retries: int = 3,
         verify_ssl: bool = True,
-        enable_parallel: bool = True,
-        parallel_pages: int = 5,
+        parallel_pages: int = 1,
         max_requests_per_second: float | None = None,
     ) -> AsyncODataClientBase:
         auth_handler = ApiKeyAuthHandler(api_key, header_name)
@@ -115,7 +111,6 @@ class AsyncODataClientBase(ABC):
             timeout=timeout,
             max_retries=max_retries,
             verify_ssl=verify_ssl,
-            enable_parallel=enable_parallel,
             parallel_pages=parallel_pages,
             max_requests_per_second=max_requests_per_second,
         )
@@ -404,12 +399,51 @@ class AsyncODataClientBase(ABC):
         except Exception as e:
             return False, f"Connection failed: {e}"
 
+    # ------------------------------------------------------------------
+    # Version-specific hooks (implemented by V2/V4 subclasses)
+    # ------------------------------------------------------------------
+
     @abstractmethod
     def _get_odata_version(self) -> ODataVersion:
         pass
 
     @abstractmethod
-    def fetch_entity_set(
+    def _build_query_params(
+        self,
+        select: list[str] | None = None,
+        filter_expr: str | None = None,
+        expand: list[str] | None = None,
+        order_by: str | None = None,
+        top: int | None = None,
+        skip: int | None = None,
+    ) -> dict[str, str]:
+        """Build OData query parameters for the concrete protocol version."""
+        ...
+
+    @abstractmethod
+    def _extract_page(self, response: JsonDict) -> tuple[list[JsonDict], str | None]:
+        """Extract ``(records, next_link)`` from a raw OData response page.
+
+        ``next_link`` is the server-driven paging continuation link
+        (``__next`` in V2, ``@odata.nextLink`` in V4), or ``None`` when the
+        response carries no next link.
+        """
+        ...
+
+    @abstractmethod
+    def _clean_record(self, record: JsonDict, _depth: int = 0) -> JsonDict:
+        """Strip protocol metadata from a record (``__*`` in V2, ``@odata.*`` in V4)."""
+        ...
+
+    @abstractmethod
+    async def get_record_count(self, entity_set: str, filter_expr: str | None = None) -> int | None:
+        pass
+
+    # ------------------------------------------------------------------
+    # Pagination state machine (shared by all OData versions)
+    # ------------------------------------------------------------------
+
+    async def fetch_entity_set(
         self,
         entity_set: str,
         select: list[str] | None = None,
@@ -419,11 +453,21 @@ class AsyncODataClientBase(ABC):
         top: int | None = None,
         skip: int | None = None,
     ) -> AsyncIterator[JsonDict]:
-        """Fetch entity set without pagination."""
-        pass
+        """Fetch a single page of an entity set (no automatic pagination)."""
+        params = self._build_query_params(
+            select=select,
+            filter_expr=filter_expr,
+            expand=expand,
+            order_by=order_by,
+            top=top,
+            skip=skip,
+        )
+        data = await self._get_json(endpoint_path=entity_set, params=params)
+        records, _ = self._extract_page(data)
+        for record in records:
+            yield self._clean_record(record)
 
-    @abstractmethod
-    def fetch_with_pagination(
+    async def fetch_with_pagination(
         self,
         entity_set: str,
         select: list[str] | None = None,
@@ -433,9 +477,288 @@ class AsyncODataClientBase(ABC):
         page_size: int = 1000,
         max_records: int | None = None,
     ) -> AsyncIterator[JsonDict]:
-        """Fetch entity set with automatic pagination."""
-        pass
+        """Fetch an entire entity set, paging automatically.
 
-    @abstractmethod
-    async def get_record_count(self, entity_set: str, filter_expr: str | None = None) -> int | None:
-        pass
+        With ``parallel_pages > 1`` and no record cap, pages are fetched
+        concurrently — precisely when ``$count`` is available, speculatively
+        otherwise (SAP CDS query views reject ``$count`` with 400). Every other
+        case falls back to sequential server-driven paging. Only one batch of
+        pages is held in memory at a time. (CFTL-681)
+        """
+        if self.parallel_pages > 1 and max_records is None:
+            # Try to get total count to enable precise parallel fetching
+            total_count = await self.get_record_count(entity_set, filter_expr)
+            if total_count and total_count > page_size:
+                async for record in self._fetch_parallel_with_count(
+                    entity_set=entity_set,
+                    select=select,
+                    filter_expr=filter_expr,
+                    expand=expand,
+                    order_by=order_by,
+                    page_size=page_size,
+                    total_count=total_count,
+                ):
+                    yield record
+                return
+            if total_count is None:
+                # Count unavailable (e.g. SAP CDS query views return 400 on $count).
+                # Fetch pages speculatively in parallel instead of crawling
+                # sequentially — far faster over high-latency links. (CFTL-681)
+                async for record in self._fetch_parallel_speculative(
+                    entity_set=entity_set,
+                    select=select,
+                    filter_expr=filter_expr,
+                    expand=expand,
+                    order_by=order_by,
+                    page_size=page_size,
+                ):
+                    yield record
+                return
+
+        # Fall back to sequential pagination (server-driven next link + $skip)
+        async for record in self._fetch_sequential(
+            entity_set=entity_set,
+            select=select,
+            filter_expr=filter_expr,
+            expand=expand,
+            order_by=order_by,
+            page_size=page_size,
+            max_records=max_records,
+        ):
+            yield record
+
+    async def _fetch_sequential(
+        self,
+        entity_set: str,
+        select: list[str] | None = None,
+        filter_expr: str | None = None,
+        expand: list[str] | None = None,
+        order_by: str | None = None,
+        page_size: int = 1000,
+        max_records: int | None = None,
+    ) -> AsyncIterator[JsonDict]:
+        """Sequential server-driven paging with a client-driven ``$skip`` fallback.
+
+        SAP Gateway treats ``$top`` as a hard total cap and does NOT return a
+        next link when one is set, so relying on the next link alone stops after
+        the first page. When no next link is present but a full page came back,
+        the offset is advanced with ``$skip`` (client-driven paging) so the whole
+        entity set is fetched. Only one page is held in memory at a time.
+        """
+        endpoint_path = entity_set
+        is_absolute = False
+        next_skip = page_size
+        params: dict[str, str] | None = self._build_query_params(
+            select=select,
+            filter_expr=filter_expr,
+            expand=expand,
+            order_by=order_by,
+            top=page_size,
+        )
+
+        total_fetched = 0
+        max_pages = 100_000
+        page_count = 0
+
+        while endpoint_path:
+            if page_count >= max_pages:
+                logging.warning(f"Reached page safety limit ({max_pages}) for {entity_set}, stopping.")
+                break
+            page_count += 1
+            if max_records and total_fetched >= max_records:
+                break
+
+            data = await self._get_json(
+                endpoint_path=endpoint_path,
+                params=params if not is_absolute else None,
+                is_absolute_path=is_absolute,
+            )
+
+            results, next_link = self._extract_page(data)
+
+            page_len = len(results)
+            for record in results:
+                if max_records and total_fetched >= max_records:
+                    break
+                yield self._clean_record(record)
+                total_fetched += 1
+
+            if next_link:
+                # Server-driven paging: follow the canonical next link.
+                endpoint_path = next_link
+                is_absolute = True
+                params = None
+                logging.debug(f"Following next link, fetched {total_fetched} records so far")
+            elif page_len == page_size:
+                # No next link but the page was exactly full — SAP capped on $top.
+                # Using == (not >=) avoids infinite looping if a non-conformant server
+                # ignores $top and returns more than page_size records. Advance the
+                # offset manually (client-driven paging) to get the next page.
+                params = self._build_query_params(
+                    select=select,
+                    filter_expr=filter_expr,
+                    expand=expand,
+                    order_by=order_by,
+                    top=page_size,
+                    skip=next_skip,
+                )
+                next_skip += page_size
+                is_absolute = False
+                endpoint_path = entity_set
+                logging.debug(f"No next link; advancing with $skip, fetched {total_fetched} records so far")
+            else:
+                break
+
+        logging.info(f"Finished fetching {total_fetched} records from {entity_set}")
+
+    async def _fetch_parallel_with_count(
+        self,
+        entity_set: str,
+        total_count: int,
+        select: list[str] | None = None,
+        filter_expr: str | None = None,
+        expand: list[str] | None = None,
+        order_by: str | None = None,
+        page_size: int = 1000,
+    ) -> AsyncIterator[JsonDict]:
+        """Fetch pages in parallel when the total count is known."""
+        total_pages = (total_count + page_size - 1) // page_size
+        logging.info(
+            f"Parallel fetching enabled: {total_count} records in {total_pages} pages "
+            f"(batch size: {self.parallel_pages})"
+        )
+        self._log_batch_peak(page_size)
+
+        # Fetch pages in batches
+        for batch_start in range(0, total_pages, self.parallel_pages):
+            batch_end = min(batch_start + self.parallel_pages, total_pages)
+            page_numbers = list(range(batch_start, batch_end))
+
+            # Build jobs for parallel fetching
+            jobs = []
+            for page_num in page_numbers:
+                params = self._build_query_params(
+                    select=select,
+                    filter_expr=filter_expr,
+                    expand=expand,
+                    order_by=order_by,
+                    top=page_size,
+                    skip=page_num * page_size,
+                )
+                jobs.append({"method": "GET", "endpoint": entity_set, "params": params})
+
+            # Fetch batch of pages in parallel
+            logging.debug(f"Fetching pages {batch_start}-{batch_end - 1} in parallel")
+            responses = await self._client.process_multiple(jobs)
+
+            # Yield records from all responses in order
+            for page_num, response in zip(page_numbers, responses, strict=True):
+                records, next_link = self._extract_page(response)
+                self._guard_against_server_paging(entity_set, len(records), page_size, next_link)
+                logging.debug(f"Page {page_num}: {len(records)} records")
+                for record in records:
+                    yield self._clean_record(record)
+
+        logging.info(f"Finished parallel fetching {total_count} records from {entity_set}")
+
+    async def _fetch_parallel_speculative(
+        self,
+        entity_set: str,
+        select: list[str] | None = None,
+        filter_expr: str | None = None,
+        expand: list[str] | None = None,
+        order_by: str | None = None,
+        page_size: int = 1000,
+    ) -> AsyncIterator[JsonDict]:
+        """Fetch pages in parallel without a known total count.
+
+        Fires ``parallel_pages`` requests concurrently at increasing ``$skip``
+        offsets and keeps launching batches until a page returns fewer than
+        ``page_size`` records (end of data). Used when ``$count`` is unavailable
+        (e.g. SAP CDS query views return 400 on ``$count``), giving parallel
+        throughput where the code would otherwise crawl sequentially.
+
+        Memory stays bounded at ``parallel_pages × page_size`` records per batch.
+        """
+        logging.info(
+            f"Speculative parallel fetching enabled for {entity_set} "
+            f"(no $count; batch size: {self.parallel_pages}, page size: {page_size})"
+        )
+        self._log_batch_peak(page_size)
+        total_fetched = 0
+        page_index = 0
+        done = False
+
+        while not done:
+            page_numbers = list(range(page_index, page_index + self.parallel_pages))
+            jobs = []
+            for page_num in page_numbers:
+                params = self._build_query_params(
+                    select=select,
+                    filter_expr=filter_expr,
+                    expand=expand,
+                    order_by=order_by,
+                    top=page_size,
+                    skip=page_num * page_size,
+                )
+                jobs.append({"method": "GET", "endpoint": entity_set, "params": params})
+
+            responses = await self._client.process_multiple(jobs)
+
+            for response in responses:
+                records, next_link = self._extract_page(response)
+                page_len = len(records)
+                if page_len < page_size:
+                    # Short page → end of data, UNLESS the server attached a
+                    # continuation link (server-driven paging): it then capped the
+                    # response below $top and our $skip stride would skip rows.
+                    self._guard_against_server_paging(entity_set, page_len, page_size, next_link)
+                    for record in records:
+                        yield self._clean_record(record)
+                        total_fetched += 1
+                    done = True
+                    break
+                for record in records:
+                    yield self._clean_record(record)
+                    total_fetched += 1
+
+            page_index += self.parallel_pages
+
+        logging.info(f"Finished speculative parallel fetching {total_fetched} records from {entity_set}")
+
+    def _log_batch_peak(self, page_size: int) -> None:
+        """Log the estimated per-batch memory peak before parallel fetching starts.
+
+        The peak driver for parallel fetching is ``page_size × parallel_pages``
+        records held at once. Surfacing it gives support a hint when a wide
+        entity OOMs (the job log otherwise gave no clue why). (CFTL-681)
+        """
+        peak = page_size * self.parallel_pages
+        logging.info(
+            f"Parallel fetch holds up to ~{peak:,} records in memory per batch "
+            f"(page_size {page_size:,} × parallel_pages {self.parallel_pages}); "
+            f"lower either setting if the job runs out of memory."
+        )
+
+    def _guard_against_server_paging(
+        self, entity_set: str, page_len: int, page_size: int, next_link: str | None
+    ) -> None:
+        """Fail loud if a parallel fetch hits server-driven paging.
+
+        Parallel fetching strides by computed ``$skip`` offsets and assumes the
+        server returns full ``page_size`` pages. If the server caps a response
+        below ``$top`` and signals more data with a continuation link, the stride
+        would jump past the un-returned rows and silently drop them. Raising here
+        (rather than truncating) prevents silent data loss; the user can set
+        ``parallel_pages = 1`` to fall back to sequential paging, which follows
+        the server's links. (CFTL-681)
+        """
+        if next_link and page_len < page_size:
+            raise UserException(
+                f"Server-driven paging detected for '{entity_set}' during parallel fetching: "
+                f"a page returned {page_len} of {page_size} requested records but included a "
+                f"continuation link, so the server caps responses below the requested page size. "
+                f"Parallel fetching strides by offset and would silently drop rows here. "
+                f"Set 'parallel_pages' to 1 for this entity to fetch sequentially (which follows "
+                f"the server's paging links)."
+            )

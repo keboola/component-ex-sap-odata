@@ -65,6 +65,46 @@ Each row extracts one entity set. Multiple rows can be configured for different 
 | `destination.primary_key` | For incremental | Primary key fields - multiselect array |
 | `advanced_options.page_size` | No | Override page size for this entity |
 | `advanced_options.max_records` | No | Override max records for this entity |
+| `advanced_options.parallel_pages` | No | Pages fetched concurrently for this entity (default: 1 = sequential; increase for throughput) |
+
+### Performance & Large Loads
+
+Records are streamed to the output as they are fetched, so the **total** dataset
+size is not the memory constraint — the per-batch peak is. Peak memory is roughly
+`page_size × parallel_pages × row_width`:
+
+- `page_size` (default `1000`) — records fetched per request.
+- `parallel_pages` (default `1` = sequential) — pages fetched concurrently.
+  Increase it for higher throughput on sources that handle concurrent requests,
+  but it multiplies peak memory.
+
+For a first load of **millions of rows**, especially for **wide** entities (many
+columns, e.g. ACDOCA-style CDS views), the default component memory can be too
+small. Run that load on a larger backend by setting the runtime backend size:
+
+```json
+"runtime": { "backend": { "type": "medium" } }
+```
+
+(or pick the **Backend size** in the UI / use the "run with increased memory"
+prompt). Use `medium`/`large` for the initial full load, then switch to
+**incremental** loads afterwards. Keeping `page_size` modest (the `1000` default)
+and `parallel_pages` low are the levers if you need to reduce memory instead.
+
+#### Page size is the main speed lever
+
+Throughput is dominated by the **number of requests** (`total_rows ÷ page_size`),
+not the row count — each request carries a fixed cost (network latency plus the
+server computing the `$skip` offset, which is expensive for aggregating CDS
+views). So a **larger page size is the most effective speedup**: e.g. on one ~1.4M
+row load, `page_size=5000` ran ~4× faster than `page_size=1000` (~830 vs ~210
+rows/s). Parallel fetching helps only if the source actually serves concurrent
+requests — some SAP systems serialize them server-side, giving little gain for
+the extra memory.
+
+**Recommended for large loads:** raise `page_size` *and* the backend size together
+(more memory to afford the bigger pages) rather than relying on small pages —
+it's both faster and safe from OOM.
 
 ## SAP Service Catalog Support
 

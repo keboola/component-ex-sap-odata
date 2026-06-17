@@ -63,8 +63,9 @@ class ConnectionOptions(BaseModel):
     timeout: int = Field(default=60, description="Request timeout in seconds")
     max_retries: int = Field(default=3, description="Maximum number of retries for failed requests")
     verify_ssl: bool = Field(default=True, description="Verify SSL certificates")
-    enable_parallel: bool = Field(default=True, description="Enable parallel page fetching")
-    parallel_pages: int = Field(default=5, description="Number of pages to fetch in parallel")
+    parallel_pages: int = Field(
+        default=1, ge=1, le=10, description="Number of pages to fetch concurrently (1 = sequential)"
+    )
     max_requests_per_second: float | None = Field(default=None, description="Maximum requests per second")
 
 
@@ -128,6 +129,9 @@ class RowAdvancedOptions(BaseModel):
     model_config = ConfigDict(extra="forbid")
     page_size: int | None = Field(default=None, description="Override page size for this entity")
     max_records: int | None = Field(default=None, description="Override max records for this entity")
+    parallel_pages: int | None = Field(
+        default=None, ge=1, le=10, description="Override parallel page count for this entity"
+    )
 
 
 class Configuration(BaseModel):
@@ -301,18 +305,16 @@ class Configuration(BaseModel):
         return True
 
     @property
-    def enable_parallel(self) -> bool:
-        root = self._root_opts
-        if root and root.connection_options:
-            return root.connection_options[0].enable_parallel
-        return True
-
-    @property
     def parallel_pages(self) -> int:
+        # Row advanced_options takes precedence
+        if isinstance(self.advanced_options, RowAdvancedOptions):
+            if self.advanced_options.parallel_pages is not None:
+                return self.advanced_options.parallel_pages
+        # Then root connection_options
         root = self._root_opts
         if root and root.connection_options:
             return root.connection_options[0].parallel_pages
-        return 5
+        return 1
 
     @property
     def max_requests_per_second(self) -> float | None:

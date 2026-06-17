@@ -221,7 +221,7 @@
                 "default": 1000,
                 "propertyOrder": 1,
                 "options": {
-                  "tooltip": "**Records per page** for all entities. Can be overridden per entity in row config.\n\n**Recommended:** `1000` (default)\n\n[OData query docs](https://www.odata.org/getting-started/basic-tutorial/#queryData)"
+                  "tooltip": "**Records per page** for all entities. Can be overridden per entity in row config.\n\n**Recommended:** `1000` (default). Larger pages mean fewer requests but **more memory per request** (one page is held in memory while it is parsed), especially for wide entities — raise it gradually if you hit memory limits.\n\n[OData query docs](https://www.odata.org/getting-started/basic-tutorial/#queryData)"
                 }
               },
               "max_records": {
