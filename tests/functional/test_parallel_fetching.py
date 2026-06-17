@@ -29,7 +29,6 @@ def sync_client_parallel() -> SyncODataV4Client:
         api_key=SAP_API_KEY,
         header_name="APIKey",
         base_url=f"{SAP_BASE_URL}{SAP_SERVICE_PATH}",
-        enable_parallel=True,
         parallel_pages=5,
     )
     yield client
@@ -43,7 +42,6 @@ def sync_client_sequential() -> SyncODataV4Client:
         api_key=SAP_API_KEY,
         header_name="APIKey",
         base_url=f"{SAP_BASE_URL}{SAP_SERVICE_PATH}",
-        enable_parallel=False,
         parallel_pages=1,
     )
     yield client
@@ -224,7 +222,6 @@ def test_rate_limiting():
         api_key=SAP_API_KEY,
         header_name="APIKey",
         base_url=f"{SAP_BASE_URL}{SAP_SERVICE_PATH}",
-        enable_parallel=True,
         parallel_pages=3,
         max_requests_per_second=2.0,  # Limit to 2 requests per second
     )
