@@ -81,6 +81,9 @@ You should get a JSON response with company code data.
 1. Set your API key as environment variable:
 ```bash
 export SAP_API_KEY="your-api-key-here"
+# Basic-auth / SAP Cloud Integration (SCI) test cases additionally need:
+export SAP_SCI_USERNAME="your-xsuaa-client-id"
+export SAP_SCI_PASSWORD="your-xsuaa-client-secret"
 ```
 
 2. Run functional tests:
@@ -94,6 +97,9 @@ Create a `.env` file (NOT committed to git):
 ```bash
 # .env
 SAP_API_KEY=your-api-key-here
+# Only needed to run the basic-auth / SCI (SAP Cloud Integration) test cases:
+SAP_SCI_USERNAME=your-xsuaa-client-id
+SAP_SCI_PASSWORD=your-xsuaa-client-secret
 ```
 
 Load it before running tests:

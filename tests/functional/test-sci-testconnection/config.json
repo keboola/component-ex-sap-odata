@@ -7,8 +7,8 @@
     },
     "authentication": {
       "auth_type": "basic",
-      "username": "sb-43c96ca1-8b99-49f7-8698-4c1209f04ac8!b105926|it-rt-26db83b8trial!b196",
-      "#password": "aa0305ff-973a-46a7-b501-1eef6b792ec9$pG2VVmWcas7OgWYXF8rNeLwDIIJDL7VZ7_JhlZoFmeU="
+      "username": "%env(string:SAP_SCI_USERNAME)%",
+      "#password": "%env(string:SAP_SCI_PASSWORD)%"
     },
     "advanced_options": {
       "connection_options": [],
