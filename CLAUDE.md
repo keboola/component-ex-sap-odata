@@ -132,7 +132,7 @@ Lokálně ověřené:
 ### SAP sandbox
 - **Base URL:** `https://sandbox.api.sap.com/s4hanacloud`
 - **Auth type:** `apiKey`, header name: `APIKey`
-- **API key:** v `data/config_api.json` → field `#api_key` (hodnota: `ir1vVXAPKmQwv3O9pPhvqPa5YFGOze6X`)
+- **API key:** v `data/config_api.json` → field `#api_key` (hodnota: `__SAP_API_KEY__`)
 
 ### Deployment kroky
 1. **`git push origin main`** – odeslat 4 lokální commity
@@ -163,7 +163,7 @@ Lokálně ověřené:
   "authentication": {
     "auth_type": "apiKey",
     "api_key_name": "APIKey",
-    "#api_key": "ir1vVXAPKmQwv3O9pPhvqPa5YFGOze6X"
+    "#api_key": "__SAP_API_KEY__"
   },
   "odata_version": "v4",
   "service_path": "/sap/opu/odata4/sap/api_business_partner/srvd_a2x/sap/business_partner/0001",
